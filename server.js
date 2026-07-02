@@ -184,40 +184,6 @@ const fileStoreOptions = {
   useReapInterval: true
 };
 
-app.post('/api/register-vendor', async (req, res) => {
-    const { nit, company_name, contact_email, /* ...otros datos */ } = req.body;
-
-    // Validar que el frontend envió la aceptación del Habeas Data
-    // (Debes añadir un input hidden o un campo en tu formulario de registro que diga: habeas_data_accepted: true)
-    if (!req.body.habeas_data_accepted) {
-        return res.status(400).json({ error: 'Debe aceptar la política de tratamiento de datos.' });
-    }
-
-    try {
-        // Insertar en la base de datos (usando la tabla 'vendors' que creamos antes)
-        const query = `
-            INSERT INTO vendors (nit, company_name, contact_email, habeas_data_accepted, habeas_data_accepted_at, status) 
-            VALUES (?, ?, ?, ?, ?, 'pre_registro')
-        `;
-        
-        const values = [
-            nit, 
-            company_name, 
-            contact_email, 
-            true, // Habeas data aceptado
-            new Date() // Fecha y hora exacta de la aceptación
-        ];
-
-        // Ejecutar tu consulta a MySQL aquí (con tu pool o conexión)
-        // await db.query(query, values);
-
-        res.json({ success: true, message: 'Proveedor registrado exitosamente.' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Error al registrar el proveedor.' });
-    }
-});
-
 app.use(session({
   store: new FileStoreInstance(fileStoreOptions),
   secret: SESSION_SECRET,
