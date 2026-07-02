@@ -101,13 +101,52 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 
-// Rate Limiting
-const limiterLogin = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, message: { error: 'Demasiados intentos.' } });
-const limiterGeneral = rateLimit({ windowMs: 1 * 60 * 1000, max: 100, message: { error: 'Demasiadas peticiones.' } });
-const limiterUpload = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, message: { error: 'Demasiadas subidas.' } });
+// ==========================================
+// 🔒 RATE LIMITING INTELIGENTE
+// ==========================================
 
+// 1. Rate limiter para login (más permisivo, no bloquea admin)
+const limiterLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutos
+  max: 20,                    // 20 intentos (más permisivo)
+  message: { 
+    error: 'Demasiados intentos. Espera 15 minutos o contacta al administrador.',
+    minutos_restantes: 15
+  },
+  // ⭐ SKIP: El admin NUNCA se bloquea por rate limit
+  skip: (req) => {
+    if (req.body && req.body.email) {
+      const usuario = db.prepare('SELECT rol FROM usuarios WHERE email = ?').get(req.body.email);
+      if (usuario && usuario.rol === 'admin') {
+        return true;  // Admin saltado del rate limit
+      }
+    }
+    return false;
+  },
+  // ⭐ LIMPIEZA AUTOMÁTICA: Resetear contadores cada hora
+  handler: (req, res, next, options) => {
+    res.status(429).json(options.message);
+  }
+});
+
+// 2. Rate limiter general (más permisivo)
+const limiterGeneral = rateLimit({
+  windowMs: 1 * 60 * 1000,  // 1 minuto
+  max: 200,                  // 200 peticiones por minuto
+  message: { error: 'Demasiadas peticiones. Espera un momento.' }
+});
+
+// 3. Rate limiter para uploads (moderado)
+const limiterUpload = rateLimit({
+  windowMs: 5 * 60 * 1000,  // 5 minutos
+  max: 30,                   // 30 subidas cada 5 minutos
+  message: { error: 'Demasiadas subidas. Espera 5 minutos.' }
+});
+
+// Aplicar limitadores
 app.use('/api/login', limiterLogin);
 app.use('/api/registro', limiterLogin);
+app.use('/api/recuperar-password', limiterLogin);
 app.use('/api/', limiterGeneral);
 
 // Parseo de datos
@@ -445,36 +484,100 @@ app.post('/api/registro', limiterUpload, (req, res) => {
   }
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email y contraseña requeridos' });
+  }
+  
   const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email);
+  
   if (!usuario) {
-    registrarLogSeguridad(null, email, 'login', false, 'Email no encontrado', req);
     return res.status(401).json({ error: 'Credenciales inválidas' });
   }
+  
+  // ⭐ ADMIN NUNCA SE BLOQUEA
+  if (usuario.rol === 'admin') {
+    const valido = await bcrypt.compare(password, usuario.password);
+    if (!valido) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+    // Login exitoso para admin
+    req.session.usuario = {
+      id: usuario.id,
+      email: usuario.email,
+      rol: usuario.rol,
+      nombre_empresa: usuario.nombre_empresa
+    };
+    return res.json({
+      ok: true,
+      rol: usuario.rol,
+      debe_cambiar_password: usuario.debe_cambiar_password === 1
+    });
+  }
+  
+  // ⭐ PROVEEDORES: Verificar bloqueo
   if (usuario.bloqueado_hasta) {
     const bloqueoHasta = new Date(usuario.bloqueado_hasta);
     if (bloqueoHasta > new Date()) {
       const minutos = Math.ceil((bloqueoHasta - new Date()) / 60000);
-      return res.status(423).json({ error: `Cuenta bloqueada. Intenta en ${minutos} minutos.` });
+      return res.status(429).json({ 
+        error: `Cuenta bloqueada. Intenta en ${minutos} minutos.`,
+        bloqueado: true,
+        minutos_restantes: minutos
+      });
     } else {
-      db.prepare('UPDATE usuarios SET bloqueado_hasta = NULL, intentos_fallidos = 0 WHERE id = ?').run(usuario.id);
+      // Bloqueo expirado, limpiar
+      db.prepare('UPDATE usuarios SET bloqueado_hasta = NULL, intentos_fallidos = 0 WHERE id = ?')
+        .run(usuario.id);
     }
   }
-  if (!bcrypt.compareSync(password, usuario.password)) {
+  
+  // Verificar contraseña
+  const valido = await bcrypt.compare(password, usuario.password);
+  
+  if (!valido) {
     const intentos = (usuario.intentos_fallidos || 0) + 1;
+    
     if (intentos >= 5) {
-      const bloqueo = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-      db.prepare('UPDATE usuarios SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE id = ?').run(intentos, bloqueo, usuario.id);
-      return res.status(423).json({ error: 'Cuenta bloqueada por 15 minutos.' });
+      // Bloquear por 15 minutos
+      const bloqueoHasta = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      db.prepare('UPDATE usuarios SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE id = ?')
+        .run(intentos, bloqueoHasta, usuario.id);
+      
+      return res.status(429).json({ 
+        error: 'Cuenta bloqueada por 15 minutos. Usa "Recuperar contraseña" o contacta al admin.',
+        bloqueado: true,
+        minutos_restantes: 15
+      });
     }
-    db.prepare('UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?').run(intentos, usuario.id);
-    return res.status(401).json({ error: `Credenciales inválidas. Intento ${intentos}/5` });
+    
+    db.prepare('UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?')
+      .run(intentos, usuario.id);
+    
+    return res.status(401).json({ 
+      error: `Credenciales inválidas. Intento ${intentos}/5`,
+      intentos_restantes: 5 - intentos
+    });
   }
-  db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?').run(usuario.id);
-  req.session.usuario = { id: usuario.id, email: usuario.email, rol: usuario.rol };
-  registrarLogSeguridad(usuario.id, email, 'login_exitoso', true, null, req);
-  res.json({ ok: true, rol: usuario.rol, debe_cambiar_password: usuario.debe_cambiar_password === 1 });
+  
+  // Login exitoso - limpiar intentos
+  db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?')
+    .run(usuario.id);
+  
+  req.session.usuario = {
+    id: usuario.id,
+    email: usuario.email,
+    rol: usuario.rol,
+    nombre_empresa: usuario.nombre_empresa
+  };
+  
+  res.json({
+    ok: true,
+    rol: usuario.rol,
+    debe_cambiar_password: usuario.debe_cambiar_password === 1
+  });
 });
 
 app.post('/api/cambiar-password', requiereLogin, (req, res) => {
@@ -795,6 +898,19 @@ app.post('/api/proveedor/recordatorio/:id/cerrar', requiereLogin, (req, res) => 
 // ==========================================
 // 8. ENDPOINTS DE ADMINISTRADOR
 // ==========================================
+// ==========================================
+// 🧹 LIMPIAR RATE LIMITS (solo admin)
+// ==========================================
+app.post('/api/admin/limpiar-rate-limits', requiereAdmin, (req, res) => {
+  // Resetear todos los rate limiters
+  limiterLogin.resetAll();
+  limiterGeneral.resetAll();
+  limiterUpload.resetAll();
+  
+  console.log('🧹 Rate limits limpiados por admin');
+  res.json({ ok: true, mensaje: 'Rate limits reseteados' });
+});
+
 app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
   const proveedores = db.prepare(`SELECT p.*, u.email, u.nombre_empresa FROM proveedores p JOIN usuarios u ON p.usuario_id = u.id ORDER BY p.id DESC`).all();
   proveedores.forEach(p => {
