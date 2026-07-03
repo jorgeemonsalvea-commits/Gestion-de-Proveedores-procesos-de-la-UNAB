@@ -272,12 +272,7 @@ function validarPassword(password) {
   return { valido: true, mensaje: 'Contraseña válida' };
 }
 
-/**
- * Genera una contraseña aleatoria segura
- * 
- * @param {number} length - Longitud de la contraseña (default: 16)
- * @returns {string} Contraseña aleatoria
- */
+
 function generarPasswordAleatoria(length = 16) {
   const mayusculas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const minusculas = 'abcdefghijklmnopqrstuvwxyz';

@@ -128,6 +128,21 @@ db.exec(`
     exitoso INTEGER,
     creado_en DATETIME DEFAULT (datetime('now','localtime'))
   );
+
+ -- Tabla de consentimiento de Habeas Data
+  CREATE TABLE IF NOT EXISTS habeas_data_consent (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    aceptado INTEGER NOT NULL DEFAULT 0,
+    fecha_aceptacion DATETIME,
+    ip_origen TEXT,
+    user_agent TEXT,
+    version TEXT DEFAULT '1.0',
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_habeas_data_usuario ON habeas_data_consent(usuario_id, aceptado);
 `);
 
 console.log('✅ Estructura de tablas verificada');

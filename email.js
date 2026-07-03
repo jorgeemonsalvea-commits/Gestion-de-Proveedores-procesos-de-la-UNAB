@@ -211,7 +211,7 @@ function emailBienvenidaProveedor(email, password, nombreEmpresa) {
                         Ingresar al Portal
                     </a>
                 </div>
-                
+                                                                                                                                                                    
                 <p style="color: #6b7280; font-size: 14px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
                     Si no reconoces esta cuenta o tienes problemas para acceder, contacta al administrador.
                 </p>

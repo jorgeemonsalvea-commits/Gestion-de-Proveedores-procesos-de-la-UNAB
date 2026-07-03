@@ -239,6 +239,18 @@
           <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="Mín. 8 caracteres">
           <small>Mín. 8, mayúscula, minúscula, número y especial. Ej: MiEmpresa2024!</small>
         </div>
+        <div class="form-group">
+  <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+    <input type="checkbox" name="habeas_data" required style="margin-top: 0.2rem; width: auto;">
+    <span style="font-size: 0.85rem; color: var(--color-texto);">
+      He leído y acepto la 
+      <a href="/habeas-data.html" target="_blank" style="color: var(--color-primario); text-decoration: underline;">
+        Política de Tratamiento de Datos Personales
+      </a>
+      y autorizo el tratamiento de mis datos personales. *
+    </span>
+  </label>
+</div>
         <button type="submit" class="btn-primary">Crear cuenta</button>
       </form>
       
@@ -366,43 +378,51 @@
     // ==========================================
     // 📝 FORMULARIO DE REGISTRO
     // ==========================================
-    document.getElementById('form-registro').addEventListener('submit', async e => {
-      e.preventDefault();
-      
-      const btn = e.target.querySelector('button[type="submit"]');
-      const textoOriginal = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = '⏳ Creando cuenta...';
-      
-      try {
-        const data = Object.fromEntries(new FormData(e.target));
-        
-        const res = await fetchAPI('/api/registro', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        
-        const r = await res.json();
-        
-        if (!res.ok) {
-          mostrarAlerta(r.error || 'Error al registrarse');
-          btn.disabled = false;
-          btn.textContent = textoOriginal;
-          return;
-        }
-        
-        mostrarAlerta('✅ Registro exitoso. Ahora ingresa con tus credenciales.', 'success');
-        setTimeout(() => {
-          document.querySelector('[data-tab="login"]').click();
-        }, 1500);
-      } catch (err) {
-        console.error('❌ Error:', err);
+    document.getElementById('form-registro').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  
+  // Verificar checkbox de habeas data
+  const habeasDataCheckbox = document.querySelector('input[name="habeas_data"]');
+  const habeasData = habeasDataCheckbox ? habeasDataCheckbox.checked : false;
+  
+  if (!habeasData) {
+    alert('Debe aceptar la Política de Tratamiento de Datos Personales para registrarse');
+    return;
+  }
+  
+  const data = {
+    nombre_empresa: formData.get('nombre_empresa'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+    habeas_data: 'true'
+  };
+  
+  try {
+    const res = await fetch('/api/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    const r = await res.json();
+    
+    if (res.ok) {
+      alert('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.');
+      e.target.reset();
+      // Cambiar a pestaña de login
+      document.querySelector('.tab-btn').click();
+    } else {
+      alert('❌ ' + r.error);
+    }
+  } catch (err) {
+        console.error('❌ Error de conexión:', err);
         mostrarAlerta('Error de conexión: ' + err.message);
         btn.disabled = false;
         btn.textContent = textoOriginal;
-      }
-    });
+  }
+});
 
     // ==========================================
     // 🔑 FORMULARIO DE CAMBIO DE CONTRASEÑA
