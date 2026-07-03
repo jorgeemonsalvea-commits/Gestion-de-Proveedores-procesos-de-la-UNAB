@@ -101,15 +101,66 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 
-// Rate Limiting
-const limiterLogin = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, message: { error: 'Demasiados intentos.' } });
-const limiterGeneral = rateLimit({ windowMs: 1 * 60 * 1000, max: 100, message: { error: 'Demasiadas peticiones.' } });
-const limiterUpload = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, message: { error: 'Demasiadas subidas.' } });
+// ==========================================
+// 🔒 RATE LIMITING INTELIGENTE
+// ==========================================
 
+// Rate limiter para login (más permisivo y solo cuenta fallos)
+const limiterLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutos
+  max: 20,                    // 20 intentos (más razonable)
+  message: { 
+    error: 'Demasiados intentos. Espera 15 minutos o contacta al administrador.',
+    minutos_restantes: 15
+  },
+  // ✅ NO contar requests exitosos
+  skipSuccessfulRequests: true,
+  // ✅ Admin NUNCA se bloquea por rate limit
+  skip: (req) => {
+    // Si ya hay sesión, no aplicar rate limit
+    if (req.session && req.session.usuario) {
+      return true;
+    }
+    // Si es admin, saltar rate limit
+    if (req.body && req.body.email) {
+      const usuario = db.prepare('SELECT rol FROM usuarios WHERE email = ?').get(req.body.email);
+      if (usuario && usuario.rol === 'admin') {
+        return true;
+      }
+    }
+    return false;
+  },
+  // Headers estándar para mejor control
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Mensaje personalizado
+  handler: (req, res) => {
+    res.status(429).json({ 
+      error: 'Demasiados intentos. Espera 15 minutos.',
+      minutos_restantes: 15
+    });
+  }
+});
 
+// Rate limiter general (más permisivo)
+const limiterGeneral = rateLimit({
+  windowMs: 1 * 60 * 1000,  // 1 minuto
+  max: 200,                  // 200 peticiones por minuto
+  message: { error: 'Demasiadas peticiones. Espera un momento.' },
+  skipSuccessfulRequests: false
+});
+
+// Rate limiter para uploads (moderado)
+const limiterUpload = rateLimit({
+  windowMs: 5 * 60 * 1000,  // 5 minutos
+  max: 30,                   // 30 subidas cada 5 minutos
+  message: { error: 'Demasiadas subidas. Espera 5 minutos.' }
+});
+
+// Aplicar limitadores
 app.use('/api/login', limiterLogin);
 app.use('/api/registro', limiterLogin);
-
+app.use('/api/recuperar-password', limiterLogin);
 app.use('/api/', limiterGeneral);
 
 // Parseo de datos
