@@ -1250,6 +1250,92 @@ app.post('/api/admin/plantilla', requiereAdmin, uploadPlantilla.single('archivo'
   res.json({ ok: true });
 });
 
+// ==========================================
+// 📋 EXPORTAR HABEAS DATA A CSV (solo admin)
+// ==========================================
+app.get('/api/admin/habeas-data/export', requiereAdmin, (req, res) => {
+  try {
+    // 1. Consultar todos los registros de habeas_data_consent
+    const registros = db.prepare(`
+      SELECT 
+        hdc.id,
+        u.email,
+        u.nombre_empresa,
+        p.razon_social,
+        hdc.aceptado,
+        hdc.fecha_aceptacion,
+        hdc.ip_origen,
+        hdc.user_agent,
+        hdc.version,
+        hdc.creado_en
+      FROM habeas_data_consent hdc
+      JOIN usuarios u ON hdc.usuario_id = u.id
+      LEFT JOIN proveedores p ON u.id = p.usuario_id
+      ORDER BY hdc.creado_en DESC
+    `).all();
+    
+    // 2. Verificar si hay registros
+    if (!registros || registros.length === 0) {
+      return res.status(404).json({ 
+        error: 'No hay registros de Habeas Data para exportar' 
+      });
+    }
+    
+    // 3. Crear los encabezados del CSV
+    const headers = [
+      'ID',
+      'Email',
+      'Nombre Empresa',
+      'Razón Social',
+      'Aceptado',
+      'Fecha Aceptación',
+      'IP Origen',
+      'User Agent',
+      'Versión',
+      'Creado En'
+    ];
+    
+    // 4. Convertir los registros a filas CSV
+    const rows = registros.map(r => {
+      return [
+        r.id,
+        `"${r.email || ''}"`,
+        `"${r.nombre_empresa || ''}"`,
+        `"${r.razon_social || ''}"`,
+        r.aceptado === 1 ? 'Sí' : 'No',
+        `"${r.fecha_aceptacion || ''}"`,
+        `"${r.ip_origen || ''}"`,
+        `"${(r.user_agent || '').substring(0, 100)}"`,
+        `"${r.version || ''}"`,
+        `"${r.creado_en || ''}"`
+      ].join(',');
+    });
+    
+    // 5. Unir encabezados + filas con saltos de línea
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    
+    // 6. Agregar BOM para que Excel reconozca UTF-8 (tildes, ñ, etc.)
+    const BOM = '\uFEFF';
+    const contenidoFinal = BOM + csvContent;
+    
+    // 7. Configurar headers para descarga
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=habeas_data_export.csv');
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    // 8. Enviar el archivo
+    res.send(contenidoFinal);
+    
+    console.log(`✅ Exportación de Habeas Data: ${registros.length} registros`);
+    
+  } catch (err) {
+    console.error('❌ Error exportando habeas data:', err.message);
+    res.status(500).json({ 
+      error: 'Error al exportar: ' + err.message 
+    });
+  }
+});
+
 // EXPORTAR EXCEL
 app.post('/api/admin/exportar-excel', requiereAdmin, (req, res) => {
   try {
