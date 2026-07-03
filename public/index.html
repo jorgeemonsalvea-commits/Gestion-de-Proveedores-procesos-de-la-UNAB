@@ -378,31 +378,39 @@
     // ==========================================
     // 📝 FORMULARIO DE REGISTRO
     // ==========================================
-    document.getElementById('form-registro').addEventListener('submit', async (e) => {
+  document.getElementById('form-registro').addEventListener('submit', async (e) => {
   e.preventDefault();
   
   const formData = new FormData(e.target);
   
-  // Verificar checkbox de habeas data
+  // ✅ Verificar checkbox de habeas data
   const habeasDataCheckbox = document.querySelector('input[name="habeas_data"]');
   const habeasData = habeasDataCheckbox ? habeasDataCheckbox.checked : false;
   
   if (!habeasData) {
-    alert('Debe aceptar la Política de Tratamiento de Datos Personales para registrarse');
+    alert('❌ Debes aceptar la Política de Tratamiento de Datos Personales para registrarte');
     return;
   }
   
+  // Preparar datos
   const data = {
     nombre_empresa: formData.get('nombre_empresa'),
     email: formData.get('email'),
     password: formData.get('password'),
-    habeas_data: 'true'
+    habeas_data: 'true'  // ✅ Enviar al servidor
   };
   
+  const btn = e.target.querySelector('button[type="submit"]');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = ' Creando cuenta...';
+  
   try {
+    // ✅ USAR fetch EN LUGAR DE fetchAPI
     const res = await fetch('/api/registro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data)
     });
     
@@ -412,15 +420,17 @@
       alert('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.');
       e.target.reset();
       // Cambiar a pestaña de login
-      document.querySelector('.tab-btn').click();
+      const tabLogin = document.querySelector('.tab-btn');
+      if (tabLogin) tabLogin.click();
     } else {
-      alert('❌ ' + r.error);
+      alert('❌ ' + (r.error || 'Error al registrarse'));
     }
   } catch (err) {
-        console.error('❌ Error de conexión:', err);
-        mostrarAlerta('Error de conexión: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = textoOriginal;
+    console.error('❌ Error:', err);
+    alert('❌ Error de conexión: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 });
 
