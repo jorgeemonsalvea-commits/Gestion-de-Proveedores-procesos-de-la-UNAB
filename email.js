@@ -112,6 +112,60 @@ function emailDocumentoRechazado(nombreProveedor, nombreDocumento, motivo) {
 }
 
 // ==========================================
+// PLANTILLA: Proveedor completó todos los documentos (para ADMIN)
+// ==========================================
+// Se envía UN SOLO correo al admin cuando el proveedor sube TODOS los documentos
+function emailProveedorCompletoDocumentos(nombreProveedor, emailProveedor, totalDocumentos) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 28px;">📋 Documentos Completados</h1>
+      </div>
+      <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+        <h2 style="color: #059669; margin-top: 0;">Proveedor ha completado su documentación</h2>
+        
+        <div style="background: #d1fae5; padding: 20px; border-left: 4px solid #059669; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0 0 10px 0; font-size: 18px; font-weight: bold; color: #065f46;">
+            👤 ${nombreProveedor}
+          </p>
+          <p style="margin: 0; color: #047857;">
+            📧 ${emailProveedor}
+          </p>
+        </div>
+        
+        <p>El proveedor ha subido <strong>todos los documentos requeridos</strong> (${totalDocumentos} documentos en total) y están listos para su revisión.</p>
+        
+        <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0;"><strong>️ Acción requerida:</strong></p>
+          <p style="margin: 10px 0 0 0;">Ingresa al panel de administración para revisar y aprobar/rechazar cada documento.</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${process.env.SISTEMA_URL || 'http://localhost:3000'}/admin.html" 
+             style="background: #059669; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            Ir al Panel de Administración
+          </a>
+        </div>
+        
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 4px; margin-top: 20px;">
+          <p style="margin: 0; font-size: 14px; color: #6b7280;">
+            <strong>Resumen:</strong><br>
+            ✅ Todos los documentos han sido subidos<br>
+             Estado: Pendiente de revisión<br>
+            📋 Total de documentos: ${totalDocumentos}
+          </p>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 14px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+          Saludos,<br>
+          <strong>Sistema de Gestión de Proveedores</strong>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================
 // PLANTILLA: Proveedor completamente aprobado (¡Felicidades!)
 // ==========================================
 function emailProveedorAprobado(nombreProveedor) {
@@ -261,5 +315,6 @@ module.exports = {
     emailProveedorAprobado,
     emailNuevaNota,
     emailBienvenidaProveedor,
-    emailRecordatorio
+    emailRecordatorio,
+    emailProveedorCompletoDocumentos
 };

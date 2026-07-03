@@ -33,7 +33,8 @@ const {
   emailNuevaNota, 
   emailProveedorAprobado,
   emailBienvenidaProveedor,
-  emailRecordatorio
+  emailRecordatorio,
+  emailProveedorCompletoDocumentos
 } = require('./email');
 
 const app = express();
@@ -339,19 +340,75 @@ function fechaArchivo() {
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
-// Función para enviar notificación al admin cuando un proveedor sube/reemplaza documento
+// ==========================================
+//  NOTIFICAR AL ADMIN CUANDO PROVEEDOR COMPLETA TODOS LOS DOCUMENTOS
+// ==========================================
+// Verifica si el proveedor subió todos los documentos requeridos
+// Si es así, envía UN SOLO correo al admin (no uno por cada documento)
 function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOriginal, accion) {
   try {
-    const proveedorInfo = db.prepare('SELECT razon_social FROM proveedores WHERE id = ?').get(proveedorId);
-    const nombreProveedor = proveedorInfo?.razon_social || 'Proveedor';
+    // 1. Obtener información del proveedor
+    const proveedorInfo = db.prepare(`
+      SELECT p.id, p.razon_social, u.email, u.nombre_empresa 
+      FROM proveedores p 
+      JOIN usuarios u ON p.usuario_id = u.id 
+      WHERE p.id = ?
+    `).get(proveedorId);
     
-    const accionEmail = accion === 'documento_reemplazado' ? 'reemplazado' : 'subido';
+    if (!proveedorInfo) return;
     
-    enviarEmail(
-      process.env.ADMIN_EMAIL,
-      `📄 Documento ${accionEmail}: ${config.nombre}`,
-      emailProveedorSubioDocumento(nombreProveedor, config.nombre, nombreArchivoOriginal)
-    ).catch(err => console.error('Error enviando notificación al admin:', err));
+    const nombreProveedor = proveedorInfo.razon_social || proveedorInfo.nombre_empresa || 'Proveedor';
+    
+    // 2. Verificar si el proveedor ya tiene todos los documentos subidos
+    const docs = db.prepare('SELECT tipo, estado, no_aplica FROM documentos WHERE proveedor_id = ?').all(proveedorId);
+    
+    let todosSubidos = true;
+    let totalDocumentosSubidos = 0;
+    
+    for (const req of DOCUMENTOS_REQUERIDOS) {
+      const docsTipo = docs.filter(d => d.tipo === req.tipo);
+      const subidos = docsTipo.filter(d => d.estado === 'pendiente' || d.estado === 'aprobado' || d.estado === 'rechazado').length;
+      const noAplica = docsTipo.filter(d => d.no_aplica === 1).length;
+      
+      // Si es opcional y marcó "no aplica", saltar
+      if (req.opcional && noAplica > 0) continue;
+      
+      // Verificar si tiene al menos la cantidad mínima
+      if (subidos < req.cantidadMin) {
+        todosSubidos = false;
+        break;
+      }
+      
+      totalDocumentosSubidos += subidos;
+    }
+    
+    // 3. Solo enviar email si completó TODOS los documentos
+    if (todosSubidos && totalDocumentosSubidos > 0) {
+      console.log(`\n📋 Proveedor ${nombreProveedor} completó todos los documentos (${totalDocumentosSubidos} docs)`);
+      
+      const htmlEmail = emailProveedorCompletoDocumentos(
+        nombreProveedor,
+        proveedorInfo.email,
+        totalDocumentosSubidos
+      );
+      
+      enviarEmail(
+        process.env.ADMIN_EMAIL,
+        `📋 Proveedor completó documentación: ${nombreProveedor}`,
+        htmlEmail
+      ).then(result => {
+        if (result.ok) {
+          console.log(`✅ Email enviado al admin sobre proveedor: ${nombreProveedor}`);
+        } else {
+          console.error(`❌ Error enviando email: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error('❌ Error enviando notificación al admin:', err);
+      });
+    } else {
+      console.log(`⏳ Proveedor ${nombreProveedor} aún no completa todos los documentos`);
+    }
+    
   } catch (err) {
     console.error('Error en notificarAdminDocumento:', err.message);
   }
