@@ -645,6 +645,243 @@ app.get('/api/me', (req, res) => {
   res.json({ usuario: req.session.usuario, debe_cambiar_password: u?.debe_cambiar_password === 1 });
 });
 
+// ==========================================
+// 🔐 SOLICITAR RECUPERACIÓN DE CONTRASEÑA
+// ==========================================
+app.post('/api/recuperar-password', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email es requerido' });
+  }
+  
+  try {
+    const usuario = db.prepare('SELECT id, email, rol FROM usuarios WHERE email = ?').get(email);
+    
+    // No revelar si el email existe o no (seguridad)
+    if (!usuario) {
+      console.log(`⚠️ Intento de recuperación para email no registrado: ${email}`);
+      return res.json({ 
+        ok: true, 
+        mensaje: 'Si el email está registrado, recibirás instrucciones para recuperar tu contraseña' 
+      });
+    }
+    
+    // Generar token único
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiracion = new Date(Date.now() + 3600000).toISOString(); // 1 hora
+    
+    // Guardar token en base de datos
+    db.prepare(`
+      INSERT INTO password_resets (usuario_id, token, expiracion)
+      VALUES (?, ?, ?)
+    `).run(usuario.id, token, expiracion);
+    
+    // Generar enlace de recuperación
+    const sistemaUrl = process.env.SISTEMA_URL || `http://localhost:${PORT}`;
+    const enlaceRecuperacion = `${sistemaUrl}/restablecer-password.html?token=${token}`;
+    
+    // Crear HTML del email
+    const htmlEmail = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: linear-gradient(135deg, #7c3aed 0%, #c2410c 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+      .content { background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
+      .button { 
+        display: inline-block; 
+        background: #7c3aed; 
+        color: #FFFFFF !important;
+        padding: 15px 30px; 
+        text-decoration: none; 
+        border-radius: 6px; 
+        font-weight: bold;
+        margin: 20px 0;
+        font-size: 16px;
+        text-align: center;
+      }
+      .button:hover {
+        background: #6d28d9;
+      }
+      .warning { 
+        background: #fef3c7; 
+        padding: 15px; 
+        border-left: 4px solid #f59e0b; 
+        margin: 20px 0; 
+        border-radius: 4px;
+      }
+      .footer { 
+        color: #6b7280; 
+        font-size: 14px; 
+        margin-top: 30px; 
+        padding-top: 20px; 
+        border-top: 1px solid #e5e7eb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1 style="margin: 0; color: white;">🔐 Recuperación de Contraseña</h1>
+      </div>
+      <div class="content">
+        <p>Hola,</p>
+        <p>Has solicitado restablecer tu contraseña en el Portal de Proveedores.</p>
+        
+        <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+        
+        <div style="text-align: center;">
+          <a href="${enlaceRecuperacion}" class="button" style="color: #FFFFFF !important; text-decoration: none;">Restablecer Contraseña</a>
+        </div>
+        
+        <p>O copia y pega este enlace en tu navegador:</p>
+        <p style="word-break: break-all; background: #f3f4f6; padding: 10px; border-radius: 4px;">
+          ${enlaceRecuperacion}
+        </p>
+        
+        <div class="warning">
+          <strong>⚠️ Importante:</strong>
+          <ul style="margin: 10px 0;">
+            <li>Este enlace expira en <strong>1 hora</strong></li>
+            <li>Si no solicitaste este cambio, puedes ignorar este email</li>
+            <li>Tu contraseña actual seguirá activa hasta que la cambies</li>
+          </ul>
+        </div>
+        
+        <div class="footer">
+          <p>Si tienes alguna duda, contacta al administrador del sistema.</p>
+          <p>© ${new Date().getFullYear()} Portal de Proveedores</p>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+`;
+    
+    // Enviar email
+    try {
+      await enviarEmail(
+        usuario.email,
+        '🔐 Recuperación de Contraseña - Portal de Proveedores',
+        htmlEmail
+      );
+      
+      console.log(`✅ Email de recuperación enviado a: ${usuario.email}`);
+    } catch (emailError) {
+      console.error('❌ Error enviando email de recuperación:', emailError.message);
+    }
+    
+    res.json({ 
+      ok: true, 
+      mensaje: 'Si el email está registrado, recibirás instrucciones para recuperar tu contraseña' 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error en recuperación de contraseña:', err.message);
+    res.status(500).json({ error: 'Error al procesar la solicitud' });
+  }
+});
+
+// ==========================================
+// 🔐 RESTABLECER CONTRASEÑA CON TOKEN
+// ==========================================
+app.post('/api/restablecer-password', async (req, res) => {
+  const { token, password } = req.body;
+  
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token y contraseña son requeridos' });
+  }
+  
+  // Validar fortaleza de contraseña
+  const validacion = validarPassword(password);
+  if (!validacion.valido) {
+    return res.status(400).json({ error: validacion.mensaje });
+  }
+  
+  try {
+    // Buscar token válido (no expirado y no usado)
+    const resetToken = db.prepare(`
+      SELECT * FROM password_resets 
+      WHERE token = ? 
+      AND expiracion > datetime('now')
+      AND usado = 0
+    `).get(token);
+    
+    if (!resetToken) {
+      return res.status(400).json({ 
+        error: 'Token inválido o expirado. Solicita un nuevo restablecimiento.' 
+      });
+    }
+    
+    // Hashear nueva contraseña
+    const hash = bcrypt.hashSync(password, 12);
+    
+    // Actualizar contraseña del usuario
+    db.prepare(`
+      UPDATE usuarios 
+      SET password = ?, 
+          debe_cambiar_password = 0,
+          intentos_fallidos = 0,
+          bloqueado_hasta = NULL
+      WHERE id = ?
+    `).run(hash, resetToken.usuario_id);
+    
+    // Marcar token como usado
+    db.prepare(`
+      UPDATE password_resets 
+      SET usado = 1 
+      WHERE id = ?
+    `).run(resetToken.id);
+    
+    // Eliminar tokens antiguos del usuario
+    db.prepare(`
+      DELETE FROM password_resets 
+      WHERE usuario_id = ? AND usado = 1
+    `).run(resetToken.usuario_id);
+    
+    console.log(`✅ Contraseña restablecida para usuario ID: ${resetToken.usuario_id}`);
+    
+    res.json({ 
+      ok: true, 
+      mensaje: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión.' 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error restableciendo contraseña:', err.message);
+    res.status(500).json({ error: 'Error al restablecer la contraseña' });
+  }
+});
+
+// ==========================================
+// 🔐 VERIFICAR TOKEN DE RECUPERACIÓN
+// ==========================================
+app.get('/api/verificar-token/:token', (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const resetToken = db.prepare(`
+      SELECT * FROM password_resets 
+      WHERE token = ? 
+      AND expiracion > datetime('now')
+      AND usado = 0
+    `).get(token);
+    
+    if (!resetToken) {
+      return res.json({ valido: false, mensaje: 'Token inválido o expirado' });
+    }
+    
+    res.json({ valido: true, mensaje: 'Token válido' });
+    
+  } catch (err) {
+    console.error('Error verificando token:', err.message);
+    res.status(500).json({ error: 'Error al verificar token' });
+  }
+});
 
 // ==========================================
 // 7. ENDPOINTS DE PROVEEDOR
@@ -1062,6 +1299,19 @@ app.post('/api/admin/limpiar-sesiones', requiereAdmin, (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Error limpiando sesiones: ' + err.message });
   }
+});
+
+// ==========================================
+// 🧹 LIMPIAR RATE LIMITS (solo admin)
+// ==========================================
+app.post('/api/admin/limpiar-rate-limits', requiereAdmin, (req, res) => {
+  // Resetear todos los rate limiters
+  limiterLogin.resetAll();
+  limiterGeneral.resetAll();
+  limiterUpload.resetAll();
+  
+  console.log('🧹 Rate limits limpiados por admin');
+  res.json({ ok: true, mensaje: 'Rate limits reseteados' });
 });
 
 // 📄 ADMIN SUBE DOCUMENTO PARA PROVEEDOR
