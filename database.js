@@ -99,7 +99,7 @@ db.exec(`
     admin_nombre TEXT,
     mensaje TEXT NOT NULL,
     leido INTEGER DEFAULT 0,
-    creado_en DATETIME DEFAULT (datetime('now', '-05:00'))
+    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -138,7 +138,7 @@ db.exec(`
     ip_origen TEXT,
     user_agent TEXT,
     version TEXT DEFAULT '1.0',
-    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
