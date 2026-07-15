@@ -1,7 +1,0 @@
-node_modules
-uploads
-sessions
-plantillas
-*.db
-*.db-wal
-*.db-shm
