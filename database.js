@@ -87,7 +87,7 @@ db.exec(`
     documento_tipo TEXT,
     documento_id INTEGER,
     ip_origen TEXT,
-    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
+    creado_en DATETIME DEFAULT (datetime('now','localtime')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -99,7 +99,7 @@ db.exec(`
     admin_nombre TEXT,
     mensaje TEXT NOT NULL,
     leido INTEGER DEFAULT 0,
-    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
+    creado_en DATETIME DEFAULT (datetime('now','localtime')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -112,7 +112,7 @@ db.exec(`
     titulo TEXT NOT NULL,
     nota TEXT NOT NULL,
     leida INTEGER DEFAULT 0,
-    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
+    creado_en DATETIME DEFAULT (datetime('now','localtime')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -126,7 +126,7 @@ db.exec(`
     user_agent TEXT,
     detalle TEXT,
     exitoso INTEGER,
-    creado_en DATETIME DEFAULT (datetime('now', '-05:00'))
+    creado_en DATETIME DEFAULT (datetime('now','localtime'))
   );
 
  -- Tabla de consentimiento de Habeas Data
@@ -138,14 +138,32 @@ db.exec(`
     ip_origen TEXT,
     user_agent TEXT,
     version TEXT DEFAULT '1.0',
-    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
+
+
 CREATE INDEX IF NOT EXISTS idx_habeas_data_usuario ON habeas_data_consent(usuario_id, aceptado);
+
+-- Tabla de recuperación de contraseña
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL,
+  token TEXT NOT NULL,
+  expiracion DATETIME NOT NULL,
+  usado INTEGER DEFAULT 0,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
+CREATE INDEX IF NOT EXISTS idx_password_resets_expiracion ON password_resets(expiracion);
+
 `);
 
 console.log('✅ Estructura de tablas verificada');
+
 
 
 // ==========================================
