@@ -87,7 +87,7 @@ db.exec(`
     documento_tipo TEXT,
     documento_id INTEGER,
     ip_origen TEXT,
-    creado_en DATETIME DEFAULT (datetime('now','localtime')),
+    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -99,7 +99,7 @@ db.exec(`
     admin_nombre TEXT,
     mensaje TEXT NOT NULL,
     leido INTEGER DEFAULT 0,
-    creado_en DATETIME DEFAULT (datetime('now','localtime')),
+    creado_en DATETIME DEFAULT (datetime('now', '-05:00'))
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -112,7 +112,7 @@ db.exec(`
     titulo TEXT NOT NULL,
     nota TEXT NOT NULL,
     leida INTEGER DEFAULT 0,
-    creado_en DATETIME DEFAULT (datetime('now','localtime')),
+    creado_en DATETIME DEFAULT (datetime('now', '-05:00')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
 
@@ -126,7 +126,7 @@ db.exec(`
     user_agent TEXT,
     detalle TEXT,
     exitoso INTEGER,
-    creado_en DATETIME DEFAULT (datetime('now','localtime'))
+    creado_en DATETIME DEFAULT (datetime('now', '-05:00'))
   );
 
  -- Tabla de consentimiento de Habeas Data
