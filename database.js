@@ -142,28 +142,10 @@ db.exec(`
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
-
-
 CREATE INDEX IF NOT EXISTS idx_habeas_data_usuario ON habeas_data_consent(usuario_id, aceptado);
-
--- Tabla de recuperación de contraseña
-CREATE TABLE IF NOT EXISTS password_resets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  usuario_id INTEGER NOT NULL,
-  token TEXT NOT NULL,
-  expiracion DATETIME NOT NULL,
-  usado INTEGER DEFAULT 0,
-  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
-CREATE INDEX IF NOT EXISTS idx_password_resets_expiracion ON password_resets(expiracion);
-
 `);
 
 console.log('✅ Estructura de tablas verificada');
-
 
 
 // ==========================================
