@@ -306,6 +306,67 @@ function emailRecordatorio(nombreProveedor, mensaje) {
 }
 
 // ==========================================
+// 📧 EMAIL: RECORDATORIO DE DOCUMENTOS FALTANTES
+// ==========================================
+function emailRecordatorioDocumentosFaltantes(nombreProveedor, documentosFaltantes) {
+  let listaHtml = documentosFaltantes.map(doc => {
+    let estadoTexto = '';
+    if (doc.estado === 'rechazado') {
+      estadoTexto = ' <span style="color:#dc2626;font-weight:bold;">(Rechazado - Debes corregirlo)</span>';
+    } else {
+      estadoTexto = ' <span style="color:#6b7280;">(No subido)</span>';
+    }
+    return `<li style="margin-bottom: 6px; color: #1f2937;">📄 ${doc.nombre}${estadoTexto}</li>`;
+  }).join('');
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #c2410c; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0;">⚠️ Recordatorio de Documentos Pendientes</h2>
+      </div>
+      <div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+        <p style="font-size: 16px; color: #1f2937; margin: 0 0 16px 0;">
+          Hola <strong>${nombreProveedor}</strong>,
+        </p>
+        <p style="color: #374151; line-height: 1.6; margin: 0 0 16px 0;">
+          Hemos notado que aún tienes documentos pendientes para completar tu registro como proveedor.
+          Para agilizar el proceso, por favor sube los siguientes documentos lo antes posible:
+        </p>
+        
+        <div style="background: #fee2e2; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #dc2626;">
+          <h4 style="margin: 0 0 12px 0; color: #991b1b;">📋 Documentos requeridos:</h4>
+          <ul style="margin: 0; padding-left: 20px; color: #7f1d1d; line-height: 1.8;">
+            ${listaHtml}
+          </ul>
+        </div>
+        
+        <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #92400e; font-size: 14px;">
+            <strong>💡 Consejo:</strong> Si alguno de estos documentos no aplica para tu empresa, 
+            recuerda que puedes marcarlo como "No aplica" desde tu panel.
+          </p>
+        </div>
+        
+        <p style="color: #374151; line-height: 1.6; margin: 0 0 20px 0;">
+          Ingresa a tu panel para subir los documentos o resolver cualquier duda.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${process.env.SISTEMA_URL || 'http://localhost:3000'}/proveedor.html" 
+             style="background: #c2410c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px;">
+            Ir a mi Panel
+          </a>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 14px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+          Este es un recordatorio automático del Sistema de Gestión de Proveedores.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================
 // EXPORTACIONES
 // ==========================================
 module.exports = {
@@ -316,5 +377,6 @@ module.exports = {
     emailNuevaNota,
     emailBienvenidaProveedor,
     emailRecordatorio,
-    emailProveedorCompletoDocumentos
+    emailProveedorCompletoDocumentos,
+    emailRecordatorioDocumentosFaltantes
 };

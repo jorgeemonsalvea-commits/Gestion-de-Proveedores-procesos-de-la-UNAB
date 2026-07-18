@@ -10,6 +10,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const cron = require('node-cron');
 
 // Importar módulos personalizados
 const { db, DOCUMENTOS_REQUERIDOS } = require('./database');
@@ -34,7 +35,8 @@ const {
   emailProveedorAprobado,
   emailBienvenidaProveedor,
   emailRecordatorio,
-  emailProveedorCompletoDocumentos
+  emailProveedorCompletoDocumentos,
+  emailRecordatorioDocumentosFaltantes
 } = require('./email');
 
 const app = express();
@@ -411,6 +413,112 @@ function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOrig
     
   } catch (err) {
     console.error('Error en notificarAdminDocumento:', err.message);
+  }
+}
+
+/// ==========================================
+// 📧 ENVIAR RECORDATORIOS AUTOMÁTICOS DE DOCUMENTOS FALTANTES
+// ==========================================
+async function enviarRecordatoriosFaltantes() {
+  console.log('⏰ Iniciando verificación de recordatorios automáticos...');
+
+  try {
+    const proveedores = db.prepare(`
+      SELECT p.id, p.razon_social, p.estado_general, p.ultimo_recordatorio_envio, u.email, u.nombre_empresa 
+      FROM proveedores p 
+      JOIN usuarios u ON p.usuario_id = u.id 
+      WHERE p.estado_general != 'aprobado'
+    `).all();
+
+    if (proveedores.length === 0) {
+      console.log('✅ No hay proveedores pendientes para recordar.');
+      return;
+    }
+
+    let enviados = 0;
+    let errores = 0;
+
+    for (const prov of proveedores) {
+      // 🔹 Verificar si ya se envió un recordatorio hace menos de 3 días
+      // Solo si NO es la primera vez (campo no es null)
+      if (prov.ultimo_recordatorio_envio) {
+        const ultimoEnvio = new Date(prov.ultimo_recordatorio_envio);
+        const diasDesdeUltimo = (new Date() - ultimoEnvio) / (1000 * 60 * 60 * 24);
+        if (diasDesdeUltimo < 3) {
+          console.log(`⏳ Proveedor ${prov.razon_social} - último recordatorio hace ${Math.round(diasDesdeUltimo)} días, saltando.`);
+          continue;
+        }
+      }
+
+      // Obtener documentos
+      const docs = db.prepare(`
+        SELECT tipo, estado, no_aplica 
+        FROM documentos 
+        WHERE proveedor_id = ?
+      `).all(prov.id);
+
+      const faltantes = [];
+
+      for (const req of DOCUMENTOS_REQUERIDOS) {
+        const docsTipo = docs.filter(d => d.tipo === req.tipo);
+
+        // Si no hay ningún documento subido -> falta
+        if (docsTipo.length === 0) {
+          faltantes.push({ nombre: req.nombre, estado: 'no subido' });
+          continue;
+        }
+
+        // Contar documentos que no requieren acción (aprobados, pendientes o no aplica)
+        const validos = docsTipo.filter(d => 
+          d.estado === 'aprobado' || 
+          d.estado === 'pendiente' || 
+          d.no_aplica === 1
+        );
+
+        if (validos.length < req.cantidadMin) {
+          const tieneRechazo = docsTipo.some(d => d.estado === 'rechazado');
+          if (tieneRechazo) {
+            faltantes.push({ nombre: req.nombre, estado: 'rechazado' });
+          } else {
+            faltantes.push({ nombre: req.nombre, estado: 'no subido' });
+          }
+        }
+      }
+
+      if (faltantes.length === 0) {
+        console.log(`✅ Proveedor ${prov.razon_social} - No tiene documentos faltantes.`);
+        continue;
+      }
+
+      // Enviar email
+      const nombreProveedor = prov.razon_social || prov.nombre_empresa || 'Proveedor';
+      const html = emailRecordatorioDocumentosFaltantes(nombreProveedor, faltantes);
+      
+      try {
+        await enviarEmail(
+          prov.email,
+          `📋 Recordatorio: Documentos pendientes (${faltantes.length})`,
+          html
+        );
+        
+        // Actualizar fecha del último recordatorio
+        db.prepare(`
+          UPDATE proveedores 
+          SET ultimo_recordatorio_envio = datetime('now', 'localtime') 
+          WHERE id = ?
+        `).run(prov.id);
+        
+        console.log(`📧 Recordatorio enviado a ${prov.email} (${faltantes.length} docs faltantes)`);
+        enviados++;
+      } catch (emailErr) {
+        console.error(`❌ Error enviando email a ${prov.email}:`, emailErr.message);
+        errores++;
+      }
+    }
+
+    console.log(`📊 Resumen recordatorios: ${enviados} enviados, ${errores} errores.`);
+  } catch (err) {
+    console.error('❌ Error en enviarRecordatoriosFaltantes:', err.message);
   }
 }
 
@@ -1694,84 +1802,97 @@ app.get('/api/admin/habeas-data/export', requiereAdmin, (req, res) => {
   }
 });
 
-// EXPORTAR EXCEL
-app.post('/api/admin/exportar-excel', requiereAdmin, (req, res) => {
+// ==========================================
+// 📊 EXPORTAR EXCEL (XLSX REAL con exceljs)
+// ==========================================
+app.post('/api/admin/exportar-excel', requiereAdmin, async (req, res) => {
   try {
     const { proveedores } = req.body;
     if (!proveedores || proveedores.length === 0) {
       return res.status(400).json({ error: 'No hay proveedores para exportar' });
     }
 
-    let html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" 
-            xmlns:x="urn:schemas-microsoft-com:office:excel" 
-            xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          table { border-collapse: collapse; width: 100%; }
-          th { background-color: #1E40AF; color: white; padding: 10px; text-align: left; border: 1px solid #1e3a8a; font-weight: bold; }
-          td { padding: 8px; border: 1px solid #d1d5db; }
-          tr:nth-child(even) { background-color: #f9fafb; }
-          .estado-aprobado { color: #065f46; font-weight: bold; }
-          .estado-pendiente { color: #92400e; font-weight: bold; }
-          .estado-rechazado { color: #991b1b; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <table>
-          <thead>
-            <tr>
-              <th>Razón Social</th>
-              <th>NIT/RUT</th>
-              <th>Correo</th>
-              <th>Teléfono</th>
-              <th>Representante Legal</th>
-              <th>Dirección</th>
-              <th>Estado</th>
-              <th>Docs Aprobados</th>
-              <th>Total</th>
-              <th>Fecha Aprobación</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Sistema de Proveedores';
+    workbook.created = new Date();
 
+    const worksheet = workbook.addWorksheet('Proveedores');
+
+    // 🔹 Definir columnas con anchos personalizados
+    worksheet.columns = [
+      { header: 'Razón Social', key: 'razon_social', width: 35 },
+      { header: 'NIT / RUT', key: 'nit', width: 18 },
+      { header: 'Correo', key: 'correo', width: 30 },
+      { header: 'Teléfono', key: 'telefono', width: 15 },
+      { header: 'Representante Legal', key: 'representante', width: 25 },
+      { header: 'Dirección', key: 'direccion', width: 40 },
+      { header: 'Estado', key: 'estado', width: 12 },
+      { header: 'Docs Aprobados', key: 'aprobados', width: 12 },
+      { header: 'Total', key: 'total', width: 8 },
+      { header: 'Fecha Aprobación', key: 'fecha_aprobacion', width: 22 }
+    ];
+
+    // 🔹 Estilo del encabezado (fila 1)
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1E40AF' } // Azul corporativo
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.height = 25;
+
+    // 🔹 Agregar datos
     proveedores.forEach(p => {
-      const estadoClase = `estado-${p.estado_general || 'pendiente'}`;
       const fechaAprob = p.fecha_aprobacion ? formatearFechaExcel(p.fecha_aprobacion) : 'Pendiente';
-      html += `
-        <tr>
-          <td>${escapeHtml(p.razon_social || p.nombre_empresa || '')}</td>
-          <td>${escapeHtml(p.rfc || '')}</td>
-          <td>${escapeHtml(p.email || '')}</td>
-          <td>${escapeHtml(p.telefono || '')}</td>
-          <td>${escapeHtml(p.representante || '')}</td>
-          <td>${escapeHtml((p.direccion || '').replace(/[\n\r]+/g, ' '))}</td>
-          <td class="${estadoClase}">${escapeHtml(p.estado_general || '')}</td>
-          <td style="text-align:center;">${p.aprobados || 0}</td>
-          <td style="text-align:center;">${p.total || 0}</td>
-          <td>${escapeHtml(fechaAprob)}</td>
-        </tr>
-      `;
+      const row = worksheet.addRow({
+        razon_social: p.razon_social || p.nombre_empresa || '',
+        nit: p.rfc || '',
+        correo: p.email || '',
+        telefono: p.telefono || '',
+        representante: p.representante || '',
+        direccion: (p.direccion || '').replace(/[\n\r]+/g, ' '),
+        estado: p.estado_general || '',
+        aprobados: p.aprobados || 0,
+        total: p.total || 0,
+        fecha_aprobacion: fechaAprob
+      });
+
+      // Aplicar bordes a todas las celdas de la fila
+      row.eachCell(cell => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
+
+      // 🔹 Colorear la celda de "Estado" según el valor
+      const estadoCell = row.getCell('estado');
+      const estado = p.estado_general || '';
+      if (estado === 'aprobado') {
+        estadoCell.font = { bold: true, color: { argb: 'FF059669' } };
+      } else if (estado === 'rechazado') {
+        estadoCell.font = { bold: true, color: { argb: 'FFDC2626' } };
+      } else if (estado === 'pendiente') {
+        estadoCell.font = { bold: true, color: { argb: 'FFD97706' } };
+      }
     });
 
-    html += `
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+    // 🔹 Escribir el buffer y enviar
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=proveedores_${fechaArchivo()}.xlsx`);
 
-    const BOM = '\uFEFF';
-    const contenido = BOM + html;
+    await workbook.xlsx.write(res);
+    res.end();
 
-    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename=proveedores_${fechaArchivo()}.xls`);
-    res.send(contenido);
   } catch (err) {
     console.error('Error exportando Excel:', err);
-    res.status(500).json({ error: 'Error al generar el archivo Excel' });
+    res.status(500).json({ error: 'Error al generar el archivo Excel: ' + err.message });
   }
 });
 
@@ -1882,6 +2003,22 @@ app.use((err, req, res, next) => {
   if (err) return res.status(400).json({ error: err.message });
   next();
 });
+
+// ==========================================
+// 🕐 PROGRAMAR RECORDATORIOS AUTOMÁTICOS (CRON)
+// ==========================================
+// Ejecutar todos los días a las 8:00 AM (hora del servidor)
+cron.schedule('0 8 * * *', async () => {
+  console.log(`\n🕐 Ejecutando recordatorios automáticos - ${new Date().toLocaleString()}`);
+  await enviarRecordatoriosFaltantes();
+}, {
+  timezone: "America/Bogota"
+});
+
+// 🔧 Para probar inmediatamente (descomenta la siguiente línea)
+//setTimeout(() => enviarRecordatoriosFaltantes(), 10000); // 10 segundos después del inicio
+
+console.log('⏰ Cron job de recordatorios configurado para las 8:00 AM (Colombia)');
 
 app.listen(PORT, () => {
   console.log(`\n🚀 Servidor: http://localhost:${PORT}`);

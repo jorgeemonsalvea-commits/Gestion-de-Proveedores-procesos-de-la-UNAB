@@ -21,11 +21,52 @@
       <button class="tab" data-tab="plant">📋 Plantillas</button>
     </div>
     <div id="tab-provs" class="card">
+      <!-- ==========================================
+           📊 DASHBOARD - TARJETAS DE RESUMEN
+           ========================================== -->
+      <div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem;">
+        <div class="dashboard-card" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(124,58,237,0.25);">
+          <div style="font-size:2rem;line-height:1;">👥</div>
+          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Total</div>
+          <div id="card-total" style="font-size:2rem;font-weight:700;">0</div>
+        </div>
+        <div class="dashboard-card" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(5,150,105,0.25);">
+          <div style="font-size:2rem;line-height:1;">✅</div>
+          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Aprobados</div>
+          <div id="card-aprobados" style="font-size:2rem;font-weight:700;">0</div>
+        </div>
+        <div class="dashboard-card" style="background:linear-gradient(135deg,#d97706,#b45309);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(217,119,6,0.25);">
+          <div style="font-size:2rem;line-height:1;">⏳</div>
+          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Pendientes</div>
+          <div id="card-pendientes" style="font-size:2rem;font-weight:700;">0</div>
+        </div>
+        <div class="dashboard-card" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(220,38,38,0.25);">
+          <div style="font-size:2rem;line-height:1;">❌</div>
+          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Rechazados</div>
+          <div id="card-rechazados" style="font-size:2rem;font-weight:700;">0</div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           BOTONES "CREAR PROVEEDOR" + "EXPORTAR" JUNTOS
+           ========================================== -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
         <h3 style="margin:0;">Proveedores registrados</h3>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
           <button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">➕ Crear Proveedor</button>
-          <button class="btn btn-sm btn-success" onclick="exportarCSV()">📄 Exportar CSV</button>
+          
+          <!-- 🔽 BOTÓN DESPLEGABLE DE EXPORTACIÓN -->
+          <div class="dropdown" style="position:relative;display:inline-block;">
+            <button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">📄 Exportar</button>
+            <div id="exportDropdown" style="display:none;position:absolute;background:white;min-width:160px;box-shadow:0px 8px 16px rgba(0,0,0,0.2);border-radius:6px;z-index:10;margin-top:4px;border:1px solid #e5e7eb;overflow:hidden;">
+              <button onclick="exportarCSV()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">
+                📄 CSV
+              </button>
+              <button onclick="exportarExcel()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">
+                📊 Excel (.xlsx)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -76,10 +117,6 @@
             </select>
           </div>
         </div>
-      </div>
-
-      <div style="margin-bottom:1rem;color:#6b7280;font-size:0.9rem;">
-        Mostrando <strong id="resultadosCount">0</strong> de <strong id="totalProveedores">0</strong> proveedores
       </div>
 
       <div id="listaProveedores"></div>
@@ -258,13 +295,10 @@
     // ==========================================
     // 🔧 FUNCIÓN HELPER: fetchAPI
     // ==========================================
-    // Simplifica todas las llamadas fetch y SIEMPRE incluye credentials
-    // Esto es CRÍTICO para Railway/Render (proxy inverso con HTTPS)
-    // NO causa recursión como el interceptor global
     function fetchAPI(url, options = {}) {
       return fetch(url, {
         ...options,
-        credentials: 'include'  // 🔑 Envía cookies de sesión
+        credentials: 'include'
       });
     }
 
@@ -319,7 +353,8 @@
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit'
+        second: '2-digit',
+        timeZone: 'America/Bogota'
       }); 
     }
     
@@ -330,7 +365,7 @@
     }
 
     // ==========================================
-    // 🚀 INICIALIZACIÓN
+    // 🚀 FUNCIÓN INIT
     // ==========================================
     async function init() {
       try {
@@ -352,16 +387,38 @@
     // ==========================================
     async function cargarProveedores() {
       try {
-        const lista = await (await fetchAPI('/api/admin/proveedores')).json();
-        listaProveedoresCache = lista;
-        document.getElementById('count-todos').textContent = lista.length;
-        document.getElementById('count-aprobado').textContent = lista.filter(p => p.estado_general === 'aprobado').length;
-        document.getElementById('count-pendiente').textContent = lista.filter(p => p.estado_general === 'pendiente').length;
-        document.getElementById('count-rechazado').textContent = lista.filter(p => p.estado_general === 'rechazado').length;
-        document.getElementById('totalProveedores').textContent = lista.length;
+        const response = await fetchAPI('/api/admin/proveedores');
+        console.log('📥 [cargarProveedores] Status:', response.status);
+        
+        const lista = await response.json();
+        console.log('📥 [cargarProveedores] Datos recibidos:', lista);
+        
+        if (!Array.isArray(lista)) {
+          console.warn('⚠️ La respuesta no es un array:', lista);
+          listaProveedoresCache = [];
+        } else {
+          listaProveedoresCache = lista;
+        }
+
+        document.getElementById('count-todos').textContent = listaProveedoresCache.length;
+        document.getElementById('count-aprobado').textContent = listaProveedoresCache.filter(p => p.estado_general === 'aprobado').length;
+        document.getElementById('count-pendiente').textContent = listaProveedoresCache.filter(p => p.estado_general === 'pendiente').length;
+        document.getElementById('count-rechazado').textContent = listaProveedoresCache.filter(p => p.estado_general === 'rechazado').length;
+        
+        const total = listaProveedoresCache.length;
+        const aprobados = listaProveedoresCache.filter(p => p.estado_general === 'aprobado').length;
+        const pendientes = listaProveedoresCache.filter(p => p.estado_general === 'pendiente').length;
+        const rechazados = listaProveedoresCache.filter(p => p.estado_general === 'rechazado').length;
+        
+        document.getElementById('card-total').textContent = total;
+        document.getElementById('card-aprobados').textContent = aprobados;
+        document.getElementById('card-pendientes').textContent = pendientes;
+        document.getElementById('card-rechazados').textContent = rechazados;
+        
         aplicarFiltros();
       } catch (err) {
-        console.error('Error cargando proveedores:', err);
+        console.error('❌ Error en cargarProveedores:', err);
+        mostrarAlerta('Error al cargar proveedores: ' + err.message);
       }
     }
 
@@ -394,7 +451,6 @@
         }
       });
 
-      document.getElementById('resultadosCount').textContent = listaFiltrada.length;
       renderizarProveedores();
     }
 
@@ -445,47 +501,37 @@
     }
 
     async function verProveedor(id) {
-  try {
-    console.log(`🔍 Buscando proveedor ID: ${id}`);
-    
-    const response = await fetchAPI(`/api/admin/proveedor/${id}`);
-    
-    // Verificar que la respuesta sea exitosa
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Error del servidor:', response.status, errorData);
-      mostrarAlerta(`❌ Error al cargar proveedor: ${errorData.error || 'Proveedor no encontrado'}`);
-      return;
+      try {
+        console.log(`🔍 Buscando proveedor ID: ${id}`);
+        const response = await fetchAPI(`/api/admin/proveedor/${id}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Error del servidor:', response.status, errorData);
+          mostrarAlerta(`❌ Error al cargar proveedor: ${errorData.error || 'Proveedor no encontrado'}`);
+          return;
+        }
+        const data = await response.json();
+        console.log('📥 Datos recibidos:', data);
+        if (!data.proveedor) {
+          console.error('❌ No se recibió información del proveedor:', data);
+          mostrarAlerta('❌ No se encontró información del proveedor');
+          return;
+        }
+        proveedorActualId = id;
+        proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
+        document.getElementById('modalTitulo').textContent = proveedorActualNombre;
+        document.querySelectorAll('[data-mtab]').forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-mtab="docs"]').classList.add('active');
+        ['docs','notas','hist','rec','eliminar'].forEach(t => 
+          document.getElementById(`modal-tab-${t}`).classList.toggle('hidden', t !== 'docs')
+        );
+        renderDocs(data.proveedor, data.documentos);
+        document.getElementById('modal').classList.add('active');
+      } catch (error) {
+        console.error('❌ Error en verProveedor:', error);
+        mostrarAlerta(`❌ Error de conexión: ${error.message}`);
+      }
     }
-    
-    const data = await response.json();
-    console.log(' Datos recibidos:', data);
-    
-    // Validar que data.proveedor exista
-    if (!data.proveedor) {
-      console.error('❌ No se recibió información del proveedor:', data);
-      mostrarAlerta('❌ No se encontró información del proveedor');
-      return;
-    }
-    
-    proveedorActualId = id;
-    proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
-    
-    document.getElementById('modalTitulo').textContent = proveedorActualNombre;
-    document.querySelectorAll('[data-mtab]').forEach(t => t.classList.remove('active'));
-    document.querySelector('[data-mtab="docs"]').classList.add('active');
-    ['docs','notas','hist','rec','eliminar'].forEach(t => 
-      document.getElementById(`modal-tab-${t}`).classList.toggle('hidden', t !== 'docs')
-    );
-    
-    renderDocs(data.proveedor, data.documentos);
-    document.getElementById('modal').classList.add('active');
-    
-  } catch (error) {
-    console.error('❌ Error en verProveedor:', error);
-    mostrarAlerta(`❌ Error de conexión: ${error.message}`);
-  }
-}
 
     // ==========================================
     // 📄 RENDERIZAR DOCUMENTOS
@@ -533,7 +579,6 @@
         }
         
         const noAplicaAdmin = sub.length > 0 && sub[0].no_aplica === 1;
-        
         if (req.opcional || req.tipo === 'calidad') {
           html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
             <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
@@ -553,7 +598,6 @@
             <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
           </form>`;
         }
-        
         html += '</div>';
       });
       html += '</div>';
@@ -585,7 +629,7 @@
     }
 
     // ==========================================
-    // ✅ APROBAR / RECHAZAR DOCUMENTOS
+    // ✅ APROBAR / RECHAZAR
     // ==========================================
     async function cambiarEstado(docId, estado, comentario = null) {
       const res = await fetchAPI(`/api/admin/documento/${docId}/estado`, { 
@@ -824,9 +868,19 @@
     // ==========================================
     async function cargarPlantillas() {
       try {
-        const plantillas = await (await fetchAPI('/api/admin/plantillas')).json();
+        const response = await fetchAPI('/api/admin/plantillas');
+        console.log('📥 [cargarPlantillas] Status:', response.status);
+        
+        const plantillas = await response.json();
+        console.log('📥 [cargarPlantillas] Datos recibidos:', plantillas);
+        
         const map = {}; 
-        plantillas.forEach(p => map[p.tipo] = p);
+        if (Array.isArray(plantillas)) {
+          plantillas.forEach(p => map[p.tipo] = p);
+        } else {
+          console.warn('⚠️ La respuesta de plantillas no es un array:', plantillas);
+        }
+        
         const cont = document.getElementById('listaPlantillas'); 
         cont.innerHTML = '';
         
@@ -870,7 +924,8 @@
           });
         });
       } catch (err) {
-        console.error('Error cargando plantillas:', err);
+        console.error('❌ Error en cargarPlantillas:', err);
+        mostrarAlerta('Error al cargar plantillas: ' + err.message);
       }
     }
 
@@ -902,6 +957,60 @@
     }
 
     // ==========================================
+    // 🔽 TOGGLE DROPDOWN
+    // ==========================================
+    function toggleExportDropdown() {
+      const d = document.getElementById('exportDropdown');
+      d.style.display = d.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', function(e) {
+      const dropdown = document.getElementById('exportDropdown');
+      if (dropdown && !e.target.closest('.dropdown')) {
+        dropdown.style.display = 'none';
+      }
+    });
+
+    // ==========================================
+    // 📊 EXPORTAR EXCEL (XLSX)
+    // ==========================================
+    async function exportarExcel() {
+      if (!listaFiltrada.length) {
+        mostrarAlerta('No hay proveedores para exportar con los filtros actuales');
+        return;
+      }
+
+      try {
+        const res = await fetchAPI('/api/admin/exportar-excel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proveedores: listaFiltrada })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Error al exportar');
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proveedores_${fechaArchivo()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        mostrarAlerta('✅ Excel exportado correctamente', 'success');
+      } catch (err) {
+        console.error('Error exportando Excel:', err);
+        mostrarAlerta('❌ Error al exportar: ' + err.message);
+      }
+    }
+
+    // ==========================================
     // 🔐 CREAR PROVEEDOR
     // ==========================================
     function mostrarModalCrearProveedor() {
@@ -930,11 +1039,9 @@
         
         if (res.ok) {
           alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
-          
           setTimeout(async () => {
             cerrarModalCrearProveedor();
             await cargarProveedores();
-            
             if (r.proveedorId) {
               await verProveedor(r.proveedorId);
               mostrarAlerta('Proveedor creado. Revisa y gestiona sus documentos.', 'success');
@@ -957,7 +1064,7 @@
     }
 
     // ==========================================
-    // 🎯 EVENT LISTENERS DE NAVEGACIÓN
+    // 🎯 EVENT LISTENERS
     // ==========================================
     document.querySelectorAll('.tab[data-tab]').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -1004,35 +1111,28 @@
     let adminFormSubmitted = false;
     let noAplicaChanged = false;
 
-    // Delegación para formularios de admin (subir archivos)
     document.addEventListener('submit', async function(e) {
       if (e.target.classList.contains('form-upload-admin')) {
         if (adminFormSubmitted) return;
         adminFormSubmitted = true;
-        
         e.preventDefault();
         e.stopPropagation();
-        
         const form = e.target;
         const fd = new FormData(form);
         const tipo = form.dataset.tipo;
         const proveedorId = form.dataset.proveedorid;
-        
         if (!tipo || !proveedorId) {
           mostrarAlerta('❌ Error: Faltan datos del formulario');
           adminFormSubmitted = false;
           return;
         }
-        
         fd.append('tipo', tipo);
-        
         try {
           const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documento`, { 
             method: 'POST', 
             body: fd 
           });
           const r = await res.json();
-          
           if (res.ok) {
             mostrarAlerta(`✅ ${r.mensaje}`, 'success');
             const data = await (await fetchAPI(`/api/admin/proveedor/${proveedorId}`)).json();
@@ -1050,18 +1150,15 @@
       }
     });
 
-    // Delegación para checkboxes "No Aplica"
     document.addEventListener('change', async function(e) {
       if (e.target.classList.contains('checkbox-no-aplica-admin')) {
         if (noAplicaChanged) return;
         noAplicaChanged = true;
-        
         const checkbox = e.target;
         const docId = checkbox.dataset.docid;
         const tipo = checkbox.dataset.tipo;
         const proveedorId = checkbox.dataset.proveedorid;
         const noAplica = checkbox.checked;
-        
         try {
           let url;
           if (docId && docId !== '') {
@@ -1069,14 +1166,12 @@
           } else {
             url = `/api/admin/proveedor/${proveedorId}/documento/0/no-aplica`;
           }
-          
           const res = await fetchAPI(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ no_aplica: noAplica, tipo: tipo })
           });
           const r = await res.json();
-          
           if (res.ok) {
             mostrarAlerta(
               noAplica ? '✅ Documento marcado como "No Aplica"' : '✅ Documento ahora requiere carga', 

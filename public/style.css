@@ -1000,3 +1000,32 @@ html { scroll-behavior: smooth; }
   #modalVisor .modal { height: 100vh; }
   #visorIframe { height: calc(100vh - 100px) !important; }
 }
+/* ==========================================
+   DASHBOARD CARDS
+   ========================================== */
+.dashboard-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+/* Responsive: en pantallas muy pequeñas, que ocupen 2 columnas */
+@media (max-width: 480px) {
+  #dashboard-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.8rem;
+  }
+  .dashboard-card {
+    padding: 0.8rem !important;
+  }
+  .dashboard-card div:first-child {
+    font-size: 1.5rem !important;
+  }
+  .dashboard-card div:last-child {
+    font-size: 1.5rem !important;
+  }
+}

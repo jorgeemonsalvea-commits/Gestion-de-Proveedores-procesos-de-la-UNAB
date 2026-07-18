@@ -181,7 +181,8 @@ const migraciones = [
   { tabla: 'historial', campo: 'ip_origen', tipo: 'TEXT' },
   { tabla: 'notas_proveedor', campo: 'leida', tipo: 'INTEGER DEFAULT 0' },
   { tabla: 'notas_proveedor', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
-  { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' }
+  { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
+  { tabla: 'proveedores', campo: 'ultimo_recordatorio_envio', tipo: 'DATETIME' }
 ];
 
 let migracionesAplicadas = 0;
