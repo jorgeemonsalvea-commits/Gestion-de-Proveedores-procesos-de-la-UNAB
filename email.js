@@ -342,8 +342,8 @@ function emailRecordatorioDocumentosFaltantes(nombreProveedor, documentosFaltant
         
         <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0; border-radius: 4px;">
           <p style="margin: 0; color: #92400e; font-size: 14px;">
-            <strong>💡 Consejo:</strong> Si alguno de estos documentos no aplica para tu empresa, 
-            recuerda que puedes marcarlo como "No aplica" desde tu panel.
+            <strong> ⚠️ Importante: </strong> Ingresa a tu panel para subir los documentos faltantes; 
+            recuerda que es de suma importancia para continuar con el proceso.
           </p>
         </div>
         
