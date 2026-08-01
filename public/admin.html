@@ -1,1205 +1,3005 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel Administrador</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Administrador</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* 🧩 Menú de accesos (estilo portal UNAB) — solo admin.html */
+.navbar { position: relative; z-index: 1000; }
+.apps-menu-wrap { position: relative; display: inline-block; vertical-align: middle; z-index: 1200; }
+.apps-menu-trigger {
+display: inline-flex; align-items: center; justify-content: center;
+width: 40px; height: 40px; border-radius: 10px; vertical-align: middle;
+background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+color: #fff; cursor: pointer;
+transition: background .2s ease, border-color .2s ease, transform .15s ease;
+}
+.apps-menu-trigger:hover { background: var(--color-acento, #e9a427); border-color: var(--color-acento, #e9a427); color: #160a24; transform: translateY(-1px); }
+.apps-menu-trigger:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(233,164,39,.5); }
+.apps-menu-trigger svg { display: block; }
+.apps-menu-panel {
+position: absolute; right: 0; top: calc(100% + 12px);
+min-width: 250px; padding: 16px 14px 14px;
+background: linear-gradient(135deg, #160a24 0%, #2a0f47 100%);
+border: 1px solid rgba(233,164,39,.35); border-radius: 14px;
+box-shadow: 0 18px 45px rgba(0,0,0,.45);
+display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.97); transform-origin: top right;
+transition: opacity .2s ease, transform .22s cubic-bezier(.16,1,.3,1), visibility .2s;
+z-index: 1201;
+}
+.apps-menu-panel.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+.apps-menu-panel::before {
+content: ""; position: absolute; left: 14px; right: 14px; top: 0; height: 3px;
+background: linear-gradient(90deg, var(--color-acento, #e9a427), var(--color-primario, #8600dd));
+border-radius: 0 0 3px 3px;
+}
+.apps-menu-title { grid-column: 1 / -1; color: rgba(255,255,255,.65); font-size: .68rem; text-transform: uppercase; letter-spacing: .14em; font-weight: 700; margin: 0 2px 2px; }
+.apps-tile {
+display: flex; flex-direction: column; align-items: center; gap: 7px;
+padding: 14px 8px; border-radius: 11px; cursor: pointer; text-decoration: none;
+background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: #fff;
+transition: background .2s ease, transform .15s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.apps-tile:hover { background: rgba(233,164,39,.16); border-color: var(--color-acento, #e9a427); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.3); }
+.apps-tile:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(233,164,39,.5); }
+.apps-tile-icon { font-size: 1.6rem; line-height: 1; }
+.apps-tile-label { font-size: .78rem; font-weight: 600; letter-spacing: .02em; text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+.apps-menu-panel, .apps-menu-trigger, .apps-tile { transition: none !important; }
+}
+</style>
 </head>
 <body>
-  <nav class="navbar">
-    <h1>⚙️ Panel de Administración</h1>
-    <div>
-      <span id="userEmail" style="margin-right:1rem;font-size:0.9rem;"></span>
-      <button onclick="logout()">Cerrar sesión</button>
-    </div>
-  </nav>
-  <div class="container">
-    <div id="alerta"></div>
-    <div class="tabs">
-      <button class="tab active" data-tab="provs">👥 Proveedores</button>
-      <button class="tab" data-tab="plant">📋 Plantillas</button>
-    </div>
-    <div id="tab-provs" class="card">
-      <!-- ==========================================
-           📊 DASHBOARD - TARJETAS DE RESUMEN
-           ========================================== -->
-      <div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem;">
-        <div class="dashboard-card" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(124,58,237,0.25);">
-          <div style="font-size:2rem;line-height:1;">👥</div>
-          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Total</div>
-          <div id="card-total" style="font-size:2rem;font-weight:700;">0</div>
-        </div>
-        <div class="dashboard-card" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(5,150,105,0.25);">
-          <div style="font-size:2rem;line-height:1;">✅</div>
-          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Aprobados</div>
-          <div id="card-aprobados" style="font-size:2rem;font-weight:700;">0</div>
-        </div>
-        <div class="dashboard-card" style="background:linear-gradient(135deg,#d97706,#b45309);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(217,119,6,0.25);">
-          <div style="font-size:2rem;line-height:1;">⏳</div>
-          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Pendientes</div>
-          <div id="card-pendientes" style="font-size:2rem;font-weight:700;">0</div>
-        </div>
-        <div class="dashboard-card" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(220,38,38,0.25);">
-          <div style="font-size:2rem;line-height:1;">❌</div>
-          <div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Rechazados</div>
-          <div id="card-rechazados" style="font-size:2rem;font-weight:700;">0</div>
-        </div>
-      </div>
+<!-- Contenedor de notificaciones push -->
+<div id="notificationContainer" class="notification-container"></div>
 
-      <!-- ==========================================
-           BOTONES "CREAR PROVEEDOR" + "EXPORTAR" JUNTOS
-           ========================================== -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
-        <h3 style="margin:0;">Proveedores registrados</h3>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-          <button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">➕ Crear Proveedor</button>
-          
-          <!-- 🔽 BOTÓN DESPLEGABLE DE EXPORTACIÓN -->
-          <div class="dropdown" style="position:relative;display:inline-block;">
-            <button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">📄 Exportar</button>
-            <div id="exportDropdown" style="display:none;position:absolute;background:white;min-width:160px;box-shadow:0px 8px 16px rgba(0,0,0,0.2);border-radius:6px;z-index:10;margin-top:4px;border:1px solid #e5e7eb;overflow:hidden;">
-              <button onclick="exportarCSV()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">
-                📄 CSV
-              </button>
-              <button onclick="exportarExcel()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">
-                📊 Excel (.xlsx)
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+<nav class="navbar">
+<h1>
+<!-- <span class="navbar-logo-fallback">UNAB</span> -->
+<!-- LOGO UNAB: public/img/unab-logo-negativo.svg (o .png blanco),
+     descomentar la línea de abajo y BORRA el <span class="navbar-logo-fallback"> de arriba.
+     El CSS de style.css ya lo dimensiona y le da sombra (.navbar-logo). -->
+<img src="/img/unab-logo-negativo.png" alt="UNAB" class="navbar-logo">
+<span>Panel de Administración</span>
+</h1>
+<div>
+<span id="userEmail" style="margin-right:1rem;font-size:0.9rem;"></span>
+<button onclick="logout()">Cerrar sesión</button>
+<div class="apps-menu-wrap">
+<button class="apps-menu-trigger" onclick="toggleAppsMenu()" aria-label="Menú de accesos" title="Configuración y Plantillas">
+<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+<rect x="1" y="1" width="4" height="4" rx="1"></rect>
+<rect x="8" y="1" width="4" height="4" rx="1"></rect>
+<rect x="15" y="1" width="4" height="4" rx="1"></rect>
+<rect x="1" y="8" width="4" height="4" rx="1"></rect>
+<rect x="8" y="8" width="4" height="4" rx="1"></rect>
+<rect x="15" y="8" width="4" height="4" rx="1"></rect>
+<rect x="1" y="15" width="4" height="4" rx="1"></rect>
+<rect x="8" y="15" width="4" height="4" rx="1"></rect>
+<rect x="15" y="15" width="4" height="4" rx="1"></rect>
+</svg>
+</button>
+<div class="apps-menu-panel" id="appsMenuPanel">
+<div class="apps-menu-title">Accesos</div>
+<a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('configuracion');return false;">
+<span class="apps-tile-icon">⚙️</span>
+<span class="apps-tile-label">Configuración</span>
+</a>
+<a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('plant');return false;">
+<span class="apps-tile-icon">📄</span>
+<span class="apps-tile-label">Plantillas</span>
+</a>
+</div>
+</div>
+</div>
+</nav>
 
-      <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1.5rem;">
-        <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;margin-bottom:1rem;">
-          <div style="position:relative;">
-            <input type="text" id="buscador" placeholder="Buscar por nombre, NIT, email o representante..." 
-                   style="width:100%;padding:0.7rem 1rem 0.7rem 2.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-            <span style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:#9ca3af;">🔍</span>
-          </div>
-          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltros()">🗑️ Limpiar filtros</button>
-        </div>
+<div class="container">
+<div id="alerta"></div>
 
-        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-          <button class="filtro-estado active" data-estado="todos" onclick="filtrarEstado('todos')">
-            📋 Todos <span id="count-todos" class="badge-count">0</span>
-          </button>
-          <button class="filtro-estado" data-estado="aprobado" onclick="filtrarEstado('aprobado')">
-            ✅ Aprobados <span id="count-aprobado" class="badge-count badge-aprobado">0</span>
-          </button>
-          <button class="filtro-estado" data-estado="pendiente" onclick="filtrarEstado('pendiente')">
-            ⏳ Pendientes <span id="count-pendiente" class="badge-count badge-pendiente">0</span>
-          </button>
-          <button class="filtro-estado" data-estado="rechazado" onclick="filtrarEstado('rechazado')">
-            ❌ Rechazados <span id="count-rechazado" class="badge-count badge-rechazado">0</span>
-          </button>
-        </div>
+<!-- DASHBOARD CARDS -->
+<div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem;">
+<div class="dashboard-card" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(37,99,235,0.25);">
+<div style="font-size:2rem;line-height:1;">📋</div>
+<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Registrados</div>
+<div id="card-registrados" style="font-size:2rem;font-weight:700;">0</div>
+</div>
+<div class="dashboard-card" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(245,158,11,0.25);">
+<div style="font-size:2rem;line-height:1;">✅</div>
+<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Verificación</div>
+<div id="card-verificacion" style="font-size:2rem;font-weight:700;">0</div>
+</div>
+<div class="dashboard-card" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(139,92,246,0.25);">
+<div style="font-size:2rem;line-height:1;">📋</div>
+<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Aprobación</div>
+<div id="card-aprobacion" style="font-size:2rem;font-weight:700;">0</div>
+</div>
+<div class="dashboard-card" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(5,150,105,0.25);">
+<div style="font-size:2rem;line-height:1;">📝</div>
+<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Inscripción</div>
+<div id="card-inscripcion" style="font-size:2rem;font-weight:700;">0</div>
+</div>
+<div class="dashboard-card" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(220,38,38,0.25);">
+<div style="font-size:2rem;line-height:1;">❌</div>
+<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Rechazados</div>
+<div id="card-rechazados" style="font-size:2rem;font-weight:700;">0</div>
+</div>
+</div>
 
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
-          <div style="flex:1;min-width:200px;">
-            <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">Ordenar por:</label>
-            <select id="ordenar" onchange="aplicarFiltros()" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
-              <option value="reciente">Más recientes</option>
-              <option value="antiguo">Más antiguos</option>
-              <option value="nombre">Nombre (A-Z)</option>
-              <option value="progreso">Mayor progreso</option>
-              <option value="menor_progreso">Menor progreso</option>
-            </select>
-          </div>
-          <div style="flex:1;min-width:200px;">
-            <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">Progreso mínimo:</label>
-            <select id="progresoMin" onchange="aplicarFiltros()" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
-              <option value="0">Todos</option>
-              <option value="3">3+ documentos</option>
-              <option value="6">6+ documentos</option>
-              <option value="9">9+ documentos</option>
-              <option value="12">Completos (12)</option>
-            </select>
-          </div>
-        </div>
-      </div>
+<!-- PESTAÑAS PRINCIPALES -->
+<div class="tabs">
+<button class="tab active" data-tab="registrados">👥 Proveedores registrados</button>
+<button class="tab" data-tab="verificacion">✅ Verificación</button>
+<button class="tab" data-tab="aprobacion">📋 Aprobación</button>
+<button class="tab" data-tab="inscripcion">📝 Inscripción y actualización</button>
+<button class="tab" data-tab="historial">📜 Historial de actualizaciones</button>
+</div>
 
-      <div id="listaProveedores"></div>
-    </div>
-    <div id="tab-plant" class="card hidden">
-      <h3>Plantillas para proveedores</h3>
-      <p style="color:#6b7280;font-size:0.9rem;margin:0.5rem 0 1rem;">Sube los formatos que los proveedores deben diligenciar.</p>
-      <div id="listaPlantillas" class="doc-grid"></div>
-    </div>
-  </div>
+<!-- CONTENEDOR DINÁMICO -->
+<div id="contenedor-modulos"></div>
 
-  <!-- Modal Crear Proveedor -->
-  <div class="modal-overlay" id="modalCrearProveedor">
-    <div class="modal" style="max-width:600px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-        <h3 style="margin:0;">➕ Crear Nuevo Proveedor</h3>
-        <button class="btn btn-sm btn-secondary" onclick="cerrarModalCrearProveedor()">✕ Cerrar</button>
-      </div>
-      <div id="alertaCrearProveedor"></div>
-      <form id="formCrearProveedor">
-        <h4 style="margin-bottom:0.8rem;color:#1e40af;">📋 Datos de acceso</h4>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>Email *</label>
-            <input type="email" name="email" required placeholder="correo@empresa.com">
-          </div>
-          <div class="form-group">
-            <label>Contraseña inicial *</label>
-            <input type="text" name="password" required minlength="8" placeholder="Mín. 8 caracteres">
-            <small style="color:#6b7280;font-size:0.8rem;">Debe tener mayúscula, minúscula, número y especial</small>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Nombre de la empresa *</label>
-          <input type="text" name="nombre_empresa" required placeholder="Nombre legal de la empresa">
-        </div>
-        
-        <h4 style="margin:1.5rem 0 0.8rem 0;color:#1e40af;">🏢 Datos de la empresa (Obligatorios)</h4>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>Razón social</label>
-            <input type="text" name="razon_social" placeholder="Razón social">
-          </div>
-          <div class="form-group">
-            <label>NIT / RUT</label>
-            <input type="text" name="rfc" placeholder="NIT o RUT">
-          </div>
-          <div class="form-group">
-            <label>Representante legal</label>
-            <input type="text" name="representante" placeholder="Nombre completo">
-          </div>
-          <div class="form-group">
-            <label>Teléfono</label>
-            <input type="text" name="telefono" placeholder="Número de contacto">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Dirección</label>
-          <textarea name="direccion" rows="2" placeholder="Dirección completa"></textarea>
-        </div>
-        
-        <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-          <button type="button" class="btn btn-secondary" onclick="cerrarModalCrearProveedor()" style="flex:1;">Cancelar</button>
-          <button type="submit" class="btn" style="flex:1;background:#059669;">✅ Crear y enviar credenciales</button>
-        </div>
-      </form>
-    </div>
-  </div>
+<!-- ========================================== -->
+<!-- MODALES                                   -->
+<!-- ========================================== -->
 
-  <!-- Modal Proveedor -->
-  <div class="modal-overlay" id="modal">
-    <div class="modal" style="max-width:900px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-        <h3 id="modalTitulo" style="margin:0;">Proveedor</h3>
-        <button class="btn btn-sm btn-secondary" onclick="cerrarModal()">✕ Cerrar</button>
-      </div>
-      <div class="tabs" style="margin-bottom:1rem;">
-        <button class="tab active" data-mtab="docs">📄 Documentos</button>
-        <button class="tab" data-mtab="notas">📝 Notas</button>
-        <button class="tab" data-mtab="hist">📜 Historial</button>
-        <button class="tab" data-mtab="rec">📨 Recordatorio</button>
-        <button class="tab" data-mtab="eliminar" style="color:#dc2626;">🗑️ Eliminar</button>
-      </div>
-      <div id="modal-tab-docs"><div id="modalContenido"></div></div>
-      <div id="modal-tab-notas" class="hidden">
-        <div class="card" style="background:#fffbeb;padding:1.5rem;margin-bottom:1rem;">
-          <h4 style="margin-bottom:0.5rem;">📝 Agregar nota para el proveedor</h4>
-          <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">El proveedor verá esta nota en su panel.</p>
-          <div class="form-group"><label>Título</label><input type="text" id="tituloNota" placeholder="Ej: Corregir NIT..."></div>
-          <div class="form-group"><label>Detalle</label><textarea id="detalleNota" rows="4" placeholder="Describe qué debe modificar..."></textarea></div>
-          <button class="btn" onclick="guardarNota()">💾 Guardar nota</button>
-        </div>
-        <h4 style="margin-bottom:0.8rem;">📋 Notas anteriores</h4>
-        <div id="listaNotas"></div>
-      </div>
-      <div id="modal-tab-hist" class="hidden"><div id="modalHistorial"></div></div>
-      <div id="modal-tab-rec" class="hidden">
-        <div class="card" style="background:#fffbeb;padding:1.5rem;">
-          <h4 style="margin-bottom:0.5rem;">📨 Enviar recordatorio</h4>
-          <div class="form-group"><label>Mensaje</label><textarea id="mensajeRecordatorio" rows="4" placeholder="Ej: Sube los documentos faltantes..."></textarea></div>
-          <button class="btn" onclick="enviarRecordatorio()">Enviar</button>
-          <h4 style="margin-top:1.5rem;margin-bottom:0.5rem;">Historial de recordatorios</h4>
-          <div id="listaRecordatoriosEnviados"></div>
-        </div>
-      </div>
-      <div id="modal-tab-eliminar" class="hidden">
-        <div class="card" style="background:#fee2e2;border:2px solid #dc2626;padding:1.5rem;">
-          <h4 style="margin-bottom:0.5rem;color:#991b1b;">⚠️ Zona peligrosa</h4>
-          <p style="color:#7f1d1d;margin-bottom:1rem;">
-            Esta acción eliminará <strong>permanentemente</strong> toda la información del proveedor:
-          </p>
-          <ul style="color:#7f1d1d;margin-left:1.5rem;margin-bottom:1rem;">
-            <li>Todos los documentos subidos</li>
-            <li>Historial completo</li>
-            <li>Notas y recordatorios</li>
-            <li>Cuenta de usuario</li>
-          </ul>
-          <p style="color:#991b1b;font-weight:600;margin-bottom:1rem;">Esta acción NO se puede deshacer.</p>
-          <button class="btn btn-danger btn-full" onclick="mostrarConfirmacionEliminar()">🗑️ Eliminar proveedor completamente</button>
-        </div>
-      </div>
-    </div>
-  </div>
+<!-- Modal Genérico -->
+<div class="modal-overlay" id="modal">
+<div class="modal" style="max-width:950px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<h3 id="modalTitulo" style="margin:0;">Proveedor</h3>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">✕ Cerrar</button>
+</div>
+<div id="modalContenidoDinamico"></div>
 
-  <!-- Modal Confirmación Eliminar -->
-  <div class="modal-overlay" id="modalConfirmarEliminar">
-    <div class="modal" style="max-width:500px;">
-      <h3 style="color:#991b1b;">⚠️ Confirmar eliminación</h3>
-      <div id="alertaEliminar"></div>
-      <p style="margin-bottom:1rem;">
-        Estás a punto de eliminar permanentemente al proveedor:
-      </p>
-      <p style="background:#fee2e2;padding:1rem;border-radius:6px;margin-bottom:1rem;font-weight:600;color:#991b1b;">
-        <span id="nombreProveedorEliminar"></span>
-      </p>
-      <div class="form-group">
-        <label>Para confirmar, escribe: <strong>ELIMINAR</strong></label>
-        <input type="text" id="textoConfirmacion" placeholder="Escribe ELIMINAR">
-      </div>
-      <div class="form-group">
-        <label>Contraseña del administrador</label>
-        <input type="password" id="passwordConfirmacion" placeholder="Tu contraseña">
-      </div>
-      <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-        <button class="btn btn-secondary" onclick="cerrarConfirmacionEliminar()" style="flex:1;">Cancelar</button>
-        <button class="btn btn-danger" onclick="ejecutarEliminacion()" style="flex:1;">🗑️ Eliminar definitivamente</button>
-      </div>
-    </div>
-  </div>
+<!-- Sub-pestañas internas -->
+<div id="subTabsContainer" style="display:none;">
+<div class="tabs" style="margin-bottom:1rem;">
+<button class="tab active" data-stab="docs">📄 Documentos</button>
+<button class="tab" data-stab="historicos">📦 Históricos <span id="countHistoricos" class="badge-count" style="display:none;">0</span></button>
+<button class="tab" data-stab="notas">📝 Notas</button>
+<button class="tab" data-stab="hist">📜 Historial</button>
+<button class="tab" data-stab="rec">📨 Recordatorio</button>
+<button class="tab" data-stab="eliminar" style="color:#dc2626;">🗑️ Eliminar</button>
+</div>
+<div id="subTabDocs"><div id="modalContenidoDocs"></div></div>
+<div id="subTabHistoricos" class="hidden"></div>
+<div id="subTabNotas" class="hidden">
+<div class="card" style="background:#fffbeb;padding:1.5rem;margin-bottom:1rem;">
+<h4 style="margin-bottom:0.5rem;">📝 Agregar nota para el proveedor</h4>
+<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">El proveedor verá esta nota en su panel.</p>
+<div class="form-group"><label>Título</label><input type="text" id="tituloNota" placeholder="Ej: Corregir NIT..."></div>
+<div class="form-group"><label>Detalle</label><textarea id="detalleNota" rows="4" placeholder="Describe qué debe modificar..."></textarea></div>
+<button class="btn" onclick="guardarNota()">💾 Guardar nota</button>
+</div>
+<h4 style="margin-bottom:0.8rem;">📋 Notas anteriores</h4>
+<div id="listaNotas"></div>
+</div>
+<div id="subTabHist" class="hidden"><div id="modalHistorial"></div></div>
+<div id="subTabRec" class="hidden">
+<div class="card" style="background:#fffbeb;padding:1.5rem;">
+<h4 style="margin-bottom:0.5rem;">📨 Enviar recordatorio</h4>
+<div class="form-group"><label>Mensaje</label><textarea id="mensajeRecordatorio" rows="4" placeholder="Ej: Sube los documentos faltantes..."></textarea></div>
+<button class="btn" onclick="enviarRecordatorio()">Enviar</button>
+<h4 style="margin-top:1.5rem;margin-bottom:0.5rem;">Historial de recordatorios</h4>
+<div id="listaRecordatoriosEnviados"></div>
+</div>
+</div>
+<div id="subTabEliminar" class="hidden">
+<div class="card" style="background:#fee2e2;border:2px solid #dc2626;padding:1.5rem;">
+<h4 style="margin-bottom:0.5rem;color:#991b1b;">⚠️ Zona peligrosa</h4>
+<p style="color:#7f1d1d;margin-bottom:1rem;">Esta acción eliminará <strong>permanentemente</strong> toda la información del proveedor.</p>
+<ul style="color:#7f1d1d;margin-left:1.5rem;margin-bottom:1rem;">
+<li>Todos los documentos subidos (activos e históricos)</li><li>Historial completo</li>
+<li>Notas y recordatorios</li><li>Cuenta de usuario</li>
+</ul>
+<p style="color:#991b1b;font-weight:600;margin-bottom:1rem;">Esta acción NO se puede deshacer.</p>
+<button class="btn btn-danger btn-full" onclick="mostrarConfirmacionEliminar()">🗑️ Eliminar proveedor completamente</button>
+</div>
+</div>
+</div>
+</div>
+</div>
 
-  <!-- Modal Visor PDF -->
-  <div class="modal-overlay" id="modalVisor">
-    <div class="modal" style="max-width:95%;width:1100px;height:92vh;padding:1rem;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
-        <h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;">
-            ⬇️ Descargar PDF
-          </a>
-          <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary">
-            🔗 Abrir en pestaña
-          </a>
-          <button class="btn btn-sm btn-danger" onclick="cerrarVisor()">✕ Cerrar</button>
-        </div>
-      </div>
-      <div style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">
-        <div id="visorCargando" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:white;">
-          <div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div><p>Cargando documento...</p>
-        </div>
-        <iframe id="visorIframe" style="width:100%;height:100%;border:none;display:none;"></iframe>
-      </div>
-    </div>
-  </div>
+<!-- Modal Confirmación Eliminar -->
+<div class="modal-overlay" id="modalConfirmarEliminar">
+<div class="modal" style="max-width:500px;">
+<h3 style="color:#991b1b;">⚠️ Confirmar eliminación</h3>
+<div id="alertaEliminar"></div>
+<p style="margin-bottom:1rem;">Estás a punto de eliminar permanentemente al proveedor:</p>
+<p style="background:#fee2e2;padding:1rem;border-radius:6px;margin-bottom:1rem;font-weight:600;color:#991b1b;">
+<span id="nombreProveedorEliminar"></span>
+</p>
+<div class="form-group">
+<label>Para confirmar, escribe: <strong>ELIMINAR</strong></label>
+<input type="text" id="textoConfirmacion" placeholder="Escribe ELIMINAR">
+</div>
+<div class="form-group">
+<label>Contraseña del administrador</label>
+<input type="password" id="passwordConfirmacion" placeholder="Tu contraseña">
+</div>
+<div style="display:flex;gap:0.5rem;margin-top:1rem;">
+<button class="btn btn-secondary" onclick="cerrarConfirmacionEliminar()" style="flex:1;">Cancelar</button>
+<button class="btn btn-danger" onclick="ejecutarEliminacion()" style="flex:1;">🗑️ Eliminar definitivamente</button>
+</div>
+</div>
+</div>
 
-  <script>
-    // ==========================================
-    // 🔧 FUNCIÓN HELPER: fetchAPI
-    // ==========================================
-    function fetchAPI(url, options = {}) {
-      return fetch(url, {
-        ...options,
-        credentials: 'include'
-      });
-    }
+<!-- Modal Visor PDF -->
+<div class="modal-overlay" id="modalVisor">
+<div class="modal" style="max-width:95%;width:1100px;height:92vh;padding:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
+<h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+<a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;">⬇️ Descargar PDF</a>
+<a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary">🔗 Abrir en pestaña</a>
+<button class="btn btn-sm btn-danger" onclick="cerrarVisor()">✕ Cerrar</button>
+</div>
+</div>
+<div style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">
+<div id="visorCargando" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:white;">
+<div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div><p>Cargando documento...</p>
+</div>
+<iframe id="visorIframe" style="width:100%;height:100%;border:none;display:none;"></iframe>
+</div>
+</div>
+</div>
 
-    // ==========================================
-    // 📋 VARIABLES GLOBALES
-    // ==========================================
-    let requeridos = [
-      { tipo:'gaf01', nombre:'GAF04-01-FO-01 Abastacimiento de Bienes y Servicios V11', esPlantilla:true, cantidadMin:1 },
-      { tipo:'gaf07', nombre:'GAF04-01-FO-07 Lavado de activos V2', esPlantilla:true, cantidadMin:1 },
-      { tipo:'gaf08', nombre:'GAF04-01-FO-08 Declaración de Origen de Fondos V2', esPlantilla:true, cantidadMin:1 },
-      { tipo:'rut', nombre:'RUT', esPlantilla:false, cantidadMin:1 },
-      { tipo:'camara_comercio', nombre:'Certificado Cámara de Comercio', esPlantilla:false, cantidadMin:1 },
-      { tipo:'cedula_rl', nombre:'Fotocopia cédula de ciudadanía del Representante Legal', esPlantilla:false, cantidadMin:1 },
-      { tipo:'estados_financieros', nombre:'Estados Financieros', esPlantilla:false, cantidadMin:1 },
-      { tipo:'parafiscales', nombre:'Certificación de parafiscales', esPlantilla:false, cantidadMin:1 },
-      { tipo:'calidad', nombre:'Certificación de calidad (si aplica)', esPlantilla:false, cantidadMin:1, opcional:true },
-      { tipo:'sgsst', nombre:'Seguridad y Salud en el Trabajo', esPlantilla:false, cantidadMin:1 },
-      { tipo:'experiencia', nombre:'Certificados experiencia comercial (mín. 3)', esPlantilla:false, cantidadMin:3 },
-      { tipo:'cuenta_bancaria', nombre:'Certificación de la Cuenta Bancaria', esPlantilla:false, cantidadMin:1 }
-    ];
-    
-    let proveedorActualId = null;
-    let proveedorActualNombre = '';
-    let listaProveedoresCache = [];
-    let listaFiltrada = [];
-    let filtroEstadoActual = 'todos';
+<!-- Modal Crear Proveedor -->
+<div class="modal-overlay" id="modalCrearProveedor">
+<div class="modal" style="max-width:600px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<h3 style="margin:0;">➕ Crear Nuevo Proveedor</h3>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModalCrearProveedor()">✕ Cerrar</button>
+</div>
+<div id="alertaCrearProveedor"></div>
+<form id="formCrearProveedor">
+<h4 style="margin-bottom:0.8rem;color:#1e40af;">📋 Datos de acceso</h4>
+<div class="grid-2">
+<div class="form-group">
+<label>Email *</label>
+<input type="email" name="email" required placeholder="correo@empresa.com">
+</div>
+<div class="form-group">
+<label>Contraseña inicial *</label>
+<input type="text" name="password" required minlength="8" placeholder="Mín. 8 caracteres">
+<small style="color:#6b7280;font-size:0.8rem;">Debe tener mayúscula, minúscula, número y especial</small>
+</div>
+</div>
+<div class="form-group">
+<label>Nombre de la empresa *</label>
+<input type="text" name="nombre_empresa" required placeholder="Nombre legal de la empresa">
+</div>
+<h4 style="margin:1.5rem 0 0.8rem 0;color:#1e40af;">🏢 Datos de la empresa (Obligatorios)</h4>
+<div class="grid-2">
+<div class="form-group"><label>Razón social</label><input type="text" name="razon_social" placeholder="Razón social"></div>
+<div class="form-group"><label>NIT / RUT</label><input type="text" name="rfc" placeholder="NIT o RUT"></div>
+<div class="form-group"><label>Representante legal</label><input type="text" name="representante" placeholder="Nombre completo"></div>
+<div class="form-group"><label>Teléfono</label><input type="text" name="telefono" placeholder="Número de contacto"></div>
+</div>
+<div class="form-group">
+<label>Dirección</label>
+<textarea name="direccion" rows="2" placeholder="Dirección completa"></textarea>
+</div>
+<div style="display:flex;gap:0.5rem;margin-top:1rem;">
+<button type="button" class="btn btn-secondary" onclick="cerrarModalCrearProveedor()" style="flex:1;">Cancelar</button>
+<button type="submit" class="btn" style="flex:1;background:#059669;">✅ Crear y enviar credenciales</button>
+</div>
+</form>
+</div>
+</div>
 
-    // ==========================================
-    // 📋 FUNCIONES AUXILIARES
-    // ==========================================
-    function fechaArchivo() { 
-      const d = new Date(), p = n => String(n).padStart(2, '0'); 
-      return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; 
-    }
-    
-    function descargarBlob(blob, n) { 
-      const u = URL.createObjectURL(blob);
-      const a = document.createElement('a'); 
-      a.href = u;
-      a.download = n;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(u); 
-    }
-    
-    function formatearFecha(f) { 
-      if (!f) return ''; 
-      return new Date(f.replace(' ', 'T')).toLocaleString('es-CO', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: 'America/Bogota'
-      }); 
-    }
-    
-    function mostrarAlerta(msg, tipo = 'error') { 
-      const el = document.getElementById('alerta'); 
-      el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`; 
-      setTimeout(() => el.innerHTML = '', 3000); 
-    }
+<footer class="unab-footer">
+<strong>UNAB</strong> · Universidad Autónoma de Bucaramanga · Portal de Gestión de Proveedores<br>
+© 2026 · Conexión segura con cifrado AES-256 · Versión 4.7
+</footer>
+<!-- ========================================== -->
+<!-- SCRIPTS                                   -->
+<!-- ========================================== -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ==========================================
+// 🔧 FUNCIÓN HELPER: fetchAPI
+// ==========================================
+function fetchAPI(url, options = {}) {
+return fetch(url, { ...options, credentials: 'include' });
+}
 
-    // ==========================================
-    // 🚀 FUNCIÓN INIT
-    // ==========================================
-    async function init() {
-      try {
-        const me = await (await fetchAPI('/api/me')).json();
-        if (!me.usuario) return window.location.href = 'index.html';
-        if (me.usuario.rol !== 'admin') return window.location.href = 'proveedor.html';
-        document.getElementById('userEmail').textContent = me.usuario.email;
-        document.getElementById('buscador').addEventListener('input', aplicarFiltros);
-        await cargarProveedores();
-        await cargarPlantillas();
-      } catch (err) {
-        console.error('Error en init:', err);
-        mostrarAlerta('Error al cargar: ' + err.message);
-      }
-    }
+// ==========================================
+// 📋 VARIABLES GLOBALES
+// ==========================================
+let requeridos = [];
+let moduloActual = 'registrados';
+let proveedorActualId = null;
+let proveedorActualNombre = '';
+let listaProveedoresCache = [];
+let listaFiltrada = [];
+let filtroEstadoActual = 'todos';
+let paginaActual = 1;
+let limiteActual = 20;
+let totalPaginas = 1;
+let totalRegistros = 0;
+let adminFormSubmitted = false;
+let noAplicaChanged = false;
+let historicosCache = [];
 
-    // ==========================================
-    // 👥 GESTIÓN DE PROVEEDORES
-    // ==========================================
-    async function cargarProveedores() {
-      try {
-        const response = await fetchAPI('/api/admin/proveedores');
-        console.log('📥 [cargarProveedores] Status:', response.status);
-        
-        const lista = await response.json();
-        console.log('📥 [cargarProveedores] Datos recibidos:', lista);
-        
-        if (!Array.isArray(lista)) {
-          console.warn('⚠️ La respuesta no es un array:', lista);
-          listaProveedoresCache = [];
-        } else {
-          listaProveedoresCache = lista;
-        }
+// ==========================================
+// 📋 FUNCIONES AUXILIARES
+// ==========================================
+function fechaArchivo() {
+const d = new Date(), p = n => String(n).padStart(2, '0');
+return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+function descargarBlob(blob, n) {
+const u = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = u; a.download = n;
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+URL.revokeObjectURL(u);
+}
+function formatearFecha(f) {
+if (!f) return '';
+return new Date(f.replace(' ', 'T')).toLocaleString('es-CO', {
+year: 'numeric', month: '2-digit', day: '2-digit',
+hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Bogota'
+});
+}
+function escapeHtml(text) {
+if (!text) return '';
+return String(text)
+.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+// 🛡️ A1: escape para VALORES de atributos HTML (data-*, href). Escapa el delimitador " y &.
+function escapeAttr(text) {
+if (!text) return '';
+return String(text)
+.replace(/&/g, '&amp;')
+.replace(/"/g, '&quot;')
+.replace(/</g, '&lt;')
+.replace(/>/g, '&gt;');
+}
+// 🛡️ A1: abre el visor leyendo los datos desde data-attributes (evita inyectar el nombre en onclick)
+function verDocumentoBtn(btn) {
+verDocumento(btn.dataset.url, btn.dataset.nombre || 'Documento');
+}
+// 🏷️ Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
+function nombreFormato(tipo) {
+const r = (requeridos || []).find(x => x.tipo === tipo);
+return r ? r.nombre : (tipo || 'Documento');
+}
 
-        document.getElementById('count-todos').textContent = listaProveedoresCache.length;
-        document.getElementById('count-aprobado').textContent = listaProveedoresCache.filter(p => p.estado_general === 'aprobado').length;
-        document.getElementById('count-pendiente').textContent = listaProveedoresCache.filter(p => p.estado_general === 'pendiente').length;
-        document.getElementById('count-rechazado').textContent = listaProveedoresCache.filter(p => p.estado_general === 'rechazado').length;
-        
-        const total = listaProveedoresCache.length;
-        const aprobados = listaProveedoresCache.filter(p => p.estado_general === 'aprobado').length;
-        const pendientes = listaProveedoresCache.filter(p => p.estado_general === 'pendiente').length;
-        const rechazados = listaProveedoresCache.filter(p => p.estado_general === 'rechazado').length;
-        
-        document.getElementById('card-total').textContent = total;
-        document.getElementById('card-aprobados').textContent = aprobados;
-        document.getElementById('card-pendientes').textContent = pendientes;
-        document.getElementById('card-rechazados').textContent = rechazados;
-        
-        aplicarFiltros();
-      } catch (err) {
-        console.error('❌ Error en cargarProveedores:', err);
-        mostrarAlerta('Error al cargar proveedores: ' + err.message);
-      }
-    }
+// ==========================================
+// 📅 ESTADO DE VENCIMIENTO
+// ==========================================
+function obtenerEstadoVencimiento(fechaVencimiento) {
+if (!fechaVencimiento) return { clase: 'sin-fecha', texto: 'Sin fecha', icono: '⚪' };
+const hoy = new Date();
+const venc = new Date(fechaVencimiento.replace(' ', 'T'));
+const diffDias = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24));
+if (diffDias < 0) return { clase: 'vencido', texto: 'Vencido', icono: '🔴' };
+else if (diffDias <= 30) return { clase: 'proximo-a-vencer', texto: 'Próximo a vencer', icono: '🟡' };
+else return { clase: 'vigente', texto: 'Vigente', icono: '🟢' };
+}
 
-    function aplicarFiltros() {
-      const busqueda = document.getElementById('buscador').value.toLowerCase().trim();
-      const ordenar = document.getElementById('ordenar').value;
-      const progresoMin = parseInt(document.getElementById('progresoMin').value);
+// 🏷️ Estado legible para exportaciones (diferencia las etapas reales)
+function estadoLegible(p) {
+const etapa = p.etapa || '';
+if (etapa === 'registrado') return 'Registrado';
+if (etapa === 'rechazado') return 'Rechazado';
+if (etapa === 'verificacion') return 'Por verificar';
+if (etapa === 'aprobacion') return 'Por aprobación';
+if (etapa === 'inscripcion') return 'En inscripción';
+// Fallback si la etapa viniera vacía
+if (p.estado_general === 'aprobado') return 'Registrado';
+if (p.estado_general === 'rechazado') return 'Rechazado';
+return 'Pendiente';
+}
 
-      listaFiltrada = listaProveedoresCache.filter(p => {
-        if (filtroEstadoActual !== 'todos' && p.estado_general !== filtroEstadoActual) return false;
-        if (p.aprobados < progresoMin) return false;
-        if (busqueda) {
-          const texto = `${p.razon_social || ''} ${p.nombre_empresa || ''} ${p.rfc || ''} ${p.email || ''} ${p.representante || ''} ${p.telefono || ''}`.toLowerCase();
-          if (!texto.includes(busqueda)) return false;
-        }
-        return true;
-      });
+// ==========================================
+// 📬 NOTIFICACIONES PUSH
+// ==========================================
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
+const container = document.getElementById('notificationContainer');
+if (!container) return;
+const notif = document.createElement('div');
+notif.className = `notification notification-${tipo}`;
+const iconos = { success: '☑️', error: '💥', warning: '⚠️', info: 'ℹ️' };
+const icono = iconos[tipo] || 'ℹ️';
+notif.innerHTML = `
+<span class="notification-icon">${icono}</span>
+<span class="notification-content">${mensaje}</span>
+<button class="notification-close" onclick="cerrarNotificacion(this)">✕</button>
+`;
+container.appendChild(notif);
+const timeout = setTimeout(() => { cerrarNotificacion(notif.querySelector('.notification-close')); }, duracion);
+notif.dataset.timeout = timeout;
+}
+function cerrarNotificacion(boton) {
+const notif = boton.closest('.notification');
+if (!notif) return;
+if (notif.dataset.timeout) clearTimeout(parseInt(notif.dataset.timeout));
+notif.classList.add('notification-exit');
+setTimeout(() => { if (notif.parentNode) notif.remove(); }, 350);
+}
+function mostrarAlerta(msg, tipo = 'error') {
+const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info' };
+mostrarNotificacion(msg, tiposMap[tipo] || 'info');
+}
 
-      listaFiltrada.sort((a, b) => {
-        switch(ordenar) {
-          case 'reciente': return b.id - a.id;
-          case 'antiguo': return a.id - b.id;
-          case 'nombre': 
-            const nombreA = (a.razon_social || a.nombre_empresa || '').toLowerCase();
-            const nombreB = (b.razon_social || b.nombre_empresa || '').toLowerCase();
-            return nombreA.localeCompare(nombreB);
-          case 'progreso': return b.aprobados - a.aprobados;
-          case 'menor_progreso': return a.aprobados - b.aprobados;
-          default: return 0;
-        }
-      });
+// ==========================================
+// 📋 EXPORTAR HABEAS DATA A CSV
+// ==========================================
+async function exportarHabeasData() {
+try {
+mostrarAlerta('⏳ Generando archivo CSV...', 'info');
+const response = await fetchAPI('/api/admin/habeas-data/export');
+if (!response.ok) {
+const errorData = await response.json().catch(() => ({}));
+throw new Error(errorData.error || 'Error al exportar Habeas Data');
+}
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url; a.download = 'habeas_data_export.csv';
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+window.URL.revokeObjectURL(url);
+mostrarAlerta('👌 Habeas Data exportado correctamente', 'success');
+} catch (err) {
+console.error('❌ Error exportando Habeas Data:', err);
+mostrarAlerta('❌ Error al exportar: ' + err.message);
+}
+}
 
-      renderizarProveedores();
-    }
+// ==========================================
+// 📡 SOCKET.IO - CONEXIÓN EN TIEMPO REAL
+// ==========================================
+let socket = null;
+let timeoutRecargar = null;
 
-    function renderizarProveedores() {
-      const cont = document.getElementById('listaProveedores');
-      if (listaFiltrada.length === 0) {
-        cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No se encontraron proveedores con los filtros aplicados.</p>';
-        return;
-      }
-      cont.innerHTML = listaFiltrada.map(p => `
-        <div class="proveedor-row">
-          <div style="flex:1;">
-            <h4>${p.razon_social||p.nombre_empresa||'Sin nombre'}
-              ${p.recordatorios_pendientes>0?`<span class="badge-recordatorio">📨 ${p.recordatorios_pendientes}</span>`:''}
-              ${p.notas_count>0?`<span class="badge-recordatorio" style="background:#8b5cf6;">📝 ${p.notas_count}</span>`:''}
-            </h4>
-            <small>📧 ${p.email} · NIT: ${p.rfc||'—'} · 📞 ${p.telefono||'—'}</small>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:0.85rem;color:#6b7280;">Docs</div>
-            <strong>${p.aprobados}/${p.total}</strong>
-            <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;margin-top:0.3rem;overflow:hidden;">
-              <div style="width:${(p.aprobados/p.total)*100}%;height:100%;background:${p.estado_general==='aprobado'?'#059669':p.estado_general==='rechazado'?'#dc2626':'#f59e0b'};"></div>
-            </div>
-          </div>
-          <span class="badge badge-${p.estado_general}">${p.estado_general}</span>
-          <button class="btn btn-sm" onclick="verProveedor(${p.id})">🔍 Revisar</button>
-        </div>`).join('');
-    }
+function conectarSocket() {
+// ✅ Se conecta al mismo origen (funciona en local y en Railway/producción)
+socket = io({
+withCredentials: true,
+reconnection: true,
+reconnectionAttempts: 10,
+reconnectionDelay: 1000
+});
 
-    function filtrarEstado(estado) {
-      filtroEstadoActual = estado;
-      document.querySelectorAll('.filtro-estado').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.estado === estado);
-      });
-      aplicarFiltros();
-    }
+socket.on('connect', () => { console.log('🔌 Conectado a Socket.IO'); });
+socket.on('disconnect', () => { console.log('🔌 Desconectado del servidor Socket.IO'); });
 
-    function limpiarFiltros() {
-      document.getElementById('buscador').value = '';
-      document.getElementById('ordenar').value = 'reciente';
-      document.getElementById('progresoMin').value = '0';
-      filtroEstadoActual = 'todos';
-      document.querySelectorAll('.filtro-estado').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.estado === 'todos');
-      });
-      aplicarFiltros();
-    }
+socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarVistaActual(); });
+socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarVistaActual(); });
+socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarVistaActual(); });
+socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarVistaActual(); });
+socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); recargarVistaActual(); });
+socket.on('proveedores_actualizados', () => { console.log('👥 Proveedores actualizados'); recargarVistaActual(); });
+socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas actualizadas'); actualizarEstadisticasGlobales(); });
+socket.on('vencimientos_procesados', (data) => {
+console.log('⏰ Vencimientos procesados:', data);
+mostrarNotificacion(`📦 Vencimientos: ${data.movidos} movidos, ${data.notificados} notificados`, 'info');
+recargarVistaActual();
+});
+socket.on('nuevo_recordatorio', (data) => {
+console.log('📨 Nuevo recordatorio:', data);
+mostrarNotificacion('📨 Tienes un nuevo recordatorio', 'info');
+if (proveedorActualId) cargarRecordatoriosEnviados();
+});
+socket.on('nueva_nota', (data) => {
+console.log('📝 Nueva nota:', data);
+mostrarNotificacion('📝 Tienes una nueva nota', 'info');
+if (proveedorActualId) cargarNotas();
+});
+}
 
-    async function verProveedor(id) {
-      try {
-        console.log(`🔍 Buscando proveedor ID: ${id}`);
-        const response = await fetchAPI(`/api/admin/proveedor/${id}`);
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('❌ Error del servidor:', response.status, errorData);
-          mostrarAlerta(`❌ Error al cargar proveedor: ${errorData.error || 'Proveedor no encontrado'}`);
-          return;
-        }
-        const data = await response.json();
-        console.log('📥 Datos recibidos:', data);
-        if (!data.proveedor) {
-          console.error('❌ No se recibió información del proveedor:', data);
-          mostrarAlerta('❌ No se encontró información del proveedor');
-          return;
-        }
-        proveedorActualId = id;
-        proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
-        document.getElementById('modalTitulo').textContent = proveedorActualNombre;
-        document.querySelectorAll('[data-mtab]').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-mtab="docs"]').classList.add('active');
-        ['docs','notas','hist','rec','eliminar'].forEach(t => 
-          document.getElementById(`modal-tab-${t}`).classList.toggle('hidden', t !== 'docs')
-        );
-        renderDocs(data.proveedor, data.documentos);
-        document.getElementById('modal').classList.add('active');
-      } catch (error) {
-        console.error('❌ Error en verProveedor:', error);
-        mostrarAlerta(`❌ Error de conexión: ${error.message}`);
-      }
-    }
+function recargarVistaActual() {
+if (timeoutRecargar) clearTimeout(timeoutRecargar);
+timeoutRecargar = setTimeout(() => {
+if (moduloActual === 'configuracion') {
+recargarConfiguracion();
+} else if (moduloActual === 'historial') {
+cargarHistorial(historialPaginaActual);
+} else if (moduloActual === 'plant') {
+cargarPlantillas();
+} else {
+cargarProveedoresPorModulo(moduloActual, paginaActual);
+}
+if (proveedorActualId) recargarVistaProveedor();
+timeoutRecargar = null;
+}, 300);
+}
 
-    // ==========================================
-    // 📄 RENDERIZAR DOCUMENTOS
-    // ==========================================
-    function renderDocs(p, docs) {
-      const map = {};
-      docs.forEach(d => { if(!map[d.tipo]) map[d.tipo]=[]; map[d.tipo].push(d); });
-      
-      let html = `<div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
-        <strong>Email:</strong> ${p.email}<br><strong>NIT/RUT:</strong> ${p.rfc||'—'}<br>
-        <strong>Representante:</strong> ${p.representante||'—'}<br><strong>Teléfono:</strong> ${p.telefono||'—'}<br>
-        <strong>Dirección:</strong> ${p.direccion||'—'}</div>
-        <div class="alert alert-info" style="margin-bottom:1rem;">
-          <strong>ℹ️ Información:</strong> Como administrador, puedes subir documentos en nombre del proveedor para agilizar el proceso de registro.
-        </div>
-        <h4 style="margin-bottom:0.8rem;">Documentos</h4><div class="doc-grid">`;
+// ==========================================
+// 🚀 INICIALIZACIÓN
+// ==========================================
+async function init() {
+try {
+const me = await (await fetchAPI('/api/me')).json();
+if (!me.usuario) return window.location.href = 'index.html';
+if (me.usuario.rol !== 'admin') return window.location.href = 'proveedor.html';
+document.getElementById('userEmail').textContent = me.usuario.email;
 
-      requeridos.forEach((req, idx) => {
-        const sub = map[req.tipo] || [];
-        const ok = sub.filter(d=>d.estado==='aprobado').length >= req.cantidadMin;
-        html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
-          <div style="margin-bottom:0.5rem;">
-            <h4>${idx+1}. ${req.nombre}</h4>
-            <small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
-            ${ok?'<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>':''}
-          </div>`;
-        if (!sub.length) {
-          html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
-        } else {
-          sub.forEach(d => {
-            const nombreEscapado = d.nombre_original.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-            html += `<div class="doc-row">
-              <div style="flex:1;min-width:180px;">
-                <small>📎 ${d.nombre_original} <span class="badge badge-${d.estado}">${d.estado}</span></small>
-                ${d.comentario?`<br><small style="color:#991b1b;">💬 ${d.comentario}</small>`:''}
-                <br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
-              </div>
-              <div class="doc-row-actions">
-                <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${d.archivo}','${nombreEscapado}')">👁️ Ver</button>
-                <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
-                <button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
-                <button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
-              </div></div>`;
-          });
-        }
-        
-        const noAplicaAdmin = sub.length > 0 && sub[0].no_aplica === 1;
-        if (req.opcional || req.tipo === 'calidad') {
-          html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
-            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
-              <input type="checkbox" class="checkbox-no-aplica-admin" data-docid="${sub[0]?.id || ''}" data-tipo="${req.tipo}" data-proveedorid="${p.id}" ${noAplicaAdmin ? 'checked' : ''}>
-              <span style="font-weight:500;color:#92400e;">📋 Marcar como "No Aplica" para este proveedor</span>
-            </label>
-            <small style="color:#78350f;display:block;margin-top:0.3rem;">Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"</small>
-          </div>`;
-        }
-        
-        const puedeSubir = req.cantidadMin === 1 ? (sub.length === 0 || (sub[0].estado === 'rechazado' && !noAplicaAdmin)) : true;
-        if (puedeSubir && !noAplicaAdmin) {
-          const label = sub.length === 0 ? '📤 Admin subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
-          html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;">
-            <span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
-            <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-            <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
-          </form>`;
-        }
-        html += '</div>';
-      });
-      html += '</div>';
-      document.getElementById('modalContenido').innerHTML = html;
-    }
+const reqResp = await fetchAPI('/api/proveedor/requerimientos');
+if (reqResp.ok) {
+requeridos = await reqResp.json();
+console.log('✅ Requerimientos cargados:', requeridos.length);
+} else {
+console.error('❌ Error al cargar requerimientos');
+requeridos = [];
+}
 
-    // ==========================================
-    // 👁️ VISOR DE DOCUMENTOS
-    // ==========================================
-    function verDocumento(url, nombre) {
-      document.getElementById('visorTitulo').textContent = nombre;
-      document.getElementById('visorDescargar').href = url + '?download=true';
-      document.getElementById('visorDescargar').setAttribute('download', nombre);
-      document.getElementById('visorNuevaPestana').href = url;
-      
-      const iframe = document.getElementById('visorIframe');
-      const cargando = document.getElementById('visorCargando');
-      iframe.style.display = 'none';
-      cargando.style.display = 'block';
-      iframe.src = url;
-      iframe.onload = () => { cargando.style.display='none'; iframe.style.display='block'; };
-      setTimeout(() => { if(cargando.style.display!=='none'){cargando.style.display='none';iframe.style.display='block';} }, 8000);
-      document.getElementById('modalVisor').classList.add('active');
-    }
+await cargarModulo('registrados');
+await actualizarEstadisticasGlobales();
+configurarTabs();
+conectarSocket();
 
-    function cerrarVisor() {
-      document.getElementById('visorIframe').src = 'about:blank';
-      document.getElementById('modalVisor').classList.remove('active');
-    }
+document.addEventListener('click', function(e) {
+const dropdown = document.getElementById('exportDropdown');
+if (dropdown && !e.target.closest('.dropdown')) dropdown.style.display = 'none';
+const appsPanel = document.getElementById('appsMenuPanel');
+if (appsPanel && appsPanel.classList.contains('open') && !e.target.closest('.apps-menu-wrap')) appsPanel.classList.remove('open');
+});
+} catch (err) {
+console.error('Error en init:', err);
+mostrarAlerta('Error al cargar: ' + err.message);
+}
+}
 
-    // ==========================================
-    // ✅ APROBAR / RECHAZAR
-    // ==========================================
-    async function cambiarEstado(docId, estado, comentario = null) {
-      const res = await fetchAPI(`/api/admin/documento/${docId}/estado`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ estado, comentario }) 
-      });
-      if (res.ok) {
-        mostrarAlerta(`Documento ${estado}`, 'success');
-        await cargarProveedores();
-        const data = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`)).json();
-        renderDocs(data.proveedor, data.documentos);
-      } else {
-        const r = await res.json();
-        mostrarAlerta(r.error);
-      }
-    }
+// ==========================================
+// 📊 ACTUALIZAR ESTADÍSTICAS GLOBALES
+// ==========================================
+async function actualizarEstadisticasGlobales() {
+try {
+const response = await fetchAPI('/api/admin/stats');
+if (!response.ok) return;
+const stats = await response.json();
+document.getElementById('card-registrados').textContent = stats.registrados || 0;
+document.getElementById('card-verificacion').textContent = stats.verificacion || 0;
+document.getElementById('card-aprobacion').textContent = stats.aprobacion || 0;
+document.getElementById('card-inscripcion').textContent = stats.inscripcion || 0;
+document.getElementById('card-rechazados').textContent = stats.rechazados || 0;
+} catch (err) {
+console.error('❌ Error actualizando estadísticas:', err);
+}
+}
 
-    function rechazar(docId) {
-      const c = prompt('Motivo del rechazo (opcional):');
-      if (c === null) return;
-      cambiarEstado(docId, 'rechazado', c);
-    }
+// ==========================================
+// 📋 CONFIGURAR PESTAÑAS
+// ==========================================
+function configurarTabs() {
+document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+tab.addEventListener('click', function(e) {
+const tabId = this.dataset.tab;
+document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+this.classList.add('active');
+moduloActual = tabId;
+paginaActual = 1;
+cargarModulo(tabId);
+});
+});
+}
 
-    // ==========================================
-    // 📝 NOTAS
-    // ==========================================
-    async function cargarNotas() {
-      if (!proveedorActualId) return;
-      const notas = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/notas`)).json();
-      const cont = document.getElementById('listaNotas');
-      if (!notas.length) { 
-        cont.innerHTML = '<small style="color:#9ca3af;">Sin notas.</small>'; 
-        return; 
-      }
-      cont.innerHTML = notas.map(n => `
-        <div class="nota-item">
-          <div class="nota-header">
-            <strong>📝 ${n.titulo}</strong>
-            <small>🕐 ${formatearFecha(n.creado_en)} · 👤 ${n.admin_nombre}</small>
-          </div>
-          <div class="nota-body">${n.nota}</div>
-        </div>
-      `).join('');
-    }
+// ==========================================
+// 🧩 MENÚ DE ACCESOS (estilo portal UNAB)
+// ==========================================
+function toggleAppsMenu() {
+const p = document.getElementById('appsMenuPanel');
+if (p) p.classList.toggle('open');
+}
+function cerrarAppsMenu() {
+const p = document.getElementById('appsMenuPanel');
+if (p) p.classList.remove('open');
+}
+function abrirModuloDesdeApps(mod) {
+cerrarAppsMenu();
+// Desmarca las pestañas: config/plant ya no son tabs
+document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+if (mod === 'plant') { moduloActual = 'plant'; renderizarPlantillas(); return; }
+moduloActual = mod;
+paginaActual = 1;
+cargarModulo(mod);
+}
 
-    async function guardarNota() {
-      const titulo = document.getElementById('tituloNota').value.trim();
-      const nota = document.getElementById('detalleNota').value.trim();
-      if (!nota) { 
-        mostrarAlerta('Escribe el detalle'); 
-        return; 
-      }
-      const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/nota`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ titulo: titulo || 'Nota', nota }) 
-      });
-      if (res.ok) {
-        mostrarAlerta('✅ Nota guardada', 'success');
-        document.getElementById('tituloNota').value = '';
-        document.getElementById('detalleNota').value = '';
-        await cargarNotas(); 
-        await cargarProveedores();
-      } else {
-        const r = await res.json();
-        mostrarAlerta(r.error);
-      }
-    }
+// ==========================================
+// 🗂️ CARGAR MÓDULO
+// ==========================================
+function cargarModulo(modulo) {
+const contenedor = document.getElementById('contenedor-modulos');
+if (modulo === 'configuracion') { cargarConfiguracion(); return; }
+if (modulo === 'historial') { cargarHistorial(1); return; }
+if (modulo === 'plant') { renderizarPlantillas(); return; }
+const botonesAccion = modulo === 'registrados' ? `
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+<button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">➕ Crear Proveedor</button>
+<div class="dropdown" style="position:relative;display:inline-block;">
+<button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">📄 Exportar</button>
+<div id="exportDropdown" style="display:none;position:absolute;background:white;min-width:160px;box-shadow:0px 8px 16px rgba(0,0,0,0.2);border-radius:6px;z-index:10;margin-top:4px;border:1px solid #e5e7eb;overflow:hidden;">
+<button onclick="exportarCSV()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">📄 CSV</button>
+<button onclick="exportarExcel()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">📊 Excel (.xlsx)</button>
+</div>
+</div>
+<button class="btn btn-sm btn-secondary" onclick="exportarHabeasData()">📋 Habeas Data</button>
+</div>
+` : '';
 
-    // ==========================================
-    // 📜 HISTORIAL
-    // ==========================================
-    async function cargarHistorialProveedor() {
-      if (!proveedorActualId) return;
-      const hist = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/historial`)).json();
-      const cont = document.getElementById('modalHistorial');
-      if (!hist.length) { 
-        cont.innerHTML = '<div class="historial-vacio">📭 Sin actividad.</div>'; 
-        return; 
-      }
-      cont.innerHTML = '<h4 style="margin-bottom:0.8rem;">Historial completo</h4>' + hist.map(h => {
-        const iconos = {
-          registro: '🎉',
-          documento_subido: '📤',
-          documento_reemplazado: '🔄',
-          documento_eliminado: '🗑️',
-          documento_aprobado: '✅',
-          documento_rechazado: '❌',
-          datos_actualizados: '✏️',
-          recordatorio_enviado: '📨',
-          nota_agregada: '📝',
-          documento_no_aplica: '📋',
-          documento_requiere_carga: '📄'
-        };
-        const clases = {
-          documento_subido: 'subida',
-          documento_reemplazado: 'subida',
-          documento_aprobado: 'aprobado',
-          documento_rechazado: 'rechazado',
-          documento_eliminado: 'eliminado',
-          datos_actualizados: 'datos',
-          recordatorio_enviado: 'recordatorio',
-          nota_agregada: 'recordatorio',
-          registro: 'registro',
-          documento_no_aplica: 'aprobado',
-          documento_requiere_carga: 'datos'
-        };
-        return `
-          <div class="historial-item">
-            <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
-            <div class="historial-contenido">
-              <div class="detalle">${h.detalle}</div>
-              <div class="meta">
-                <span>🕐 ${formatearFecha(h.creado_en)}</span>
-                <span class="usuario">👤 ${h.usuario_nombre}</span>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
+let html = `
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+<h3 style="margin:0;">${getTituloModulo(modulo)}</h3>
+${botonesAccion}
+</div>
+<div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1.5rem;">
+<div style="display:grid;grid-template-columns:1fr auto;gap:1rem;margin-bottom:1rem;">
+<div style="position:relative;">
+<input type="text" id="buscador" placeholder="Buscar por nombre, NIT, email o representante..."
+autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false"
+style="width:100%;padding:0.7rem 1rem 0.7rem 2.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+<span style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:#9ca3af;">🔍</span>
+</div>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltros()">🗑️ Limpiar filtros</button>
+</div>
+${modulo === 'registrados' ? `
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+<button class="filtro-estado active" data-estado="todos" onclick="filtrarEstado('todos')">📋 Todos <span id="count-todos" class="badge-count">0</span></button>
+<button class="filtro-estado" data-estado="aprobado" onclick="filtrarEstado('aprobado')">✅ Aprobados <span id="count-aprobado" class="badge-count badge-aprobado">0</span></button>
+<button class="filtro-estado" data-estado="rechazado" onclick="filtrarEstado('rechazado')">❌ Rechazados <span id="count-rechazado" class="badge-count badge-rechazado">0</span></button>
+</div>
+` : ''}
 
-    // ==========================================
-    // 📨 RECORDATORIOS
-    // ==========================================
-    async function cargarRecordatoriosEnviados() {
-      if (!proveedorActualId) return;
-      const hist = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/historial`)).json();
-      const recs = hist.filter(h => h.accion === 'recordatorio_enviado');
-      const cont = document.getElementById('listaRecordatoriosEnviados');
-      if (!recs.length) { 
-        cont.innerHTML = '<small style="color:#9ca3af;">Sin recordatorios.</small>'; 
-        return; 
-      }
-      cont.innerHTML = recs.map(r => `
-        <div class="historial-item">
-          <div class="historial-icono recordatorio">📨</div>
-          <div class="historial-contenido">
-            <div class="detalle">${r.detalle.replace('Recordatorio enviado: ', '')}</div>
-            <div class="meta">
-              <span>🕐 ${formatearFecha(r.creado_en)}</span>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
+<div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+<div style="flex:1;min-width:200px;">
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">Ordenar por:</label>
+<select id="ordenar" onchange="aplicarFiltros()" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<option value="reciente">Más recientes</option>
+<option value="antiguo">Más antiguos</option>
+<option value="nombre">Nombre (A-Z)</option>
+</select>
+</div>
+</div>
+<div id="paginacion" style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;">
+<div style="display:flex;gap:0.5rem;align-items:center;">
+<button id="btnAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPagina(-1)">◀ Anterior</button>
+<span id="infoPagina">Página 1 de 1</span>
+<button id="btnSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPagina(1)">Siguiente ▶</button>
+</div>
+<div style="display:flex;gap:0.5rem;align-items:center;">
+<label style="font-size:0.85rem;">Mostrar:</label>
+<select id="selectLimite" onchange="cambiarLimite()" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
+<option value="10">10</option>
+<option value="20" selected>20</option>
+<option value="50">50</option>
+<option value="100">100</option>
+</select>
+</div>
+</div>
+<div id="listaProveedores"></div>
+</div>
+</div>
+`;
+contenedor.innerHTML = html;
+cargarProveedoresPorModulo(modulo, 1);
 
-    async function enviarRecordatorio() {
-      const msg = document.getElementById('mensajeRecordatorio').value.trim();
-      if (!msg) { 
-        mostrarAlerta('Escribe un mensaje'); 
-        return; 
-      }
-      const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/recordatorio`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ mensaje: msg }) 
-      });
-      if (res.ok) {
-        mostrarAlerta('✅ Recordatorio enviado', 'success');
-        document.getElementById('mensajeRecordatorio').value = '';
-        await cargarRecordatoriosEnviados(); 
-        await cargarProveedores();
-      } else {
-        const r = await res.json();
-        mostrarAlerta(r.error);
-      }
-    }
+const buscador = document.getElementById('buscador');
+if (buscador) {
+buscador.addEventListener('input', function() {
+paginaActual = 1;
+cargarProveedoresPorModulo(moduloActual, 1);
+});
+const randomName = 'search_' + Math.random().toString(36).substring(2, 10);
+buscador.setAttribute('name', randomName);
+buscador.value = '';
+buscador.addEventListener('focus', function() {
+const placeholder = this.placeholder;
+this.placeholder = ''; this.value = '';
+this.setAttribute('autocomplete', 'new-password');
+setTimeout(() => { this.placeholder = placeholder; }, 100);
+});
+buscador.addEventListener('blur', function() {
+if (this.value === '') this.placeholder = 'Buscar por nombre, NIT, email o representante...';
+});
+}
+}
 
-    // ==========================================
-    // 🗑️ ELIMINAR PROVEEDOR
-    // ==========================================
-    function mostrarConfirmacionEliminar() {
-      document.getElementById('nombreProveedorEliminar').textContent = proveedorActualNombre;
-      document.getElementById('textoConfirmacion').value = '';
-      document.getElementById('passwordConfirmacion').value = '';
-      document.getElementById('alertaEliminar').innerHTML = '';
-      document.getElementById('modalConfirmarEliminar').classList.add('active');
-    }
+function getTituloModulo(modulo) {
+const titulos = {
+'registrados': '👥 Proveedores registrados',
+'verificacion': '✅ Verificación de documentos',
+'aprobacion': '📋 Aprobación y evaluación inicial',
+'inscripcion': '📝 Inscripción y actualización',
+'plant': '📄 Plantillas'
+};
+return titulos[modulo] || 'Módulo';
+}
 
-    function cerrarConfirmacionEliminar() {
-      document.getElementById('modalConfirmarEliminar').classList.remove('active');
-    }
+// ==========================================
+// 📋 CARGAR PROVEEDORES POR MÓDULO
+// ==========================================
+async function cargarProveedoresPorModulo(modulo, pagina = 1) {
+try {
+const busqueda = document.getElementById('buscador')?.value?.trim() || '';
+const estado = filtroEstadoActual || 'todos';
+const limit = limiteActual;
+const filtroVerificacion = document.getElementById('filtroVerificacion')?.value || '';
 
-    async function ejecutarEliminacion() {
-      const texto = document.getElementById('textoConfirmacion').value.trim();
-      const password = document.getElementById('passwordConfirmacion').value;
-      const alertaEl = document.getElementById('alertaEliminar');
+let url = `/api/admin/proveedores?page=${pagina}&limit=${limit}&estado=${estado}&modulo=${modulo}`;
+if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
+if (filtroVerificacion) url += `&filtroVerificacion=${filtroVerificacion}`;
 
-      if (texto !== 'ELIMINAR') {
-        alertaEl.innerHTML = '<div class="alert alert-error">Debes escribir exactamente "ELIMINAR" para confirmar</div>';
-        return;
-      }
-      if (!password) {
-        alertaEl.innerHTML = '<div class="alert alert-error">Debes ingresar tu contraseña de administrador</div>';
-        return;
-      }
+const response = await fetchAPI(url);
+const result = await response.json();
+if (!response.ok) throw new Error(result.error || 'Error al cargar proveedores');
 
-      if (!confirm(`⚠️ ÚLTIMA ADVERTENCIA\n\n¿Estás 100% seguro de eliminar a "${proveedorActualNombre}"?\n\nEsta acción es PERMANENTE y NO se puede deshacer.`)) {
-        return;
-      }
+listaProveedoresCache = result.data || [];
+totalRegistros = result.total || 0;
+paginaActual = result.page || 1;
+totalPaginas = result.totalPages || 1;
+limiteActual = result.limit || 20;
 
-      try {
-        const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const r = await res.json();
+aplicarFiltrosLocal();
+actualizarPaginacion();
+await actualizarEstadisticasGlobales();
+if (modulo === 'registrados') actualizarContadoresEstado();
+} catch (err) {
+console.error('❌ Error cargando proveedores:', err);
+mostrarAlerta('Error al cargar proveedores: ' + err.message);
+}
+}
 
-        if (res.ok) {
-          alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
-          setTimeout(() => {
-            cerrarConfirmacionEliminar();
-            cerrarModal();
-            cargarProveedores();
-            mostrarAlerta('Proveedor eliminado correctamente', 'success');
-          }, 1500);
-        } else {
-          alertaEl.innerHTML = `<div class="alert alert-error">❌ ${r.error}</div>`;
-        }
-      } catch (err) {
-        alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</div>`;
-      }
-    }
+function actualizarContadoresEstado() {
+const proveedores = listaFiltrada.length > 0 ? listaFiltrada : listaProveedoresCache;
+const total = proveedores.length;
+const aprobados = proveedores.filter(p => p.estado_general === 'aprobado' && p.etapa === 'registrado').length;
+const rechazados = proveedores.filter(p => p.estado_general === 'rechazado').length;
+const cTodos = document.getElementById('count-todos');
+const cAprob = document.getElementById('count-aprobado');
+const cRech = document.getElementById('count-rechazado');
+if (cTodos) cTodos.textContent = total;
+if (cAprob) cAprob.textContent = aprobados;
+if (cRech) cRech.textContent = rechazados;
+}
 
-    function cerrarModal() { 
-      document.getElementById('modal').classList.remove('active'); 
-      proveedorActualId = null;
-      proveedorActualNombre = '';
-    }
+// ==========================================
+// 📋 FUNCIONES DE PAGINACIÓN
+// ==========================================
+function actualizarPaginacion() {
+const info = document.getElementById('infoPagina');
+const btnAnt = document.getElementById('btnAnterior');
+const btnSig = document.getElementById('btnSiguiente');
+const selectLimite = document.getElementById('selectLimite');
+if (totalRegistros === 0) {
+if (info) info.textContent = 'No hay proveedores';
+if (btnAnt) btnAnt.disabled = true;
+if (btnSig) btnSig.disabled = true;
+if (selectLimite) selectLimite.value = limiteActual;
+return;
+}
+if (info) info.textContent = `Página ${paginaActual} de ${totalPaginas} (${totalRegistros} proveedores)`;
+if (btnAnt) btnAnt.disabled = (paginaActual <= 1);
+if (btnSig) btnSig.disabled = (paginaActual >= totalPaginas);
+if (selectLimite) selectLimite.value = limiteActual;
+}
+function cambiarPagina(delta) {
+const nuevaPagina = paginaActual + delta;
+if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+paginaActual = nuevaPagina;
+cargarProveedoresPorModulo(moduloActual, paginaActual);
+}
+function cambiarLimite() {
+const nuevoLimite = parseInt(document.getElementById('selectLimite').value);
+if (nuevoLimite === limiteActual) return;
+limiteActual = nuevoLimite;
+paginaActual = 1;
+cargarProveedoresPorModulo(moduloActual, 1);
+}
 
-    // ==========================================
-    // 📋 PLANTILLAS
-    // ==========================================
-    async function cargarPlantillas() {
-      try {
-        const response = await fetchAPI('/api/admin/plantillas');
-        console.log('📥 [cargarPlantillas] Status:', response.status);
-        
-        const plantillas = await response.json();
-        console.log('📥 [cargarPlantillas] Datos recibidos:', plantillas);
-        
-        const map = {}; 
-        if (Array.isArray(plantillas)) {
-          plantillas.forEach(p => map[p.tipo] = p);
-        } else {
-          console.warn('⚠️ La respuesta de plantillas no es un array:', plantillas);
-        }
-        
-        const cont = document.getElementById('listaPlantillas'); 
-        cont.innerHTML = '';
-        
-        requeridos.filter(r => r.esPlantilla).forEach(req => {
-          const p = map[req.tipo];
-          const div = document.createElement('div'); 
-          div.className = 'doc-item'; 
-          div.style.cssText = 'flex-direction:column;align-items:stretch;';
-          
-          div.innerHTML = `
-            <div style="margin-bottom:0.5rem;"><h4>${req.nombre}</h4></div>
-            ${p ? `
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:#f9fafb;border-radius:6px;margin-bottom:0.5rem;">
-                <small>✅ ${p.nombre_original}</small>
-                <a href="/plantillas/${p.archivo}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>
-              </div>
-            ` : `
-              <div class="alert" style="background:#fee2e2;color:#991b1b;padding:0.5rem;margin-bottom:0.5rem;">⚠️ Sin plantilla</div>
-            `}
-            <form class="form-plantilla" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
-              <input type="file" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx">
-              <button type="submit" class="btn btn-sm">${p ? 'Reemplazar' : 'Subir'}</button>
-            </form>
-          `;
-          cont.appendChild(div);
-        });
-        
-        document.querySelectorAll('.form-plantilla').forEach(form => {
-          form.addEventListener('submit', async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target); 
-            fd.append('tipo', form.dataset.tipo);
-            const res = await fetchAPI('/api/admin/plantilla', { method: 'POST', body: fd });
-            if (res.ok) { 
-              mostrarAlerta('✅ Plantilla cargada', 'success'); 
-              cargarPlantillas(); 
-            } else { 
-              const r = await res.json(); 
-              mostrarAlerta(r.error); 
-            }
-          });
-        });
-      } catch (err) {
-        console.error('❌ Error en cargarPlantillas:', err);
-        mostrarAlerta('Error al cargar plantillas: ' + err.message);
-      }
-    }
+// ==========================================
+// 🧹 FILTROS LOCALES
+// ==========================================
+function aplicarFiltrosLocal() {
+const ordenar = document.getElementById('ordenar')?.value || 'reciente';
+let lista = listaProveedoresCache.slice();
+lista.sort((a, b) => {
+switch(ordenar) {
+case 'reciente': return b.id - a.id;
+case 'antiguo': return a.id - b.id;
+case 'nombre': return (a.razon_social || a.nombre_empresa || '').localeCompare(b.razon_social || b.nombre_empresa || '');
+default: return 0;
+}
+});
+listaFiltrada = lista;
+renderizarProveedores();
+}
+function aplicarFiltros() { aplicarFiltrosLocal(); }
+function filtrarEstado(estado) {
+filtroEstadoActual = estado;
+document.querySelectorAll('.filtro-estado').forEach(btn => {
+btn.classList.toggle('active', btn.dataset.estado === estado);
+});
+paginaActual = 1;
+cargarProveedoresPorModulo(moduloActual, 1);
+}
+function limpiarFiltros() {
+const buscador = document.getElementById('buscador');
+if (buscador) { buscador.value = ''; buscador.blur(); }
+document.getElementById('ordenar').value = 'reciente';
+const filtroVerif = document.getElementById('filtroVerificacion');
+if (filtroVerif) filtroVerif.value = '';
+filtroEstadoActual = 'todos';
+document.querySelectorAll('.filtro-estado').forEach(btn => {
+btn.classList.toggle('active', btn.dataset.estado === 'todos');
+});
+paginaActual = 1;
+cargarProveedoresPorModulo(moduloActual, 1);
+}
 
-    // ==========================================
-    // 📤 EXPORTAR CSV
-    // ==========================================
-    function exportarCSV() {
-      if (!listaFiltrada.length) { 
-        mostrarAlerta('No hay proveedores para exportar'); 
-        return; 
-      }
-      const h = ['Razón Social','NIT/RUT','Correo','Teléfono','Representante Legal','Dirección','Estado','Docs Aprobados','Total','Fecha Aprobación'];
-      const filas = listaFiltrada.map(p => [
-        p.razon_social || p.nombre_empresa || '', 
-        p.rfc || '', 
-        p.email || '', 
-        p.telefono || '',
-        p.representante || '', 
-        (p.direccion || '').replace(/[\n\r]+/g, ' '), 
-        p.estado_general || '',
-        p.aprobados || 0, 
-        p.total || 0, 
-        p.fecha_aprobacion ? formatearFecha(p.fecha_aprobacion) : 'Pendiente'
-      ]);
-      const csv = '\uFEFF' + [h.join(';'), ...filas.map(f => f.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      descargarBlob(blob, `proveedores_${fechaArchivo()}.csv`);
-      mostrarAlerta('✅ CSV exportado', 'success');
-    }
+// ==========================================
+// 📋 RENDERIZAR PROVEEDORES
+// ==========================================
+function renderizarProveedores() {
+const cont = document.getElementById('listaProveedores');
+if (!cont) return;
+if (listaFiltrada.length === 0) {
+cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No se encontraron proveedores con los filtros aplicados.</p>';
+return;
+}
+cont.innerHTML = listaFiltrada.map(p => {
+// 🏷️ Progreso del medidor según la pestaña: en Verificación cuenta tipos verificados (o no-aplica);
+// en Aprobación/Inscripción cuenta tipos aprobados. Así el medidor "sube" con la acción de cada pestaña.
+const progresoDocs = (moduloActual === 'verificacion') ? (p.verificados || 0) : (p.aprobados || 0);
+const labelDocs = (moduloActual === 'verificacion') ? 'Verificados' : 'Aprobados';
+let badgeModulo = '';
+if (moduloActual === 'verificacion') {
+badgeModulo = `<span class="badge badge-pendiente">⏳ Pendiente verificar</span>`;
+} else if (moduloActual === 'aprobacion') {
+badgeModulo = `<span class="badge badge-pendiente" style="background:#fbbf24;color:#78350f;">📋 En aprobación</span>`;
+} else if (moduloActual === 'inscripcion') {
+badgeModulo = `<span class="badge badge-aprobado">✅ En inscripción</span>`;
+} else {
+badgeModulo = `<span class="badge badge-${p.estado_general}">${p.estado_general}</span>`;
+}
+let gestionIcon = '';
+if (p.numero_registro) {
+gestionIcon = `<span style="font-size:0.8rem;color:#6b7280;margin-left:0.3rem;">📋 ${escapeHtml(p.numero_registro)}</span>`;
+}
+return `
+<div class="proveedor-row">
+<div style="flex:1;">
+<h4 style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem 1rem;margin:0;">
+<span style="flex:1;min-width:150px;">${escapeHtml(p.razon_social || p.nombre_empresa || 'Sin nombre')} ${gestionIcon}</span>
+<span style="display:flex;flex-wrap:wrap;gap:0.3rem;justify-content:flex-end;margin-left:auto;">
+${p.recordatorios_pendientes > 0 ? `<span class="badge-recordatorio">📨 ${p.recordatorios_pendientes}</span>` : ''}
+${p.notas_count > 0 ? `<span class="badge-recordatorio" style="background:#8b5cf6;">📝 ${p.notas_count}</span>` : ''}
+${p.todos_subidos && p.estado_general === 'pendiente' && moduloActual === 'registrados'
+? (p.todos_verificados
+? `<span class="badge-verificado-pendiente">📋 Verificado - Pendiente aprobación</span>`
+: `<span class="badge-pendiente-verificar">⏳ Pendiente por verificar</span>`)
+: ''}
+</span>
+</h4>
+<small>📧 ${escapeHtml(p.email)} · NIT: ${escapeHtml(p.rfc || '—')} · 📞 ${escapeHtml(p.telefono || '—')}</small>
+</div>
+${moduloActual !== 'registrados' ? `
+<div style="text-align:center;">
+<div style="font-size:0.85rem;color:#6b7280;">${labelDocs}</div>
+<strong>${progresoDocs}/${p.total}</strong>
+<div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;margin-top:0.3rem;overflow:hidden;">
+<div style="width:${(progresoDocs/p.total)*100}%;height:100%;background:${p.estado_general === 'aprobado' ? '#059669' : p.estado_general === 'rechazado' ? '#dc2626' : '#f59e0b'};"></div>
+</div>
+</div>
+` : ''}
+${badgeModulo}
+<button class="btn btn-sm" onclick="verProveedor(${p.id}, '${moduloActual}')">🔍 Revisar</button>
+</div>
+`;
+}).join('');
+}
 
-    // ==========================================
-    // 🔽 TOGGLE DROPDOWN
-    // ==========================================
-    function toggleExportDropdown() {
-      const d = document.getElementById('exportDropdown');
-      d.style.display = d.style.display === 'block' ? 'none' : 'block';
-    }
+// ==========================================
+// 🔍 VER PROVEEDOR (modal contextual)
+// ==========================================
+async function verProveedor(id, modulo) {
+try {
+const response = await fetchAPI(`/api/admin/proveedor/${id}`);
+if (!response.ok) {
+const errorData = await response.json().catch(() => ({}));
+mostrarAlerta(`❌ Error al cargar proveedor: ${errorData.error || 'Proveedor no encontrado'}`);
+return;
+}
+const data = await response.json();
+if (!data.proveedor) {
+mostrarAlerta('❌ No se encontró información del proveedor');
+return;
+}
 
-    // Cerrar dropdown al hacer clic fuera
-    document.addEventListener('click', function(e) {
-      const dropdown = document.getElementById('exportDropdown');
-      if (dropdown && !e.target.closest('.dropdown')) {
-        dropdown.style.display = 'none';
-      }
-    });
+proveedorActualId = id;
+proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
+historicosCache = data.documentos_historicos || [];
 
-    // ==========================================
-    // 📊 EXPORTAR EXCEL (XLSX)
-    // ==========================================
-    async function exportarExcel() {
-      if (!listaFiltrada.length) {
-        mostrarAlerta('No hay proveedores para exportar con los filtros actuales');
-        return;
-      }
+document.getElementById('modalTitulo').textContent = proveedorActualNombre;
+const contenedorDinamico = document.getElementById('modalContenidoDinamico');
+const subTabsContainer = document.getElementById('subTabsContainer');
+subTabsContainer.style.display = 'none';
+contenedorDinamico.innerHTML = '';
 
-      try {
-        const res = await fetchAPI('/api/admin/exportar-excel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ proveedores: listaFiltrada })
-        });
+const subTabs = ['docs','historicos','notas','hist','rec','eliminar'];
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Error al exportar');
-        }
+if (modulo === 'registrados') {
+subTabsContainer.style.display = 'block';
+document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
+document.querySelector('[data-stab="docs"]').classList.add('active');
+subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
+renderDocsCompleto(data.proveedor, data.documentos, historicosCache);
+renderHistoricosProveedor(data.proveedor, historicosCache);
+} else if (modulo === 'verificacion') {
+subTabsContainer.style.display = 'block';
+document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
+document.querySelector('[data-stab="docs"]').classList.add('active');
+subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
+renderVerificacionCompleta(data.proveedor, data.documentos);
+renderHistoricosProveedor(data.proveedor, historicosCache);
+} else if (modulo === 'aprobacion') {
+subTabsContainer.style.display = 'block';
+document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
+document.querySelector('[data-stab="docs"]').classList.add('active');
+subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
+renderAprobacionCompleta(data.proveedor, data.documentos);
+renderHistoricosProveedor(data.proveedor, historicosCache);
+} else if (modulo === 'inscripcion') {
+subTabsContainer.style.display = 'block';
+document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
+document.querySelector('[data-stab="docs"]').classList.add('active');
+subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
+renderGestion(data.proveedor, data.documentos);
+renderHistoricosProveedor(data.proveedor, historicosCache);
+}
 
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `proveedores_${fechaArchivo()}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+document.getElementById('modal').classList.add('active');
+} catch (error) {
+console.error('❌ Error en verProveedor:', error);
+mostrarAlerta(`❌ Error de conexión: ${error.message}`);
+}
+}
 
-        mostrarAlerta('✅ Excel exportado correctamente', 'success');
-      } catch (err) {
-        console.error('Error exportando Excel:', err);
-        mostrarAlerta('❌ Error al exportar: ' + err.message);
-      }
-    }
+// ==========================================
+// 📦 RENDERIZAR DOCUMENTOS HISTÓRICOS (solo lectura, agrupados por ciclo)
+// ==========================================
+function renderHistoricosProveedor(proveedor, historicos) {
+const cont = document.getElementById('subTabHistoricos');
+if (!cont) return;
 
-    // ==========================================
-    // 🔐 CREAR PROVEEDOR
-    // ==========================================
-    function mostrarModalCrearProveedor() {
-      document.getElementById('formCrearProveedor').reset();
-      document.getElementById('alertaCrearProveedor').innerHTML = '';
-      document.getElementById('modalCrearProveedor').classList.add('active');
-    }
+const countBadge = document.getElementById('countHistoricos');
 
-    function cerrarModalCrearProveedor() {
-      document.getElementById('modalCrearProveedor').classList.remove('active');
-    }
+if (!historicos || historicos.length === 0) {
+if (countBadge) countBadge.style.display = 'none';
+cont.innerHTML = '<div class="historial-vacio">📭 Este proveedor no tiene documentos históricos archivados.</div>';
+return;
+}
 
-    document.getElementById('formCrearProveedor').addEventListener('submit', async e => {
-      e.preventDefault();
-      const alertaEl = document.getElementById('alertaCrearProveedor');
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
-      
-      try {
-        const res = await fetchAPI('/api/admin/proveedor', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const r = await res.json();
-        
-        if (res.ok) {
-          alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
-          setTimeout(async () => {
-            cerrarModalCrearProveedor();
-            await cargarProveedores();
-            if (r.proveedorId) {
-              await verProveedor(r.proveedorId);
-              mostrarAlerta('Proveedor creado. Revisa y gestiona sus documentos.', 'success');
-            }
-          }, 1500);
-        } else {
-          alertaEl.innerHTML = `<div class="alert alert-error">❌ ${r.error}</div>`;
-        }
-      } catch (err) {
-        alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</div>`;
-      }
-    });
+if (countBadge) {
+countBadge.textContent = historicos.length;
+countBadge.style.display = 'inline-block';
+}
 
-    // ==========================================
-    // 🚪 LOGOUT
-    // ==========================================
-    async function logout() {
-      await fetchAPI('/api/logout', { method: 'POST' });
-      window.location.href = 'index.html';
-    }
+const porCiclo = {};
+historicos.forEach(d => {
+const ciclo = d.ciclo || 'sin_ciclo';
+if (!porCiclo[ciclo]) porCiclo[ciclo] = [];
+porCiclo[ciclo].push(d);
+});
 
-    // ==========================================
-    // 🎯 EVENT LISTENERS
-    // ==========================================
-    document.querySelectorAll('.tab[data-tab]').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('tab-provs').classList.toggle('hidden', tab.dataset.tab !== 'provs');
-        document.getElementById('tab-plant').classList.toggle('hidden', tab.dataset.tab !== 'plant');
-      });
-    });
+const ciclosOrdenados = Object.keys(porCiclo).sort((a, b) => String(b).localeCompare(String(a)));
 
-    document.querySelectorAll('[data-mtab]').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('[data-mtab]').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const tgt = tab.dataset.mtab;
-        ['docs','notas','hist','rec','eliminar'].forEach(t => 
-          document.getElementById(`modal-tab-${t}`).classList.toggle('hidden', t !== tgt)
-        );
-        if (tgt === 'hist') cargarHistorialProveedor();
-        if (tgt === 'rec') cargarRecordatoriosEnviados();
-        if (tgt === 'notas') cargarNotas();
-      });
-    });
+let html = `
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>📦 Documentos históricos:</strong> Estos documentos fueron archivados automáticamente (por vencimiento o por solicitud de actualización) y son de <strong>solo lectura</strong>. Están agrupados por número de registro (ciclo).
+</div>
+`;
 
-    document.getElementById('modal').addEventListener('click', e => {
-      if (e.target.id === 'modal') cerrarModal();
-    });
-    
-    document.getElementById('modalVisor').addEventListener('click', e => {
-      if (e.target.id === 'modalVisor') cerrarVisor();
-    });
-    
-    document.getElementById('modalConfirmarEliminar').addEventListener('click', e => {
-      if (e.target.id === 'modalConfirmarEliminar') cerrarConfirmacionEliminar();
-    });
-    
-    document.getElementById('modalCrearProveedor').addEventListener('click', e => {
-      if (e.target.id === 'modalCrearProveedor') cerrarModalCrearProveedor();
-    });
+ciclosOrdenados.forEach(ciclo => {
+const docs = porCiclo[ciclo];
+html += `
+<div class="card" style="margin-bottom:1rem;background:#f9fafb;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
+<h4 style="margin:0;">📋 Ciclo: ${escapeHtml(ciclo)}</h4>
+<span class="badge-count">${docs.length} documento(s)</span>
+</div>
+<div class="doc-grid">
+`;
+docs.forEach(d => {
+const nombreEscapado = escapeHtml(nombreFormato(d.tipo));
+const ev = obtenerEstadoVencimiento(d.fecha_vencimiento);
+html += `
+<div class="doc-row" style="background:#fff;">
+<div style="flex:1;min-width:200px;">
+<small>📎 ${nombreEscapado} <span class="badge badge-rechazado">histórico</span> <span class="badge badge-${d.estado || 'rechazado'}">${d.estado || 'rechazado'}</span></small>
+${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
+<br><small style="color:#9ca3af;">📤 Subido: ${formatearFecha(d.subido_en)}</small>
+${d.fecha_archivado ? `<br><small style="color:#6b7280;">📦 Archivado: ${formatearFecha(d.fecha_archivado)}</small>` : ''}
+${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">📅 Vencimiento: ${formatearFecha(d.fecha_vencimiento)}</small> <span class="badge badge-${ev.clase}" style="font-size:0.7rem;">${ev.icono} ${ev.texto}</span>` : ''}
+</div>
+<div class="doc-row-actions">
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
+</div>
+</div>
+`;
+});
+html += `</div></div>`;
+});
 
-    // ==========================================
-    // 🎯 EVENT LISTENERS GLOBALES (DELEGACIÓN)
-    // ==========================================
-    let adminFormSubmitted = false;
-    let noAplicaChanged = false;
+cont.innerHTML = html;
+}
 
-    document.addEventListener('submit', async function(e) {
-      if (e.target.classList.contains('form-upload-admin')) {
-        if (adminFormSubmitted) return;
-        adminFormSubmitted = true;
-        e.preventDefault();
-        e.stopPropagation();
-        const form = e.target;
-        const fd = new FormData(form);
-        const tipo = form.dataset.tipo;
-        const proveedorId = form.dataset.proveedorid;
-        if (!tipo || !proveedorId) {
-          mostrarAlerta('❌ Error: Faltan datos del formulario');
-          adminFormSubmitted = false;
-          return;
-        }
-        fd.append('tipo', tipo);
-        try {
-          const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documento`, { 
-            method: 'POST', 
-            body: fd 
-          });
-          const r = await res.json();
-          if (res.ok) {
-            mostrarAlerta(`✅ ${r.mensaje}`, 'success');
-            const data = await (await fetchAPI(`/api/admin/proveedor/${proveedorId}`)).json();
-            renderDocs(data.proveedor, data.documentos);
-            await cargarProveedores();
-          } else {
-            mostrarAlerta(`❌ ${r.error || 'Error desconocido'}`);
-          }
-        } catch (err) {
-          console.error('Error subiendo documento:', err);
-          mostrarAlerta('❌ Error al subir el documento: ' + err.message);
-        } finally {
-          setTimeout(() => { adminFormSubmitted = false; }, 500);
-        }
-      }
-    });
+// ==========================================
+// 📄 FUNCIONES DE RENDERIZADO
+// ==========================================
+function renderDocumentosConBotones(proveedor, documentos, mostrarSubida = true, modo = 'verificacion') {
+if (!proveedor) {
+console.error('❌ proveedor es undefined en renderDocumentosConBotones');
+return '<div class="alert alert-error">Error: No se pudo cargar la información del proveedor.</div>';
+}
+const map = {};
+documentos.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
 
-    document.addEventListener('change', async function(e) {
-      if (e.target.classList.contains('checkbox-no-aplica-admin')) {
-        if (noAplicaChanged) return;
-        noAplicaChanged = true;
-        const checkbox = e.target;
-        const docId = checkbox.dataset.docid;
-        const tipo = checkbox.dataset.tipo;
-        const proveedorId = checkbox.dataset.proveedorid;
-        const noAplica = checkbox.checked;
-        try {
-          let url;
-          if (docId && docId !== '') {
-            url = `/api/admin/proveedor/${proveedorId}/documento/${docId}/no-aplica`;
-          } else {
-            url = `/api/admin/proveedor/${proveedorId}/documento/0/no-aplica`;
-          }
-          const res = await fetchAPI(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ no_aplica: noAplica, tipo: tipo })
-          });
-          const r = await res.json();
-          if (res.ok) {
-            mostrarAlerta(
-              noAplica ? '✅ Documento marcado como "No Aplica"' : '✅ Documento ahora requiere carga', 
-              'success'
-            );
-            const data = await (await fetchAPI(`/api/admin/proveedor/${proveedorId}`)).json();
-            renderDocs(data.proveedor, data.documentos);
-            await cargarProveedores();
-          } else {
-            mostrarAlerta(`❌ ${r.error}`);
-            checkbox.checked = !noAplica;
-          }
-        } catch (err) {
-          console.error('Error:', err);
-          mostrarAlerta('Error al actualizar');
-          checkbox.checked = !noAplica;
-        } finally {
-          setTimeout(() => { noAplicaChanged = false; }, 500);
-        }
-      }
-    });
+let html = `
+<div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
+<strong>Email:</strong> ${escapeHtml(proveedor.email || '')}<br>
+<strong>NIT/RUT:</strong> ${escapeHtml(proveedor.rfc || '—')}<br>
+<strong>Representante:</strong> ${escapeHtml(proveedor.representante || '—')}<br>
+<strong>Teléfono:</strong> ${escapeHtml(proveedor.telefono || '—')}<br>
+<strong>Dirección:</strong> ${escapeHtml(proveedor.direccion || '—')}
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h4 style="margin:0;">Documentos activos</h4>
+<button class="btn btn-success" onclick="descargarZIP(${proveedor.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
+📦 Descargar activos en ZIP
+</button>
+</div>
+<div class="doc-grid">
+`;
 
-    // ==========================================
-    // 🚀 INICIAR APLICACIÓN
-    // ==========================================
-    console.log('✅ Panel de Administración cargado');
-    console.log('🔧 fetchAPI helper activo (credentials: include)');
-    init();
-  </script>
+requeridos.forEach((req, idx) => {
+const sub = map[req.tipo] || [];
+const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
+const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
+const tieneArchivos = sub.length > 0;
+const puedeSubir = req.cantidadMin === 1
+? (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica))
+: true;
+
+html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
+<div style="margin-bottom:0.5rem;">
+<h4>${idx+1}. ${req.nombre}</h4>
+<small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
+${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
+</div>`;
+
+if (!sub.length) {
+html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
+} else {
+sub.forEach(d => {
+const nombreEscapado = escapeHtml(d.nombre_original || '');
+const verificado = d.verificado === 1;
+const aprobado = d.estado === 'aprobado';
+const rechazado = d.estado === 'rechazado';
+const checkDeshabilitado = rechazado || aprobado;
+
+html += `<div class="doc-row">
+<div style="flex:1;min-width:180px;">
+<small>📎 ${d.no_aplica === 1 && d.verificado === 1 ?
+`<span class="badge badge-aprobado">NO APLICA</span>` :
+`<span class="badge badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span>`
+}</small>
+${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
+<br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
+${d.fecha_vencimiento ? `
+<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
+<span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
+${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
+</span>
+` : ''}
+<br>`;
+
+if (modo === 'verificacion') {
+html += `
+<label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:${checkDeshabilitado ? 'not-allowed' : 'pointer'};margin-top:0.2rem;">
+<input type="checkbox" class="checkbox-verificado" data-docid="${d.id}"
+${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
+<span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
+</label>
+${!aprobado ? `<button class="btn btn-sm btn-danger" style="margin-left:0.3rem;" onclick="rechazar(${d.id})">✗ Rechazar</button>` : ''}
+${rechazado ? '<small style="color:#dc2626;display:block;">⚠️ Documento rechazado - Debe corregirse</small>' : ''}
+`;
+} else if (modo === 'aprobacion') {
+if (verificado && !aprobado) {
+html += `
+<span style="color:#059669;font-size:0.85rem;">✅ Verificado</span>
+<button class="btn btn-sm" style="background:#059669;margin-left:0.3rem;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
+<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
+`;
+} else if (aprobado) {
+html += `<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
+} else {
+html += `<span style="color:#dc2626;font-size:0.85rem;">❌ No verificado</span>`;
+}
+} else {
+if (aprobado) html += `<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
+else if (rechazado) html += `<span style="color:#dc2626;font-size:0.85rem;">❌ Rechazado</span>`;
+else html += `<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>`;
+}
+
+html += `
+</div>
+<div class="doc-row-actions">
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
+${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumentoAdmin(${d.id}, ${proveedor.id})">🗑️</button>` : ''}
+</div>
+</div>`;
+});
+}
+
+if (modo === 'verificacion' && req.opcional) {
+const noAplicaChecked = sub.some(d => d.no_aplica === 1);
+const checkboxDisabled = tieneArchivos && !noAplicaChecked;
+const docId = sub.length > 0 ? sub[0].id : '';
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+<label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
+<input type="checkbox" class="checkbox-no-aplica-admin"
+data-docid="${docId}" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}"
+${noAplicaChecked ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
+<span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Este documento no aplica para este proveedor</span>
+</label>
+<small style="color:#78350f;display:block;margin-top:0.3rem;">
+${noAplicaChecked
+? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
+: (checkboxDisabled
+? 'ℹ️ Ya hay archivos subidos. No puedes marcar "No aplica" si ya hay documentos cargados.'
+: 'Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"')
+}
+</small>
+</div>`;
+}
+
+if (modo === 'verificacion') {
+if (req.tipo === 'experiencia') {
+const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
+const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
+const maxAlcanzado = subidosValidos >= 3;
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+<span style="font-size:0.85rem;color:#065f46;">
+📄 Certificados subidos: <strong>${subidosValidos}/3</strong>
+${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
+${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
+</span>
+${(!maxAlcanzado || subidosRechazados > 0) && puedeSubir ? `
+<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;">
+<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
+<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">${subidosRechazados > 0 ? '🔄 Reemplazar rechazado' : '📤 Subir PDF'}</button>
+</form>
+` : `
+<span style="color:#6b7280;font-size:0.9rem;">
+${maxAlcanzado && subidosRechazados === 0 ? '✅ Máximo de 3 certificados alcanzado' : 'No disponible'}
+</span>
+`}
+</div>
+</div>`;
+}
+if (req.tipo !== 'experiencia' && puedeSubir && !noAplica && mostrarSubida) {
+const label = sub.length === 0 ? '📤 Admin subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
+html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;">
+<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
+<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
+</form>`;
+} else if (req.tipo !== 'experiencia' && noAplica) {
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+</div>`;
+}
+}
+html += '</div>';
+});
+html += '</div>';
+return html;
+}
+
+function renderVerificacionCompleta(proveedor, documentos) {
+let html = `
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>✅ Módulo de Verificación:</strong> Marca el checkbox para verificar cada documento.
+Puedes rechazar un documento si está mal. También puedes marcar "No aplica" para documentos opcionales.
+Cuando todos estén verificados o marcados como "No aplica", el proveedor pasará automáticamente a Aprobación.
+</div>
+`;
+html += renderDocumentosConBotones(proveedor, documentos, true, 'verificacion');
+document.getElementById('modalContenidoDocs').innerHTML = html;
+}
+
+function renderAprobacionCompleta(proveedor, documentos) {
+// ✅ Un documento cuenta como "aprobado" si está aprobado o si es "no aplica"
+const todosAprobados = documentos.length > 0 && documentos.every(d => d.estado === 'aprobado' || d.no_aplica === 1);
+
+let html = `
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>📋 Módulo de Aprobación:</strong> Revisa los documentos (ya deben estar verificados).
+Aprueba o rechaza cada documento. Cuando todos estén aprobados (o marcados como "No aplica"), podrás aprobar la Evaluación Inicial.
+</div>
+`;
+html += renderDocumentosConBotones(proveedor, documentos, false, 'aprobacion');
+
+html += `
+<div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
+<h4>📄 Evaluación Inicial</h4>
+${proveedor.evaluacion_inicial ? `
+<div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
+<p><strong>📎 Archivo:</strong> Evaluación Inicial.pdf</p>
+<p><strong>📋 Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>📅 Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
+<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
+<a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
+${proveedor.evaluacion_estado === 'pendiente' ? `
+${todosAprobados ? `
+<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstadoEvaluacion(${proveedor.id},'aprobado')">✅ Aprobar evaluación</button>
+<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">❌ Rechazar evaluación</button>
+<button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">🗑️ Eliminar</button>
+` : `
+<button class="btn btn-sm" style="background:#9ca3af;cursor:not-allowed;" disabled>⚠️ Primero aprueba todos los documentos</button>
+`}
+` : ''}
+</div>
+</div>
+` : `
+<div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
+<p>⚠️ Aún no se ha subido la evaluación inicial. Sube el PDF a continuación.</p>
+</div>
+<form id="formEvaluacion" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:1rem;background:#f9fafb;padding:1rem;border-radius:6px;">
+<div class="form-group">
+<label>📎 Subir PDF de evaluación inicial</label>
+<input type="file" name="archivo" required accept=".pdf">
+</div>
+<button type="submit" class="btn" style="background:#8600dd;">📤 Subir evaluación</button>
+</form>
+`}
+</div>
+`;
+document.getElementById('modalContenidoDocs').innerHTML = html;
+}
+
+// ==========================================
+// 📝 RENDERIZAR MÓDULO INSCRIPCIÓN Y ACTUALIZACIÓN
+// ==========================================
+function renderGestion(proveedor, documentos) {
+const map = {};
+documentos.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
+
+let html = `
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>📝 Inscripción y Actualización:</strong> Asigna número de registro, observaciones y tipo de gestión.
+Al guardar, el proveedor pasará a "Registrado" si la evaluación está aprobada.
+</div>
+<div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
+<p><strong>📋 Estado del proveedor:</strong> ${proveedor.estado_general}</p>
+<p><strong>📍 Etapa actual:</strong> ${proveedor.etapa || 'inscripcion'}</p>
+<p><strong>📋 Evaluación:</strong> ${proveedor.evaluacion_estado || 'pendiente'}</p>
+${proveedor.numero_registro ? `<p><strong>📋 Fecha Movimiento actual:</strong> ${escapeHtml(proveedor.numero_registro)}</p>` : ''}
+</div>
+<div class="doc-grid">
+`;
+
+requeridos.forEach(req => {
+const sub = map[req.tipo] || [];
+const todosAprobados = sub.length > 0 && sub.every(d => d.estado === 'aprobado' || d.no_aplica === 1);
+const tieneArchivos = sub.length > 0;
+
+html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
+<div style="margin-bottom:0.5rem;">
+<h4>${req.nombre}</h4>
+<small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
+${todosAprobados && tieneArchivos ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">✅ Aprobado</span>' : ''}
+</div>`;
+
+if (!sub.length) {
+html += '<small style="color:#9ca3af;">📭 No ha subido documentos</small>';
+} else {
+sub.forEach(d => {
+const nombreEscapado = escapeHtml(nombreFormato(d.tipo));
+const aprobado = d.estado === 'aprobado';
+html += `<div class="doc-row">
+<div style="flex:1;min-width:180px;">
+<small>📎 ${escapeHtml(nombreFormato(d.tipo))} <span class="badge badge-${d.estado}">${d.estado}</span></small>
+${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
+<br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
+${d.fecha_vencimiento ? `
+<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
+<span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
+${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
+</span>
+` : ''}
+<br>
+${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>'}
+</div>
+<div class="doc-row-actions">
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
+</div>
+</div>`;
+});
+}
+html += '</div>';
+});
+html += '</div>';
+
+html += `
+<div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
+<h4>📄 Evaluación Inicial</h4>
+${proveedor.evaluacion_inicial ? `
+<div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
+<p><strong>📎 Archivo:</strong> Evaluación Inicial.pdf</p>
+<p><strong>📋 Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>📅 Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
+<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
+<a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
+</div>
+</div>
+` : `
+<div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
+<p>⚠️ No hay evaluación inicial subida.</p>
+</div>
+`}
+</div>
+`;
+
+html += `
+<div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
+<h4>📝 Gestión de Inscripción/Actualización</h4>
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>ℹ️ Nota:</strong> Al guardar con un número de registro, los <strong>documentos activos</strong> del proveedor se asociarán automáticamente a ese ciclo. Los documentos de ciclos anteriores quedan conservados en la pestaña <strong>📦 Históricos</strong>.
+</div>
+<form id="formGestion" style="background:#f9fafb;padding:1.5rem;border-radius:8px;">
+<div class="form-group">
+<label for="numeroRegistro">📋 Fecha Movimiento</label>
+<input type="text" id="numeroRegistro" value="${escapeHtml(proveedor.numero_registro || '')}" placeholder="Ej: Día Mes Año 01012000">
+</div>
+<div class="form-group">
+<label for="observaciones">📝 Observaciones</label>
+<textarea id="observaciones" rows="4" placeholder="Detalles sobre esta inscripción o actualización...">${escapeHtml(proveedor.notas_gestion || '')}</textarea>
+</div>
+<div class="form-group">
+<label>Tipo de gestión</label>
+<div style="display:flex;gap:1rem;margin-top:0.3rem;">
+<label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
+<input type="radio" name="tipoGestion" value="inscripcion" ${proveedor.tipo_gestion === 'inscripcion' || !proveedor.tipo_gestion ? 'checked' : ''}>
+📝 Inscripción
+</label>
+<label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
+<input type="radio" name="tipoGestion" value="actualizacion" ${proveedor.tipo_gestion === 'actualizacion' ? 'checked' : ''}>
+🔄 Actualización
+</label>
+</div>
+</div>
+<div class="form-group">
+<label for="tipoProveedor">🏷️ Tipo de proveedor</label>
+<input type="text" id="tipoProveedor" value="${escapeHtml(proveedor.tipo_proveedor || '')}" placeholder="Ej: Persona Natural, Persona Jurídica, etc.">
+</div>
+<button type="submit" class="btn" style="background:#059669;">💾 Guardar gestión</button>
+</form>
+</div>
+`;
+document.getElementById('modalContenidoDocs').innerHTML = html;
+}
+
+// ==========================================
+// 📄 RENDERIZAR DOCUMENTOS COMPLETO (para registrados)
+// ==========================================
+function renderDocsCompleto(p, docs, historicos) {
+if (!p) {
+document.getElementById('modalContenidoDocs').innerHTML = '<div class="alert alert-error">Error: No se pudo cargar la información del proveedor.</div>';
+return;
+}
+const soloLectura = p.etapa === 'registrado' || p.etapa === 'rechazado';
+const esRechazado = p.etapa === 'rechazado';
+const esVencimiento = p.notas_gestion && String(p.notas_gestion).toLowerCase().includes('vencimiento');
+const numHistoricos = (historicos || []).length;
+
+const map = {};
+docs.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
+
+let html = `
+<div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
+<strong>Email:</strong> ${escapeHtml(p.email || '')}<br>
+<strong>NIT/RUT:</strong> ${escapeHtml(p.rfc || '—')}<br>
+<strong>Representante:</strong> ${escapeHtml(p.representante || '—')}<br>
+<strong>Teléfono:</strong> ${escapeHtml(p.telefono || '—')}<br>
+<strong>Dirección:</strong> ${escapeHtml(p.direccion || '—')}
+${p.numero_registro ? `<br><strong>Fecha Movimiento:</strong> ${escapeHtml(p.numero_registro)}` : ''}
+${p.tipo_gestion ? `<br><strong>Tipo gestión:</strong> ${p.tipo_gestion === 'inscripcion' ? '📝 Inscripción' : '🔄 Actualización'}` : ''}
+${p.tipo_proveedor ? `<br><strong>Tipo de proveedor:</strong> ${escapeHtml(p.tipo_proveedor)}` : ''}
+${p.notas_gestion ? `<br><strong>Nota:</strong> ${escapeHtml(p.notas_gestion)}` : ''}
+${esRechazado ? `<br><span class="badge badge-rechazado" style="background:#dc2626;color:white;">❌ Rechazado</span>` : ''}
+${p.etapa === 'registrado' ? `<br><span class="badge badge-aprobado" style="background:#059669;color:white;">✅ Registrado</span>` : ''}
+</div>
+${esRechazado ? `
+<div style="margin-top:1rem;padding:1.5rem;background:#fee2e2;border:2px solid #dc2626;border-radius:8px;text-align:center;">
+<p style="color:#991b1b;font-weight:600;margin-bottom:0.5rem;">⚠️ Este proveedor fue rechazado${esVencimiento ? ' por vencimiento de documentos' : ''}.</p>
+<p style="color:#7f1d1d;margin-bottom:0;">
+${esVencimiento
+? 'Todos sus documentos fueron movidos a histórico (ver pestaña 📦 Históricos). El proveedor puede subir nuevos documentos para reiniciar el proceso automáticamente.'
+: 'Sus documentos quedaron rechazados. El proveedor puede subir documentos corregidos para reiniciar el proceso automáticamente.'}
+</p>
+</div>
+` : ''}
+${soloLectura && !esRechazado ? `
+<div style="margin-bottom:1rem;padding:1rem;background:#dbeafe;border:1px solid #2563eb;border-radius:8px;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+<div>
+<strong style="color:#1e40af;">🔄 Actualización anual disponible</strong>
+<p style="margin:0.3rem 0 0 0;color:#1e40af;font-size:0.9rem;">Puedes solicitar al proveedor que actualice sus documentos para el nuevo período. Sus documentos actuales se archivarán en el histórico.</p>
+</div>
+<button class="btn" style="background:#2563eb;color:white;white-space:nowrap;" onclick="mostrarModalSolicitarActualizacion(${p.id}, '${(p.razon_social || p.nombre_empresa || 'Proveedor').replace(/'/g, "\\'")}')">
+🔄 Solicitar actualización
+</button>
+</div>
+</div>
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>ℹ️ Modo solo lectura:</strong> Este proveedor está registrado. Puedes visualizar, descargar y solicitar actualización de documentos.
+</div>
+` : ''}
+${!soloLectura ? `
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>ℹ️ Información:</strong> Como administrador, puedes subir documentos en nombre del proveedor para agilizar el proceso de registro.
+</div>
+` : ''}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h4 style="margin:0;">Documentos activos</h4>
+<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+${numHistoricos > 0 ? `<small style="color:#6b7280;">📦 ${numHistoricos} histórico(s) — ver pestaña "Históricos"</small>` : ''}
+<button class="btn btn-success" onclick="descargarZIP(${p.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
+📦 Descargar activos en ZIP
+</button>
+</div>
+</div>
+<div class="doc-grid">
+`;
+
+requeridos.forEach((req, idx) => {
+const sub = map[req.tipo] || [];
+const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
+const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
+const tieneArchivos = sub.length > 0;
+const puedeSubir = !soloLectura && (req.cantidadMin === 1
+? (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica))
+: true);
+
+html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
+<div style="margin-bottom:0.5rem;">
+<h4>${idx+1}. ${req.nombre}</h4>
+<small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
+${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
+</div>`;
+
+if (!sub.length) {
+html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
+} else {
+sub.forEach(d => {
+const nombreEscapado = escapeHtml(d.nombre_original || '');
+const verificado = d.verificado === 1;
+const mostrarCheck = !soloLectura && d.estado !== 'aprobado';
+const checkDeshabilitado = d.estado === 'rechazado' || soloLectura;
+
+html += `<div class="doc-row">
+<div style="flex:1;min-width:180px;">
+<small>📎 ${escapeHtml(nombreFormato(d.tipo))} <span class="badge badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span></small>
+${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
+<br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
+${d.fecha_vencimiento ? `
+<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
+<span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
+${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
+</span>
+` : ''}
+${mostrarCheck ? `
+<br><label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:pointer;margin-top:0.2rem;">
+<input type="checkbox" class="checkbox-verificado" data-docid="${d.id}"
+${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
+<span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
+</label>
+` : ''}
+</div>
+<div class="doc-row-actions">
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
+${!soloLectura ? `
+<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
+<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
+` : ''}
+</div>
+</div>`;
+});
+}
+
+if (!soloLectura && req.opcional) {
+const checkboxDisabled = tieneArchivos && !noAplica;
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+<label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
+<input type="checkbox" class="checkbox-no-aplica-admin"
+data-docid="${sub[0]?.id || ''}" data-tipo="${req.tipo}" data-proveedorid="${p.id}"
+${noAplica ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
+<span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Marcar como "No Aplica" para este proveedor</span>
+</label>
+<small style="color:#78350f;display:block;margin-top:0.3rem;">
+${noAplica ? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
+: (checkboxDisabled ? 'ℹ️ Ya hay archivos subidos. No puedes marcar "No aplica" si ya hay documentos cargados.'
+: 'Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"')}
+</small>
+</div>`;
+}
+
+if (!soloLectura && req.tipo === 'experiencia') {
+const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
+const maxAlcanzado = subidosValidos >= 3;
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+<span style="font-size:0.85rem;color:#065f46;">
+📄 Certificados subidos: <strong>${subidosValidos}/3</strong>
+${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
+</span>
+${!maxAlcanzado && puedeSubir ? `
+<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}" style="display:flex;gap:0.5rem;align-items:center;">
+<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
+<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">📤 Subir PDF</button>
+</form>
+` : `
+<span style="color:#6b7280;font-size:0.9rem;">${maxAlcanzado ? '✅ Máximo de 3 certificados alcanzado' : 'No disponible'}</span>
+`}
+</div>
+</div>`;
+}
+
+if (!soloLectura && req.tipo !== 'experiencia' && puedeSubir && !noAplica) {
+const label = sub.length === 0 ? '📤 Admin subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
+html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;">
+<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
+<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
+</form>`;
+} else if (!soloLectura && req.tipo !== 'experiencia' && noAplica) {
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+</div>`;
+}
+html += '</div>';
+});
+html += '</div>';
+
+html += `
+<div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
+<h4>📄 Evaluación Inicial</h4>
+${p.evaluacion_inicial ? `
+<div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
+<p><strong>📎 Archivo:</strong> Evaluación Inicial.pdf</p>
+<p><strong>📋 Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : p.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>📅 Fecha:</strong> ${p.evaluacion_fecha ? formatearFecha(p.evaluacion_fecha) : ''}</p>
+<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${p.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
+<a href="/api/admin/proveedor/${p.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
+</div>
+</div>
+` : `
+<div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
+<p>⚠️ No hay evaluación inicial subida.</p>
+</div>
+`}
+</div>
+`;
+document.getElementById('modalContenidoDocs').innerHTML = html;
+}
+
+// ==========================================
+// 📄 PLANTILLAS
+// ==========================================
+function renderizarPlantillas() {
+const cont = document.getElementById('contenedor-modulos');
+if (!cont) return;
+let html = `
+<div class="card">
+<h3>📄 Plantillas para proveedores</h3>
+<p style="color:#6b7280;font-size:0.9rem;margin:0.5rem 0 1rem;">Sube los formatos que los proveedores deben diligenciar.</p>
+<div id="listaPlantillas" class="doc-grid"></div>
+</div>
+`;
+cont.innerHTML = html;
+cargarPlantillas();
+}
+async function cargarPlantillas() {
+if (!requeridos || requeridos.length === 0) { setTimeout(() => cargarPlantillas(), 300); return; }
+const cont = document.getElementById('listaPlantillas');
+if (!cont) return;
+const plantillasRequeridas = requeridos.filter(r => r.esPlantilla === true);
+if (plantillasRequeridas.length === 0) { cont.innerHTML = '<p style="color:#6b7280;">No hay plantillas configuradas.</p>'; return; }
+try {
+const response = await fetchAPI('/api/admin/plantillas');
+if (!response.ok) throw new Error('Error al obtener plantillas');
+const plantillas = await response.json();
+const map = {};
+plantillas.forEach(p => map[p.tipo] = p);
+cont.innerHTML = '';
+plantillasRequeridas.forEach(req => {
+const p = map[req.tipo];
+const div = document.createElement('div');
+div.className = 'doc-item';
+div.style.cssText = 'flex-direction:column;align-items:stretch;';
+div.innerHTML = `
+<div style="margin-bottom:0.5rem;"><h4>${req.nombre}</h4></div>
+${p ? `
+<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:#f9fafb;border-radius:6px;margin-bottom:0.5rem;">
+<small>✅ ${p.nombre_original}</small>
+<a href="/plantillas/${p.archivo}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>
+</div>
+` : `
+<div class="alert" style="background:#fee2e2;color:#991b1b;padding:0.5rem;margin-bottom:0.5rem;">⚠️ Sin plantilla</div>
+`}
+<form class="form-plantilla" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
+<input type="file" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx">
+<button type="submit" class="btn btn-sm">${p ? 'Reemplazar' : 'Subir'}</button>
+</form>
+`;
+cont.appendChild(div);
+});
+document.querySelectorAll('.form-plantilla').forEach(form => {
+form.addEventListener('submit', async e => {
+e.preventDefault();
+const fd = new FormData(e.target);
+fd.append('tipo', e.target.dataset.tipo);
+const res = await fetchAPI('/api/admin/plantilla', { method: 'POST', body: fd });
+if (res.ok) { mostrarAlerta('👌 Plantilla cargada', 'success'); cargarPlantillas(); }
+else { const r = await res.json(); mostrarAlerta(r.error); }
+});
+});
+} catch (err) {
+console.error('Error cargando plantillas:', err);
+mostrarAlerta('Error al cargar plantillas: ' + err.message);
+}
+}
+
+// ==========================================
+// 📜 HISTORIAL DE ACTUALIZACIONES
+// ==========================================
+let historialPaginaActual = 1;
+let historialLimiteActual = 20;
+let historialTotalPaginas = 1;
+let historialTotalRegistros = 0;
+let historialFiltros = { busqueda: '', año: '', rfc: '', estado: '' };
+
+async function cargarHistorial(pagina = 1) {
+try {
+const contenedor = document.getElementById('contenedor-modulos');
+const { busqueda, año, rfc, estado } = historialFiltros;
+const limit = historialLimiteActual;
+
+let url = `/api/admin/ciclos?page=${pagina}&limit=${limit}`;
+if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
+if (año) url += `&año=${encodeURIComponent(año)}`;
+if (rfc) url += `&rfc=${encodeURIComponent(rfc)}`;
+if (estado) url += `&estado=${encodeURIComponent(estado)}`;
+
+const response = await fetchAPI(url);
+const data = await response.json();
+if (!response.ok) throw new Error(data.error || 'Error al cargar historial');
+
+historialPaginaActual = data.page || 1;
+historialTotalPaginas = data.totalPages || 1;
+historialTotalRegistros = data.total || 0;
+historialLimiteActual = data.limit || 20;
+
+let html = `
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+<h3 style="margin:0;">📜 Historial de actualizaciones</h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-success" onclick="exportarHistorial()">📄 Exportar</button>
+</div>
+</div>
+<div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1.5rem;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1rem;margin-bottom:1rem;">
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar</label>
+<input type="text" id="historialBusqueda" placeholder="Nombre, email..."
+value="${escapeHtml(busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Año</label>
+<select id="historialAno" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<option value="">Todos</option>
+</select>
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🏢 NIT / RUT</label>
+<input type="text" id="historialRfc" placeholder="Ej: 900123456"
+value="${escapeHtml(rfc)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔘 Estado</label>
+<select id="historialEstado" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<option value="">Todos</option>
+<option value="activo" ${estado === 'activo' ? 'selected' : ''}>Activo</option>
+<option value="cerrado" ${estado === 'cerrado' ? 'selected' : ''}>Cerrado</option>
+<option value="rechazado" ${estado === 'rechazado' ? 'selected' : ''}>Rechazado</option>
+</select>
+</div>
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm" onclick="aplicarFiltrosHistorial()">🔍 Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosHistorial()">🗑️ Limpiar</button>
+</div>
+<div id="paginacionHistorial" style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;">
+<div style="display:flex;gap:0.5rem;align-items:center;">
+<button id="btnHistorialAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(-1)">◀ Anterior</button>
+<span id="infoHistorialPagina">Página ${data.page} de ${data.totalPages} (${data.total} registros)</span>
+<button id="btnHistorialSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(1)">Siguiente ▶</button>
+</div>
+<div>
+<label style="font-size:0.85rem;">Mostrar:</label>
+<select id="historialLimite" onchange="cambiarLimiteHistorial()" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
+<option value="10" ${limit === 10 ? 'selected' : ''}>10</option>
+<option value="20" ${limit === 20 ? 'selected' : ''}>20</option>
+<option value="50" ${limit === 50 ? 'selected' : ''}>50</option>
+<option value="100" ${limit === 100 ? 'selected' : ''}>100</option>
+</select>
+</div>
+</div>
+</div>
+<div id="listaHistorialCiclos"></div>
+</div>
+`;
+contenedor.innerHTML = html;
+await cargarAnosHistorial();
+renderizarTablaHistorial(data.data || []);
+actualizarBotonesHistorial();
+
+document.getElementById('historialBusqueda').addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
+document.getElementById('historialRfc').addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
+} catch (err) {
+console.error('❌ Error cargando historial:', err);
+const contenedor = document.getElementById('contenedor-modulos');
+contenedor.innerHTML = `<div class="alert alert-error">❌ Error al cargar historial: ${err.message}</div>`;
+}
+}
+
+async function cargarAnosHistorial() {
+try {
+const response = await fetchAPI('/api/admin/ciclos/anos');
+if (!response.ok) return;
+const anos = await response.json();
+const select = document.getElementById('historialAno');
+if (!select) return;
+const currentValue = historialFiltros.año;
+select.innerHTML = '<option value="">Todos</option>';
+anos.forEach(a => {
+const opt = document.createElement('option');
+opt.value = a; opt.textContent = a;
+if (currentValue && String(a) === String(currentValue)) opt.selected = true;
+select.appendChild(opt);
+});
+} catch (err) { console.error('Error cargando años:', err); }
+}
+
+function renderizarTablaHistorial(ciclos) {
+const cont = document.getElementById('listaHistorialCiclos');
+if (!cont) return;
+if (!ciclos || ciclos.length === 0) {
+cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No se encontraron ciclos con los filtros aplicados.</p>';
+return;
+}
+let html = `
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+<thead>
+<tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
+<th style="padding:0.7rem;text-align:left;">Proveedor</th>
+<th style="padding:0.7rem;text-align:left;">Fecha Movimiento</th>
+<th style="padding:0.7rem;text-align:center;">Fecha Inicio</th>
+<th style="padding:0.7rem;text-align:center;">Fecha Fin</th>
+<th style="padding:0.7rem;text-align:center;">Estado</th>
+<th style="padding:0.7rem;text-align:center;">Docs</th>
+<th style="padding:0.7rem;text-align:center;">Acciones</th>
+</tr>
+</thead>
+<tbody>
+`;
+ciclos.forEach(c => {
+const estadoColor = c.estado === 'activo' ? '#059669' : c.estado === 'cerrado' ? '#6b7280' : '#dc2626';
+const estadoIcon = c.estado === 'activo' ? '🟢' : c.estado === 'cerrado' ? '🔒' : '🔴';
+const fechaFin = c.fecha_fin ? formatearFecha(c.fecha_fin) : '—';
+const documentosTotal = c.total_documentos || 0;
+const aprobados = c.documentos_aprobados || 0;
+html += `
+<tr style="border-bottom:1px solid #e5e7eb;">
+<td style="padding:0.7rem;">
+<strong>${escapeHtml(c.razon_social)}</strong><br>
+<small style="color:#6b7280;">${escapeHtml(c.email)}</small>
+</td>
+<td style="padding:0.7rem;font-weight:500;">${escapeHtml(c.numero_registro)}</td>
+<td style="padding:0.7rem;text-align:center;">${formatearFecha(c.fecha_inicio)}</td>
+<td style="padding:0.7rem;text-align:center;">${fechaFin}</td>
+<td style="padding:0.7rem;text-align:center;">
+<span style="color:${estadoColor};font-weight:600;">${estadoIcon} ${c.estado}</span>
+</td>
+<td style="padding:0.7rem;text-align:center;">
+${aprobados}/${documentosTotal}
+<div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;margin:0.3rem auto 0;overflow:hidden;">
+<div style="width:${documentosTotal > 0 ? (aprobados/documentosTotal)*100 : 0}%;height:100%;background:#059669;"></div>
+</div>
+</td>
+<td style="padding:0.7rem;text-align:center;">
+<button class="btn btn-sm btn-secondary" onclick="verCiclo(${c.id})">👁️ Ver docs</button>
+<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${c.id})">📦 ZIP</button>
+</td>
+</tr>
+`;
+});
+html += `</tbody></table></div>`;
+cont.innerHTML = html;
+}
+
+function actualizarBotonesHistorial() {
+const btnAnt = document.getElementById('btnHistorialAnterior');
+const btnSig = document.getElementById('btnHistorialSiguiente');
+const info = document.getElementById('infoHistorialPagina');
+if (!btnAnt || !btnSig || !info) return;
+const total = historialTotalRegistros;
+if (total === 0) { info.textContent = 'No hay registros'; btnAnt.disabled = true; btnSig.disabled = true; return; }
+info.textContent = `Página ${historialPaginaActual} de ${historialTotalPaginas} (${total} registros)`;
+btnAnt.disabled = (historialPaginaActual <= 1);
+btnSig.disabled = (historialPaginaActual >= historialTotalPaginas);
+}
+function cambiarPaginaHistorial(delta) {
+const nueva = historialPaginaActual + delta;
+if (nueva < 1 || nueva > historialTotalPaginas) return;
+historialPaginaActual = nueva;
+cargarHistorial(nueva);
+}
+function cambiarLimiteHistorial() {
+const select = document.getElementById('historialLimite');
+if (!select) return;
+const nuevoLimite = parseInt(select.value);
+if (nuevoLimite === historialLimiteActual) return;
+historialLimiteActual = nuevoLimite;
+historialPaginaActual = 1;
+cargarHistorial(1);
+}
+function aplicarFiltrosHistorial() {
+historialFiltros.busqueda = document.getElementById('historialBusqueda').value.trim();
+historialFiltros.año = document.getElementById('historialAno').value;
+historialFiltros.rfc = document.getElementById('historialRfc').value.trim();
+historialFiltros.estado = document.getElementById('historialEstado').value;
+historialPaginaActual = 1;
+cargarHistorial(1);
+}
+function limpiarFiltrosHistorial() {
+document.getElementById('historialBusqueda').value = '';
+document.getElementById('historialAno').value = '';
+document.getElementById('historialRfc').value = '';
+document.getElementById('historialEstado').value = '';
+historialFiltros = { busqueda: '', año: '', rfc: '', estado: '' };
+historialPaginaActual = 1;
+cargarHistorial(1);
+}
+
+// ==========================================
+// 📂 VER CICLO (modal con documentos)
+// ==========================================
+async function verCiclo(cicloId) {
+try {
+const response = await fetchAPI(`/api/admin/ciclos/${cicloId}/documentos`);
+if (!response.ok) {
+const err = await response.json();
+throw new Error(err.error || 'Error al cargar documentos del ciclo');
+}
+const data = await response.json();
+const { ciclo, documentos } = data;
+const evaluacion = data.evaluacion || null;
+
+const modal = document.createElement('div');
+modal.className = 'modal-overlay active';
+modal.id = 'modalCicloDocs';
+modal.style.zIndex = '1000';
+let docsHtml = '';
+if (evaluacion && evaluacion.archivo) {
+const evalBadge = evaluacion.es_historico === 1
+? '<span class="badge badge-faltante">📦 Histórica</span>'
+: (evaluacion.estado === 'aprobado' ? '<span class="badge badge-aprobado">✅ Aprobada</span>'
+: evaluacion.estado === 'rechazado' ? '<span class="badge badge-rechazado">❌ Rechazada</span>'
+: '<span class="badge badge-pendiente">⏳ Pendiente</span>');
+docsHtml += `
+<div class="doc-item" style="flex-direction:column;align-items:stretch;background:#f5f3ff;border:1px solid #c4b5fd;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+<span><strong>📄 Evaluación Inicial</strong> ${evalBadge}</span>
+</div>
+<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${evaluacion.archivo}','Evaluación Inicial')">👁️ Ver</button>
+<a href="/uploads/${evaluacion.archivo}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
+</div>
+${evaluacion.fecha ? `<small style="color:#6b7280;">📅 Fecha: ${formatearFecha(evaluacion.fecha)}</small>` : ''}
+</div>
+`;
+}
+if (documentos && documentos.length > 0) {
+docsHtml += `
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h4 style="margin:0;">Documentos del ciclo ${escapeHtml(ciclo.numero_registro)}</h4>
+<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${ciclo.id})">📦 Descargar todos en ZIP</button>
+</div>
+<div class="doc-grid">
+`;
+documentos.forEach(d => {
+const nombreEscapado = escapeHtml(nombreFormato(d.tipo));
+const estadoVencimiento = d.estado_vencimiento || 'vigente';
+const vencimientoColor = estadoVencimiento === 'vencido' ? '#dc2626' : estadoVencimiento === 'proximo_a_vencer' ? '#d97706' : '#059669';
+const vencimientoLabel = estadoVencimiento === 'vencido' ? '🔴 Vencido' : estadoVencimiento === 'proximo_a_vencer' ? '🟡 Próximo a vencer' : '🟢 Vigente';
+docsHtml += `
+<div class="doc-item" style="flex-direction:column;align-items:stretch;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+<span><strong>${escapeHtml(nombreFormato(d.tipo))}</strong></span>
+<span>
+<span class="badge badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span>
+${d.es_historico === 1 ? '<span class="badge badge-rechazado" style="margin-left:0.3rem;">histórico</span>' : ''}
+${d.fecha_vencimiento ? `<span style="color:${vencimientoColor};font-size:0.8rem;margin-left:0.5rem;">${vencimientoLabel}</span>` : ''}
+</span>
+</div>
+<div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
+</div>
+${d.fecha_vencimiento ? `<small style="color:#6b7280;">Vence: ${formatearFecha(d.fecha_vencimiento)}</small>` : ''}
+</div>
+`;
+});
+docsHtml += '</div>';
+} else {
+docsHtml += '<p style="color:#6b7280;">Este ciclo no tiene documentos asociados.</p>';
+}
+
+modal.innerHTML = `
+<div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<h3 style="margin:0;">📂 Ciclo: ${escapeHtml(ciclo.numero_registro)}</h3>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModalCiclo()">✕ Cerrar</button>
+</div>
+<div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
+<p><strong>Proveedor:</strong> ${escapeHtml(ciclo.razon_social)}</p>
+<p><strong>Email:</strong> ${escapeHtml(ciclo.email)}</p>
+<p><strong>Fecha inicio:</strong> ${formatearFecha(ciclo.fecha_inicio)}</p>
+<p><strong>Fecha fin:</strong> ${ciclo.fecha_fin ? formatearFecha(ciclo.fecha_fin) : '—'}</p>
+<p><strong>Estado:</strong> <span style="color:${ciclo.estado === 'activo' ? '#059669' : ciclo.estado === 'cerrado' ? '#6b7280' : '#dc2626'};font-weight:600;">${ciclo.estado}</span></p>
+</div>
+${docsHtml}
+</div>
+`;
+document.body.appendChild(modal);
+modal.addEventListener('click', (e) => { if (e.target === modal) cerrarModalCiclo(); });
+} catch (err) {
+console.error('❌ Error viendo ciclo:', err);
+mostrarAlerta('❌ Error al cargar los documentos del ciclo: ' + err.message);
+}
+}
+function cerrarModalCiclo() {
+const modal = document.getElementById('modalCicloDocs');
+if (modal) modal.remove();
+}
+
+// ==========================================
+// 📦 DESCARGAR ZIP DE CICLO
+// ==========================================
+async function descargarZIPCiclo(cicloId) {
+try {
+mostrarAlerta('⏳ Generando ZIP del ciclo...', 'info');
+const response = await fetchAPI(`/api/admin/ciclos/${cicloId}/zip`);
+if (!response.ok) {
+const err = await response.json();
+throw new Error(err.error || 'Error al generar ZIP');
+}
+const blob = await response.blob();
+const contentDisposition = response.headers.get('Content-Disposition');
+let filename = `ciclo_${cicloId}.zip`;
+if (contentDisposition) {
+const match = contentDisposition.match(/filename="(.+)"/);
+if (match) filename = decodeURIComponent(match[1]);
+}
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url; a.download = filename;
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+window.URL.revokeObjectURL(url);
+mostrarAlerta('✅ ZIP descargado correctamente', 'success');
+} catch (err) {
+console.error('❌ Error descargando ZIP del ciclo:', err);
+mostrarAlerta('❌ Error al descargar: ' + err.message);
+}
+}
+
+// ==========================================
+// 📄 EXPORTAR HISTORIAL (CSV)
+// ==========================================
+async function exportarHistorial() {
+try {
+const { busqueda, año, rfc, estado } = historialFiltros;
+let url = `/api/admin/ciclos?page=1&limit=10000`;
+if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
+if (año) url += `&año=${encodeURIComponent(año)}`;
+//if (numero_registro) url += `&numero_registro=${encodeURIComponent(numero_registro)}`;
+if (rfc) url += `&rfc=${encodeURIComponent(rfc)}`;
+if (estado) url += `&estado=${encodeURIComponent(estado)}`;
+
+const response = await fetchAPI(url);
+const data = await response.json();
+if (!response.ok) throw new Error(data.error || 'Error al exportar');
+const ciclos = data.data || [];
+if (ciclos.length === 0) { mostrarAlerta('No hay datos para exportar con los filtros actuales', 'info'); return; }
+
+const headers = ['Proveedor', 'Email', 'Fecha Movimiento', 'Fecha Inicio', 'Fecha Fin', 'Estado', 'Documentos Totales', 'Documentos Aprobados'];
+const rows = ciclos.map(c => [
+c.razon_social || '', c.email || '', c.numero_registro || '',
+c.fecha_inicio || '', c.fecha_fin || '', c.estado || '',
+c.total_documentos || 0, c.documentos_aprobados || 0
+]);
+const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))].join('\n');
+const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+const urlBlob = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = urlBlob; a.download = `historial_ciclos_${fechaArchivo()}.csv`;
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+window.URL.revokeObjectURL(urlBlob);
+mostrarAlerta(`✅ Historial exportado (${ciclos.length} ciclos)`, 'success');
+} catch (err) {
+console.error('❌ Error exportando historial:', err);
+mostrarAlerta('❌ Error al exportar: ' + err.message);
+}
+}
+
+// ==========================================
+// ⚙️ CONFIGURACIÓN DEL SISTEMA (FECHA FIJA)
+// ==========================================
+let configuracionActual = {};
+async function cargarConfiguracion() {
+const contenedor = document.getElementById('contenedor-modulos');
+let html = `
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+<h3 style="margin:0;">⚙️ Configuración del sistema</h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="recargarConfiguracion()">🔄 Recargar</button>
+</div>
+</div>
+<div id="configuracionContenido">
+<div style="text-align:center;padding:2rem;">
+<div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+<p>Cargando configuración...</p>
+</div>
+</div>
+</div>
+`;
+contenedor.innerHTML = html;
+await recargarConfiguracion();
+}
+async function recargarConfiguracion() {
+try {
+const response = await fetchAPI('/api/admin/configuracion');
+if (!response.ok) {
+const err = await response.json();
+throw new Error(err.error || 'Error al cargar configuración');
+}
+const config = await response.json();
+configuracionActual = config;
+renderizarFormularioConfiguracion(config);
+} catch (err) {
+console.error('❌ Error cargando configuración:', err);
+const cont = document.getElementById('configuracionContenido');
+if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error al cargar configuración: ${err.message}</div>`;
+}
+}
+async function ejecutarVencimientosAhora() {
+if (!confirm('⚠️ ¿Ejecutar el procesamiento de vencimientos ahora? Se moverán todos los documentos vencidos a histórico.')) return;
+try {
+const res = await fetchAPI('/api/admin/ejecutar-vencimientos', { method: 'POST' });
+const data = await res.json();
+if (res.ok) {
+mostrarAlerta(`✅ Vencimientos procesados: ${data.movidos} movidos, ${data.notificados} notificados`, 'success');
+recargarConfiguracion();
+} else {
+mostrarAlerta('❌ ' + (data.error || 'Error'), 'error');
+}
+} catch (err) { mostrarAlerta('❌ Error de conexión', 'error'); }
+}
+function renderizarFormularioConfiguracion(config) {
+const cont = document.getElementById('configuracionContenido');
+if (!cont) return;
+
+let fechaActual = config?.valor || '';
+if (!fechaActual) {
+const fecha = new Date();
+fecha.setFullYear(fecha.getFullYear() + 1);
+fecha.setHours(23, 59, 59, 0);
+fechaActual = fecha.toISOString().slice(0, 16);
+} else {
+fechaActual = fechaActual.replace(' ', 'T').slice(0, 16);
+}
+const fechaMostrada = config?.valor ? formatearFecha(config.valor) : 'No configurada';
+const fechaActualizacion = config?.actualizado_en ? formatearFecha(config.actualizado_en) : 'Nunca';
+
+cont.innerHTML = `
+<div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #e5e7eb;">
+<h4 style="color:#dc2626;margin-bottom:0.5rem;">⚡ Acciones urgentes</h4>
+<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
+Esta acción moverá <strong>TODOS los documentos activos</strong> de <strong>TODOS los proveedores</strong> a histórico y los cambiará a estado RECHAZADO, sin importar su fecha de vencimiento.
+</p>
+<button class="btn btn-danger" onclick="forzarVencimientosAhora()" style="background:#dc2626;color:white;font-weight:bold;padding:0.8rem 2rem;">
+⚡ Forzar vencimiento de todos los documentos
+</button>
+<small style="color:#6b7280;display:block;margin-top:0.5rem;">
+⚠️ Esta acción es irreversible. Se recomienda hacer una copia de seguridad antes.
+</small>
+</div>
+<div style="background:#f0fdf4;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;border-left:4px solid #059669;">
+<h4 style="color:#065f46;margin-bottom:0.5rem;">📋 Configuración actual</h4>
+<p><strong>📅 Fecha fija de vencimiento:</strong> <span style="font-size:1.2rem;font-weight:700;color:#059669;">${fechaMostrada}</span></p>
+<p><strong>🕐 Última actualización:</strong> ${fechaActualizacion}</p>
+<p><strong>📝 Descripción:</strong> Fecha y hora a partir de la cual los documentos aprobados se considerarán vencidos.</p>
+</div>
+<div style="background:#f9fafb;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;">
+<h4 style="margin-bottom:0.5rem;">✏️ Modificar fecha fija de vencimiento</h4>
+<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
+Establece la fecha y hora exacta en que todos los documentos aprobados pasarán a vencidos.
+Esta fecha se aplicará a los documentos que se aprueben a partir de ahora.
+</p>
+<div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+<div style="flex:1;min-width:200px;">
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Fecha y hora de vencimiento</label>
+<input type="datetime-local" id="fechaVencimientoInput" value="${fechaActual}"
+style="width:100%;padding:0.7rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">
+</div>
+<button class="btn" onclick="guardarConfiguracion()" style="background:#059669;">💾 Guardar</button>
+</div>
+<small style="color:#6b7280;display:block;margin-top:0.5rem;">
+⚠️ Este cambio afectará solo a los documentos que se aprueben a partir de ahora.
+</small>
+</div>
+<div style="background:#fffbeb;padding:1.5rem;border-radius:8px;border:2px solid #f59e0b;">
+<h4 style="color:#92400e;margin-bottom:0.5rem;">🔄 Recalcular fechas de vencimiento existentes</h4>
+<p style="color:#78350f;font-size:0.9rem;margin-bottom:1rem;">
+Aplica la fecha fija configurada a todos los documentos <strong>aprobados y activos</strong> (no históricos).
+Esto asignará la misma fecha y hora a todos los documentos aprobados.
+</p>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-warning" onclick="recalcularVencimientos()" style="background:#d97706;color:white;">
+🔄 Aplicar a todos (fecha fija)
+</button>
+<small style="color:#6b7280;display:block;margin-top:0.5rem;">
+⚠️ Esta acción puede afectar a muchos documentos. Se recomienda hacer una copia de seguridad antes.
+</small>
+</div>
+</div>
+`;
+}
+async function forzarVencimientosAhora() {
+if (!confirm('⚠️ ESTA ACCIÓN ES IRREVERSIBLE\n\nSe moverán TODOS los documentos activos de TODOS los proveedores a histórico y se cambiarán a estado RECHAZADO.\n\n¿Estás seguro de continuar?')) return;
+if (!confirm('ÚLTIMA ADVERTENCIA: Esta acción afectará a todos los proveedores con documentos activos. ¿Continuar?')) return;
+try {
+mostrarAlerta('⏳ Procesando vencimientos forzados...', 'info');
+const res = await fetchAPI('/api/admin/forzar-vencimientos', { method: 'POST' });
+const data = await res.json();
+if (res.ok) {
+mostrarAlerta(`✅ Vencimientos forzados completados: ${data.movidos} movidos, ${data.notificados} notificados`, 'success');
+recargarConfiguracion();
+recargarVistaActual();
+} else {
+mostrarAlerta('❌ ' + (data.error || 'Error'), 'error');
+}
+} catch (err) { mostrarAlerta('❌ Error de conexión', 'error'); }
+}
+async function guardarConfiguracion() {
+const input = document.getElementById('fechaVencimientoInput');
+if (!input) return;
+const fecha = input.value;
+if (!fecha) { mostrarAlerta('❌ Debes seleccionar una fecha y hora', 'error'); return; }
+const fechaSeleccionada = new Date(fecha);
+const hoy = new Date();
+if (fechaSeleccionada < hoy) {
+mostrarAlerta('⚠️ La fecha de vencimiento no puede ser anterior a la fecha actual', 'warning');
+if (!confirm('¿Estás seguro de usar una fecha ya pasada?')) return;
+}
+const btn = document.querySelector('#configuracionContenido .btn');
+const textoOriginal = btn.textContent;
+btn.disabled = true; btn.textContent = '⏳ Guardando...';
+try {
+const response = await fetchAPI('/api/admin/configuracion', {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ valor: fecha })
+});
+const data = await response.json();
+if (response.ok) { mostrarAlerta(`✅ ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
+else { mostrarAlerta(`❌ ${data.error || 'Error al guardar'}`, 'error'); }
+} catch (err) {
+console.error('❌ Error guardando configuración:', err);
+mostrarAlerta('❌ Error de conexión', 'error');
+} finally { btn.disabled = false; btn.textContent = textoOriginal; }
+}
+async function recalcularVencimientos() {
+if (!confirm(`⚠️ ¿Estás seguro de recalcular las fechas de vencimiento de TODOS los documentos aprobados y activos usando la fecha fija configurada?\n\nEsta acción afectará a todos los documentos aprobados (no históricos).`)) return;
+const btn = document.querySelector('#configuracionContenido .btn-warning');
+if (!btn) return;
+const textoOriginal = btn.textContent;
+btn.disabled = true; btn.textContent = '⏳ Procesando...';
+try {
+const response = await fetchAPI('/api/admin/recalcular-vencimientos', { method: 'POST' });
+const data = await response.json();
+if (response.ok) { mostrarAlerta(`✅ ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
+else { mostrarAlerta(`❌ ${data.error || 'Error al recalcular'}`, 'error'); }
+} catch (err) {
+console.error('❌ Error recalculando:', err);
+mostrarAlerta('❌ Error de conexión', 'error');
+} finally { btn.disabled = false; btn.textContent = textoOriginal; }
+}
+
+// ==========================================
+// 🎯 ELIMINAR DOCUMENTO (admin)
+// ==========================================
+async function eliminarDocumentoAdmin(docId, proveedorId) {
+if (!docId) { mostrarAlerta('❌ ID de documento no válido', 'error'); return; }
+if (!proveedorId) {
+if (proveedorActualId) proveedorId = proveedorActualId;
+else { mostrarAlerta('❌ No se pudo identificar al proveedor', 'error'); return; }
+}
+if (!confirm('¿Estás seguro de eliminar este documento?')) return;
+try {
+const res = await fetchAPI(`/api/admin/documento/${docId}`, { method: 'DELETE' });
+if (res.ok) {
+mostrarAlerta('👌 Documento eliminado', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else {
+const r = await res.json();
+mostrarAlerta(`❌ ${r.error || 'Error al eliminar'}`);
+}
+} catch (err) {
+console.error('Error eliminando documento:', err);
+mostrarAlerta('Error al eliminar el documento');
+}
+}
+
+// ==========================================
+// 🎯 EVENTOS DE SUBIDA (admin)
+// ==========================================
+document.addEventListener('submit', async function(e) {
+if (e.target.classList.contains('form-upload-admin')) {
+if (adminFormSubmitted) return;
+adminFormSubmitted = true;
+e.preventDefault();
+const form = e.target;
+const fd = new FormData(form);
+const tipo = form.dataset.tipo;
+const proveedorId = form.dataset.proveedorid;
+
+const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica-admin');
+if (checkboxNoAplica && checkboxNoAplica.checked) {
+try {
+const docId = checkboxNoAplica.dataset.docid;
+const url = docId && docId !== ''
+? `/api/admin/proveedor/${proveedorId}/documento/${docId}/no-aplica`
+: `/api/admin/proveedor/${proveedorId}/documento/0/no-aplica`;
+await fetchAPI(url, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ no_aplica: false, tipo: tipo })
+});
+} catch (err) {
+console.error('Error desmarcando No Aplica:', err);
+mostrarAlerta('❌ Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
+adminFormSubmitted = false;
+return;
+}
+}
+fd.append('tipo', tipo);
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documento`, { method: 'POST', body: fd });
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta(`✅ ${r.mensaje}`, 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else {
+mostrarAlerta(`❌ ${r.error || 'Error desconocido'}`);
+}
+} catch (err) {
+console.error('Error subiendo documento:', err);
+mostrarAlerta('❌ Error al subir el documento: ' + err.message);
+} finally {
+setTimeout(() => { adminFormSubmitted = false; }, 500);
+}
+}
+if (e.target.id === 'formEvaluacion') {
+e.preventDefault();
+const fd = new FormData(e.target);
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/evaluacion`, { method: 'POST', body: fd });
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ Evaluación subida correctamente', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { mostrarAlerta(`❌ ${r.error}`); }
+} catch (err) {
+console.error('Error subiendo evaluación:', err);
+mostrarAlerta('Error al subir evaluación');
+}
+}
+if (e.target.id === 'formGestion') {
+e.preventDefault();
+const proveedorId = proveedorActualId;
+const numero_registro = document.getElementById('numeroRegistro').value.trim();
+const tipo_gestion = document.querySelector('input[name="tipoGestion"]:checked')?.value || 'inscripcion';
+const notas_gestion = document.getElementById('observaciones').value.trim();
+const tipo_proveedor = document.getElementById('tipoProveedor').value.trim();
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/gestion`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ numero_registro, tipo_gestion, notas_gestion, tipo_proveedor })
+});
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ Gestión guardada correctamente', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { mostrarAlerta(`❌ ${r.error}`); }
+} catch (err) {
+console.error('Error guardando gestión:', err);
+mostrarAlerta('❌ Error al guardar la gestión');
+}
+}
+});
+
+// ==========================================
+// 🎯 EVENTOS DE VERIFICACIÓN (checkbox)
+// ==========================================
+document.addEventListener('change', async function(e) {
+if (e.target.classList.contains('checkbox-verificado')) {
+const checkbox = e.target;
+const docId = checkbox.dataset.docid;
+const verificado = checkbox.checked;
+checkbox.disabled = true;
+try {
+const res = await fetchAPI(`/api/admin/documento/${docId}/verificar`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ verificado })
+});
+if (res.ok) {
+mostrarAlerta(`👌 Documento ${verificado ? 'verificado' : 'desmarcado'} correctamente`, 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else {
+const r = await res.json();
+mostrarAlerta(`❌ ${r.error || 'Error al actualizar'}`);
+checkbox.checked = !verificado;
+}
+} catch (err) {
+console.error('Error:', err);
+mostrarAlerta('❌ Error de conexión al actualizar verificación');
+checkbox.checked = !verificado;
+} finally { checkbox.disabled = false; }
+}
+if (e.target.classList.contains('checkbox-no-aplica-admin')) {
+if (noAplicaChanged) return;
+noAplicaChanged = true;
+const checkbox = e.target;
+const docId = checkbox.dataset.docid;
+const tipo = checkbox.dataset.tipo;
+const proveedorId = checkbox.dataset.proveedorid;
+const noAplica = checkbox.checked;
+try {
+let url = docId && docId !== ''
+? `/api/admin/proveedor/${proveedorId}/documento/${docId}/no-aplica`
+: `/api/admin/proveedor/${proveedorId}/documento/0/no-aplica`;
+const res = await fetchAPI(url, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ no_aplica: noAplica, tipo: tipo })
+});
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta(noAplica ? '✅ Documento marcado como "No Aplica"' : '✅ Documento ahora requiere carga', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else {
+mostrarAlerta(`❌ ${r.error}`);
+checkbox.checked = !noAplica;
+}
+} catch (err) {
+console.error('Error:', err);
+mostrarAlerta('Error al actualizar');
+checkbox.checked = !noAplica;
+} finally { setTimeout(() => { noAplicaChanged = false; }, 500); }
+}
+});
+
+// ==========================================
+// 📋 FUNCIONES PARA EVALUACIÓN
+// ==========================================
+async function cambiarEstadoEvaluacion(proveedorId, estado) {
+if (estado === 'rechazado') {
+const motivo = prompt('Motivo del rechazo (obligatorio):');
+if (motivo === null) return;
+if (!motivo.trim()) { mostrarAlerta('Debes escribir un motivo de rechazo', 'error'); return; }
+await enviarEstadoEvaluacion(proveedorId, estado, motivo.trim());
+} else {
+if (!confirm('¿Aprobar la evaluación inicial?')) return;
+await enviarEstadoEvaluacion(proveedorId, estado, '');
+}
+}
+async function eliminarEvaluacion(proveedorId) {
+if (!proveedorId) { mostrarAlerta('❌ ID de proveedor no válido', 'error'); return; }
+if (!confirm('⚠️ ¿Estás seguro de eliminar la Evaluación Inicial? Esta acción no se puede deshacer.')) return;
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/evaluacion`, { method: 'DELETE' });
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ Evaluación inicial eliminada correctamente', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { mostrarAlerta(`❌ ${r.error || 'Error al eliminar'}`, 'error'); }
+} catch (err) {
+console.error('Error eliminando evaluación:', err);
+mostrarAlerta('❌ Error de conexión', 'error');
+}
+}
+async function enviarEstadoEvaluacion(proveedorId, estado, comentario) {
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/evaluacion/estado`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ estado, comentario })
+});
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta(`✅ Evaluación ${estado}`, 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { mostrarAlerta(`❌ ${r.error}`); }
+} catch (err) {
+console.error('Error cambiando estado evaluación:', err);
+mostrarAlerta('Error al cambiar estado');
+}
+}
+function rechazarEvaluacion(proveedorId) {
+if (!confirm('⚠️ ADVERTENCIA: Al rechazar la evaluación inicial, TODOS los documentos activos serán rechazados. El proveedor volverá a verificación (si es actualización) o pasará a rechazado (si es inscripción). ¿Estás seguro?')) return;
+cambiarEstadoEvaluacion(proveedorId, 'rechazado');
+}
+
+// ==========================================
+// ✅ APROBAR / RECHAZAR DOCUMENTO
+// ==========================================
+async function cambiarEstado(docId, estado, comentario = null) {
+if (estado === 'aprobado') {
+const checkbox = document.querySelector(`.checkbox-verificado[data-docid="${docId}"]`);
+if (checkbox && !checkbox.checked) {
+mostrarAlerta('⚠️ Primero debes marcar el documento como "Verificado" antes de aprobarlo.', 'error');
+return;
+}
+}
+const res = await fetchAPI(`/api/admin/documento/${docId}/estado`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ estado, comentario })
+});
+if (res.ok) {
+mostrarAlerta(`Documento ${estado}`, 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+await actualizarEstadisticasGlobales();
+} else {
+const r = await res.json();
+mostrarAlerta(r.error || 'Error al cambiar estado');
+}
+}
+function rechazar(docId) {
+const c = prompt('Motivo del rechazo (opcional):');
+if (c === null) return;
+cambiarEstado(docId, 'rechazado', c);
+}
+
+// ==========================================
+// 🔄 RECARGAR VISTA DEL PROVEEDOR (modal)
+// ==========================================
+async function recargarVistaProveedor() {
+if (!proveedorActualId) { console.warn('⚠️ proveedorActualId no definido, no se puede recargar'); return; }
+try {
+const response = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`);
+if (!response.ok) {
+const errorData = await response.json().catch(() => ({}));
+mostrarAlerta(`❌ Error al recargar: ${errorData.error || 'Error desconocido'}`);
+return;
+}
+const data = await response.json();
+if (!data.proveedor) {
+mostrarAlerta('❌ No se encontró información del proveedor. Puede que haya sido eliminado.');
+cerrarModal();
+return;
+}
+historicosCache = data.documentos_historicos || [];
+renderHistoricosProveedor(data.proveedor, historicosCache);
+
+document.getElementById('modalTitulo').textContent = proveedorActualNombre;
+const contenedorDinamico = document.getElementById('modalContenidoDinamico');
+const subTabsContainer = document.getElementById('subTabsContainer');
+
+if (moduloActual === 'registrados') {
+subTabsContainer.style.display = 'block';
+contenedorDinamico.innerHTML = '';
+renderDocsCompleto(data.proveedor, data.documentos, historicosCache);
+} else if (moduloActual === 'verificacion') {
+subTabsContainer.style.display = 'block';
+contenedorDinamico.innerHTML = '';
+renderVerificacionCompleta(data.proveedor, data.documentos);
+} else if (moduloActual === 'aprobacion') {
+subTabsContainer.style.display = 'block';
+contenedorDinamico.innerHTML = '';
+renderAprobacionCompleta(data.proveedor, data.documentos);
+} else if (moduloActual === 'inscripcion') {
+subTabsContainer.style.display = 'block';
+contenedorDinamico.innerHTML = '';
+renderGestion(data.proveedor, data.documentos);
+}
+} catch (err) {
+console.error('Error recargando vista:', err);
+mostrarAlerta('Error al recargar la vista');
+}
+}
+
+// ==========================================
+// 👁️ VISOR DE DOCUMENTOS
+// ==========================================
+function verDocumento(url, nombre) {
+document.getElementById('modalVisor').style.zIndex = '9000';
+document.getElementById('visorTitulo').textContent = nombre;
+document.getElementById('visorDescargar').href = url + '?download=true';
+document.getElementById('visorDescargar').setAttribute('download', nombre);
+document.getElementById('visorNuevaPestana').href = url;
+const iframe = document.getElementById('visorIframe');
+const cargando = document.getElementById('visorCargando');
+iframe.style.display = 'none';
+cargando.style.display = 'block';
+iframe.src = url;
+iframe.onload = () => { cargando.style.display = 'none'; iframe.style.display = 'block'; };
+setTimeout(() => { if (cargando.style.display !== 'none') { cargando.style.display = 'none'; iframe.style.display = 'block'; } }, 8000);
+document.getElementById('modalVisor').classList.add('active');
+}
+function cerrarVisor() {
+document.getElementById('visorIframe').src = 'about:blank';
+document.getElementById('modalVisor').classList.remove('active');
+}
+
+// ==========================================
+// 📝 NOTAS (para sub-tabs)
+// ==========================================
+async function cargarNotas() {
+if (!proveedorActualId) return;
+const notas = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/notas`)).json();
+const cont = document.getElementById('listaNotas');
+if (!notas.length) { cont.innerHTML = '<small style="color:#9ca3af;">Sin notas.</small>'; return; }
+cont.innerHTML = '';
+notas.forEach(n => {
+const div = document.createElement('div');
+div.className = 'nota-item';
+const header = document.createElement('div');
+header.className = 'nota-header';
+const strong = document.createElement('strong');
+strong.textContent = `📝 ${n.titulo}`;
+header.appendChild(strong);
+const small = document.createElement('small');
+small.textContent = `🕐 ${formatearFecha(n.creado_en)} · 👤 ${n.admin_nombre}`;
+header.appendChild(small);
+div.appendChild(header);
+const body = document.createElement('div');
+body.className = 'nota-body';
+body.textContent = n.nota;
+div.appendChild(body);
+cont.appendChild(div);
+});
+}
+async function guardarNota() {
+const titulo = document.getElementById('tituloNota').value.trim();
+const nota = document.getElementById('detalleNota').value.trim();
+if (!nota) { mostrarAlerta('Escribe el detalle'); return; }
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/nota`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ titulo: titulo || 'Nota', nota })
+});
+if (res.ok) {
+mostrarAlerta('👌 Nota guardada', 'success');
+document.getElementById('tituloNota').value = '';
+document.getElementById('detalleNota').value = '';
+await cargarNotas();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { const r = await res.json(); mostrarAlerta(r.error); }
+}
+
+// ==========================================
+// 📜 HISTORIAL (para sub-tabs)
+// ==========================================
+async function cargarHistorialProveedor() {
+if (!proveedorActualId) return;
+const hist = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/historial`)).json();
+const cont = document.getElementById('modalHistorial');
+if (!hist.length) { cont.innerHTML = '<div class="historial-vacio">📭 Sin actividad.</div>'; return; }
+cont.innerHTML = '<h4 style="margin-bottom:0.8rem;">Historial completo</h4>' + hist.map(h => {
+const iconos = {
+registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
+documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
+datos_actualizados: '✏️', recordatorio_enviado: '📨', nota_agregada: '📝',
+documento_no_aplica: '📋', documento_requiere_carga: '📄', gestion_actualizada: '📋',
+cambio_etapa: '🔄', evaluacion_subida: '📄', evaluacion_estado_cambiado: '📋',
+solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰', vencimiento_forzado: '⚡',
+reinicio_automatico: '♻️'
+};
+const clases = {
+documento_subido: 'subida', documento_reemplazado: 'subida',
+documento_aprobado: 'aprobado', documento_rechazado: 'rechazado',
+documento_eliminado: 'eliminado', datos_actualizados: 'datos',
+recordatorio_enviado: 'recordatorio', nota_agregada: 'recordatorio',
+registro: 'registro', documento_no_aplica: 'aprobado', documento_requiere_carga: 'datos',
+gestion_actualizada: 'datos', cambio_etapa: 'datos',
+evaluacion_subida: 'subida', evaluacion_estado_cambiado: 'datos',
+solicitud_actualizacion: 'recordatorio', vencimiento_automatico: 'rechazado',
+vencimiento_forzado: 'rechazado', reinicio_automatico: 'subida'
+};
+return `
+<div class="historial-item">
+<div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
+<div class="historial-contenido">
+<div class="detalle">${h.detalle}</div>
+<div class="meta"><span>🕐 ${formatearFecha(h.creado_en)}</span><span class="usuario">👤 ${escapeHtml(h.usuario_nombre)}</span></div>
+</div>
+</div>
+`;
+}).join('');
+}
+
+// ==========================================
+// 📨 RECORDATORIOS (para sub-tabs)
+// ==========================================
+async function cargarRecordatoriosEnviados() {
+if (!proveedorActualId) return;
+const hist = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/historial`)).json();
+const recs = hist.filter(h => h.accion === 'recordatorio_enviado');
+const cont = document.getElementById('listaRecordatoriosEnviados');
+if (!recs.length) { cont.innerHTML = '<small style="color:#9ca3af;">Sin recordatorios.</small>'; return; }
+cont.innerHTML = recs.map(r => `
+<div class="historial-item">
+<div class="historial-icono recordatorio">📨</div>
+<div class="historial-contenido">
+<div class="detalle">${r.detalle.replace('Recordatorio enviado: ', '')}</div>
+<div class="meta"><span>🕐 ${formatearFecha(r.creado_en)}</span></div>
+</div>
+</div>
+`).join('');
+}
+async function enviarRecordatorio() {
+const msg = document.getElementById('mensajeRecordatorio').value.trim();
+if (!msg) { mostrarAlerta('Escribe un mensaje'); return; }
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/recordatorio`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ mensaje: msg })
+});
+if (res.ok) {
+mostrarAlerta('👌 Recordatorio enviado', 'success');
+document.getElementById('mensajeRecordatorio').value = '';
+await cargarRecordatoriosEnviados();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { const r = await res.json(); mostrarAlerta(r.error); }
+}
+
+// ==========================================
+// 🗑️ ELIMINAR PROVEEDOR
+// ==========================================
+function mostrarConfirmacionEliminar() {
+document.getElementById('nombreProveedorEliminar').textContent = proveedorActualNombre;
+document.getElementById('textoConfirmacion').value = '';
+document.getElementById('passwordConfirmacion').value = '';
+document.getElementById('alertaEliminar').innerHTML = '';
+document.getElementById('modalConfirmarEliminar').classList.add('active');
+}
+function cerrarConfirmacionEliminar() {
+document.getElementById('modalConfirmarEliminar').classList.remove('active');
+}
+async function ejecutarEliminacion() {
+const texto = document.getElementById('textoConfirmacion').value.trim();
+const password = document.getElementById('passwordConfirmacion').value;
+const alertaEl = document.getElementById('alertaEliminar');
+if (texto !== 'ELIMINAR') {
+alertaEl.innerHTML = '<div class="alert alert-error">Debes escribir exactamente "ELIMINAR" para confirmar</div>';
+return;
+}
+if (!password) {
+alertaEl.innerHTML = '<div class="alert alert-error">Debes ingresar tu contraseña de administrador</div>';
+return;
+}
+if (!confirm(`⚠️ ÚLTIMA ADVERTENCIA\n\n¿Estás 100% seguro de eliminar a "${proveedorActualNombre}"?\n\nEsta acción es PERMANENTE y NO se puede deshacer.`)) return;
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`, {
+method: 'DELETE',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ password })
+});
+const r = await res.json();
+if (res.ok) {
+alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
+setTimeout(() => {
+cerrarConfirmacionEliminar();
+cerrarModal();
+cargarProveedoresPorModulo(moduloActual, 1);
+mostrarAlerta('Proveedor eliminado correctamente', 'success');
+}, 1500);
+} else {
+alertaEl.innerHTML = `<div class="alert alert-error">❌ ${r.error}</div>`;
+}
+} catch (err) {
+alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</div>`;
+}
+}
+function cerrarModal() {
+document.getElementById('modal').classList.remove('active');
+proveedorActualId = null;
+proveedorActualNombre = '';
+historicosCache = [];
+const countBadge = document.getElementById('countHistoricos');
+if (countBadge) countBadge.style.display = 'none';
+}
+
+// ==========================================
+// 📦 DESCARGAR ZIP
+// ==========================================
+async function descargarZIP(proveedorId) {
+try {
+mostrarAlerta('⏳ Generando archivo ZIP... Esto puede tomar unos segundos.', 'info');
+const response = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documentos/zip`);
+if (!response.ok) {
+const errorData = await response.json().catch(() => ({}));
+throw new Error(errorData.error || 'Error al generar el ZIP');
+}
+const blob = await response.blob();
+const contentDisposition = response.headers.get('Content-Disposition');
+let filename = `proveedor_${proveedorId}_documentos.zip`;
+if (contentDisposition) {
+const match = contentDisposition.match(/filename="(.+)"/);
+if (match) filename = decodeURIComponent(match[1]);
+}
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url; a.download = filename;
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+window.URL.revokeObjectURL(url);
+mostrarAlerta('👌 ZIP descargado correctamente', 'success');
+} catch (err) {
+console.error('❌ Error descargando ZIP:', err);
+mostrarAlerta('❌ Error al descargar: ' + err.message);
+}
+}
+async function reiniciarProceso(proveedorId) {
+if (!confirm('⚠️ ¿Estás seguro de reiniciar el proceso para este proveedor?\n\nSe eliminará la evaluación actual y los documentos volverán a estado pendiente. El proveedor podrá subir documentos nuevamente.')) return;
+try {
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/reiniciar-proceso`, { method: 'POST' });
+const data = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ Proceso reiniciado. El proveedor vuelve a verificación.', 'success');
+cerrarModal();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { mostrarAlerta('❌ ' + (data.error || 'Error al reiniciar el proceso')); }
+} catch (err) {
+console.error('Error reiniciando:', err);
+mostrarAlerta('❌ Error de conexión al reiniciar el proceso');
+}
+}
+
+// ==========================================
+// 🔄 SOLICITAR ACTUALIZACIÓN ANUAL
+// ==========================================
+async function mostrarModalSolicitarActualizacion(proveedorId, nombreProveedor) {
+const mensaje = prompt(`🔄 Solicitar actualización de documentos a:\n\n${nombreProveedor}\n\nEscribe un mensaje para el proveedor (opcional):`, '');
+if (mensaje === null) return;
+if (!confirm(`⚠️ CONFIRMAR SOLICITUD DE ACTUALIZACIÓN\n\nEsto hará que:\n• Los documentos actuales se archiven en el histórico\n• El proveedor vuelva a la etapa de Verificación\n• Se le envíe un correo y un recordatorio\n\n¿Continuar?`)) return;
+try {
+mostrarAlerta('⏳ Enviando solicitud de actualización...', 'info');
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/solicitar-actualizacion`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ mensaje: mensaje.trim() })
+});
+const data = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ ' + data.mensaje, 'success', 6000);
+cerrarModal();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+await actualizarEstadisticasGlobales();
+} else {
+mostrarAlerta('❌ ' + (data.error || 'Error al solicitar la actualización'));
+}
+} catch (err) {
+console.error('Error solicitando actualización:', err);
+mostrarAlerta('❌ Error de conexión al solicitar la actualización');
+}
+}
+
+// ==========================================
+// 📤 EXPORTAR CSV
+// ==========================================
+async function exportarCSV() {
+try {
+const busqueda = document.getElementById('buscador')?.value?.trim() || '';
+const estado = filtroEstadoActual || 'todos';
+let url = `/api/admin/proveedores/export?estado=${estado}&modulo=${moduloActual}`;
+if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
+const response = await fetchAPI(url);
+if (!response.ok) {
+const err = await response.json();
+throw new Error(err.error || 'Error al exportar');
+}
+const result = await response.json();
+const proveedores = result.data || [];
+if (!proveedores.length) { mostrarAlerta('No hay proveedores para exportar con los filtros actuales', 'info'); return; }
+
+const headers = ['Razón Social', 'NIT/RUT', 'Correo', 'Teléfono', 'Representante Legal', 'Dirección', 'Estado', 'Fecha Aprobación', 'Fecha Movimiento', 'Tipo Gestión', 'Tipo Proveedor', 'Nota'];
+const filas = proveedores.map(p => [
+p.razon_social || p.nombre_empresa || '', p.rfc || '', p.email || '', p.telefono || '',
+p.representante || '', (p.direccion || '').replace(/[\n\r]+/g, ' '),
+estadoLegible(p),
+p.fecha_aprobacion ? formatearFecha(p.fecha_aprobacion) : 'Pendiente',
+p.numero_registro || '', p.tipo_gestion || '', p.tipo_proveedor || '', p.notas_gestion || ''
+]);
+const csv = '\uFEFF' + [headers.join(';'), ...filas.map(f => f.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
+const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+descargarBlob(blob, `proveedores_${fechaArchivo()}.csv`);
+mostrarAlerta(`👌 CSV exportado (${proveedores.length} proveedores)`, 'success');
+} catch (err) {
+console.error('Error exportando CSV:', err);
+mostrarAlerta('❌ Error al exportar: ' + err.message);
+}
+}
+
+// ==========================================
+// 📊 EXPORTAR EXCEL
+// ==========================================
+async function exportarExcel() {
+try {
+const busqueda = document.getElementById('buscador')?.value?.trim() || '';
+const estado = filtroEstadoActual || 'todos';
+let url = `/api/admin/proveedores/export?estado=${estado}&modulo=${moduloActual}`;
+if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
+const response = await fetchAPI(url);
+if (!response.ok) {
+const err = await response.json();
+throw new Error(err.error || 'Error al exportar');
+}
+const result = await response.json();
+const proveedores = result.data || [];
+if (!proveedores.length) { mostrarAlerta('No hay proveedores para exportar con los filtros actuales', 'info'); return; }
+
+const res = await fetchAPI('/api/admin/exportar-excel', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ proveedores })
+});
+if (!res.ok) {
+const err = await res.json();
+throw new Error(err.error || 'Error al generar Excel');
+}
+const blob = await res.blob();
+descargarBlob(blob, `proveedores_${fechaArchivo()}.xlsx`);
+mostrarAlerta(`👌 Excel exportado (${proveedores.length} proveedores)`, 'success');
+} catch (err) {
+console.error('Error exportando Excel:', err);
+mostrarAlerta('❌ Error al exportar: ' + err.message);
+}
+}
+
+function toggleExportDropdown() {
+const d = document.getElementById('exportDropdown');
+if (d) d.style.display = d.style.display === 'block' ? 'none' : 'block';
+}
+
+// ==========================================
+// 🔐 CREAR PROVEEDOR
+// ==========================================
+function mostrarModalCrearProveedor() {
+document.getElementById('formCrearProveedor').reset();
+document.getElementById('alertaCrearProveedor').innerHTML = '';
+document.getElementById('modalCrearProveedor').classList.add('active');
+}
+function cerrarModalCrearProveedor() {
+document.getElementById('modalCrearProveedor').classList.remove('active');
+}
+document.getElementById('formCrearProveedor').addEventListener('submit', async e => {
+e.preventDefault();
+const alertaEl = document.getElementById('alertaCrearProveedor');
+const formData = new FormData(e.target);
+const data = Object.fromEntries(formData);
+try {
+const res = await fetchAPI('/api/admin/proveedor', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(data)
+});
+const r = await res.json();
+if (res.ok) {
+alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
+setTimeout(async () => {
+cerrarModalCrearProveedor();
+await cargarProveedoresPorModulo(moduloActual, 1);
+if (r.proveedorId) {
+await verProveedor(r.proveedorId, moduloActual);
+mostrarAlerta('Proveedor creado. Revisa y gestiona sus documentos.', 'success');
+}
+}, 1500);
+} else {
+alertaEl.innerHTML = `<div class="alert alert-error">❌ ${r.error}</div>`;
+}
+} catch (err) {
+alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</div>`;
+}
+});
+
+// ==========================================
+// 🚪 LOGOUT
+// ==========================================
+async function logout() {
+await fetchAPI('/api/logout', { method: 'POST' });
+window.location.href = 'index.html';
+}
+
+// ==========================================
+// 🎯 EVENT LISTENERS DE SUB-TABS
+// ==========================================
+document.addEventListener('click', function(e) {
+const tab = e.target.closest('[data-stab]');
+if (tab) {
+document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
+tab.classList.add('active');
+const tgt = tab.dataset.stab;
+['docs','historicos','notas','hist','rec','eliminar'].forEach(t =>
+document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== tgt)
+);
+if (tgt === 'hist') cargarHistorialProveedor();
+if (tgt === 'rec') cargarRecordatoriosEnviados();
+if (tgt === 'notas') cargarNotas();
+if (tgt === 'historicos') renderHistoricosProveedor({ id: proveedorActualId }, historicosCache);
+}
+});
+
+// ==========================================
+// 🧹 CERRAR MODALES CLICK FUERA
+// ==========================================
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') cerrarModal(); });
+document.getElementById('modalVisor').addEventListener('click', e => { if (e.target.id === 'modalVisor') cerrarVisor(); });
+document.getElementById('modalConfirmarEliminar').addEventListener('click', e => { if (e.target.id === 'modalConfirmarEliminar') cerrarConfirmacionEliminar(); });
+document.getElementById('modalCrearProveedor').addEventListener('click', e => { if (e.target.id === 'modalCrearProveedor') cerrarModalCrearProveedor(); });
+
+// ==========================================
+// 🚀 INICIAR APLICACIÓN
+// ==========================================
+console.log('✅ Panel de Administración con nuevo flujo cargado');
+console.log('🔧 fetchAPI helper activo (credentials: include)');
+init();
+</script>
 </body>
 </html>

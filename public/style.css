@@ -1,55 +1,82 @@
 /* ==========================================
-   🎨 PERSONALIZACIÓN DE COLORES
-   Naranja + Morado + Blanco + Negro
-   ========================================== */
+🎨 IDENTIDAD UNAB — Manual de Marca (recalibrado v4.4)
+Principal #e9a427 (dorado) · Secundario #8600dd (morado)
+Por WCAG: el MORADO lleva las acciones; el DORADO es acento/isotipo.
+========================================== */
+/* Tipografía oficial de comunicación (Open Sans). Auto-hospedada en /fonts/.
+   Si los .woff2 no están, el fallback del font-family toma el control sin romper nada. */
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/open-sans-400.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/open-sans-600.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/open-sans-700.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/open-sans-800.woff2') format('woff2'); }
+
 :root {
-  /* Color principal: MORADO */
-  --color-primario: #7c3aed;
-  --color-primario-hover: #6d28d9;
-  --color-primario-claro: rgba(124, 58, 237, 0.1);
-  --color-primario-muy-claro: rgba(124, 58, 237, 0.05);
-  
-  /* Color de acento: NARANJA */
-  --color-acento: #c2410c;
-  --color-acento-hover: #9a3412;
-  --color-acento-claro: rgba(194, 65, 12, 0.1);
-  
-  /* Colores de estado */
-  --color-exito: #059669;
-  --color-exito-hover: #047857;
-  --color-peligro: #dc2626;
-  --color-peligro-hover: #b91c1c;
-  --color-advertencia: #c2410c;  /* Naranja */
-  --color-advertencia-hover: #9a3412;
-  --color-secundario: #4b5563;
-  --color-secundario-hover: #1f2937;
-  
-  /* Fondos */
-  --color-fondo: #f9fafb;
-  --color-fondo-suave: #f3f4f6;
-  --color-blanco: #ffffff;
-  --color-negro: #111827;
-  --color-texto: #1f2937;
-  --color-texto-suave: #6b7280;
-  
-  /* Bordes */
-  --color-borde: #e5e7eb;
-  --color-borde-input: #d1d5db;
-  
-  /* Tipografía */
-  --fuente-principal: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/* Color de marca SECUNDARIO (morado) -> ACCIONES (botones, focos, links) */
+--color-primario: #8600dd;
+--color-primario-hover: #6b00b0;
+--color-primario-claro: rgba(134, 0, 221, 0.10);
+--color-primario-muy-claro: rgba(134, 0, 221, 0.05);
+/* Color de marca PRINCIPAL (dorado) -> ACENTO / isotipo / highlights */
+--color-acento: #e9a427;
+--color-acento-hover: #cf8f1c;
+--color-acento-claro: rgba(233, 164, 39, 0.14);
+--color-acento-texto: #8a5a00;   /* dorado oscurecido para TEXTO sobre blanco (AA ✅) */
+/* Colores de estado (semánticos, NO de marca: no se tocan) */
+--color-exito: #059669;
+--color-exito-hover: #047857;
+--color-peligro: #dc2626;
+--color-peligro-hover: #b91c1c;
+--color-advertencia: #b9791a;        /* ámbar coherente con la familia dorada */
+--color-advertencia-hover: #8a5a00;
+--color-secundario: #4b5563;
+--color-secundario-hover: #1f2937;
+/* Fondos */
+--color-fondo: #f6f4fb;              /* tinte morado imperceptible, saca del gris plano */
+--color-fondo-suave: #f1eef8;
+--color-blanco: #ffffff;
+--color-negro: #160a24;              /* navbar: morado casi negro (logo negativo encima) */
+--color-texto: #1f1830;
+--color-texto-suave: #6b6478;
+/* Bordes */
+--color-borde: #e7e2f0;
+--color-borde-input: #d6cfe6;
+/* Tipografía: Open Sans oficial + fallback del sistema */
+--fuente-principal: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+--fuente-display: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/* Elevación en capas (sombra morada sutil) */
+--sombra-1: 0 1px 2px rgba(22, 10, 36, 0.06), 0 1px 3px rgba(134, 0, 221, 0.05);
+--sombra-2: 0 6px 16px rgba(22, 10, 36, 0.08), 0 2px 6px rgba(134, 0, 221, 0.06);
+--sombra-3: 0 16px 40px rgba(22, 10, 36, 0.14), 0 6px 14px rgba(134, 0, 221, 0.10);
 }
 
 /* ==========================================
    ESTILOS BASE
    ========================================== */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: var(--fuente-principal);
-  background: var(--color-fondo);
-  color: var(--color-texto);
-  min-height: 100vh;
+font-family: var(--fuente-principal);
+background: var(--color-fondo);
+color: var(--color-texto);
+min-height: 100vh;
+position: relative;
+-webkit-font-smoothing: antialiased;
+text-rendering: optimizeLegibility;
+}
+/* Trama ambiente "cimática": ondas concéntricas moradas casi invisibles.
+   Fija, detrás de todo, no interfiere con clics. Le quita lo "plano" al layout. */
+body::before {
+content: "";
+position: fixed;
+inset: 0;
+z-index: -1;
+pointer-events: none;
+background:
+radial-gradient(circle at 12% 18%, rgba(134, 0, 221, 0.05) 0, rgba(134, 0, 221, 0.05) 1px, transparent 1px, transparent 26px),
+radial-gradient(circle at 88% 82%, rgba(233, 164, 39, 0.045) 0, rgba(233, 164, 39, 0.045) 1px, transparent 1px, transparent 30px),
+radial-gradient(circle at 50% 50%, transparent 0, transparent 120px, rgba(134, 0, 221, 0.025) 121px, transparent 123px, transparent 200px, rgba(134, 0, 221, 0.02) 201px, transparent 203px, transparent 300px, rgba(134, 0, 221, 0.015) 301px, transparent 303px);
+background-size: 240px 240px, 280px 280px, 600px 600px;
+opacity: 0.9;
 }
 
 /* ==========================================
@@ -348,13 +375,14 @@ body {
   color: #4b5563; 
 }
 
-.badge-recordatorio { 
-  background: var(--color-acento);
-  color: white; 
-  border-radius: 10px; 
-  padding: 0.1rem 0.5rem; 
-  font-size: 0.7rem; 
-  margin-left: 0.3rem; 
+.badge-recordatorio {
+background: var(--color-acento);
+color: #160a24;
+font-weight: 700;
+border-radius: 10px;
+padding: 0.1rem 0.5rem;
+font-size: 0.7rem;
+margin-left: 0.3rem;
 }
 
 .badge-count { 
@@ -414,9 +442,13 @@ body {
   padding: 1rem;
 }
 
-.modal-overlay.active { 
-  display: flex; 
+.modal-overlay.active {
+display: flex;
 }
+/* 🛡️ FIX z-index: el visor PDF debe flotar sobre CUALQUIER modal,
+   incluidos los modales dinámicos (ej. "Ciclo: 276456" = z-index 1000).
+   9000 queda por encima de todo modal y por debajo de los toast (9999). */
+#modalVisor { z-index: 9000; }
 
 .modal {
   background: var(--color-blanco); 
@@ -985,12 +1017,11 @@ html { scroll-behavior: smooth; }
 
 /* Reducir animaciones si el usuario lo prefiere */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
   .recordatorio-box { animation: none; }
 }
 
@@ -1028,4 +1059,406 @@ html { scroll-behavior: smooth; }
   .dashboard-card div:last-child {
     font-size: 1.5rem !important;
   }
+}
+
+/* Badge para "Verificado - Pendiente aprobación" */
+.badge-verificado-pendiente {
+  background: #fbbf24;
+  color: #78350f;
+  padding: 0.2rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  border: 1px solid #f59e0b;
+  white-space: nowrap;
+}
+
+/* Badge para "Pendiente por verificar" */
+.badge-pendiente-verificar {
+  background: #fdba74;
+  color: #7c2d12;
+  padding: 0.2rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  border: 1px solid #ea580c;
+  white-space: nowrap;
+}
+
+.btn-zip {
+  background: linear-gradient(135deg, #059669, #047857);
+  color: white;
+}
+
+/* ==========================================
+   📬 NOTIFICACIONES PUSH (TOAST)
+   ========================================== */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.notification {
+  padding: 16px 20px;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.notification-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.notification-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Colores de cada tipo */
+.notification-success {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.notification-error {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.notification-info {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.notification-warning {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+/* Animación de entrada */
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Animación de salida */
+.notification-exit {
+  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideOutRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100px) scale(0.95);
+  }
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+  .notification-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .notification {
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    border-radius: 10px;
+  }
+  
+  .notification-icon {
+    font-size: 1.2rem;
+  }
+}
+
+#tab-plant {
+  display: block;
+  min-height: 200px; /* Para que siempre tenga altura */
+}
+
+/* ==========================================
+   🔧 FORZAR VISIBILIDAD DE PESTAÑA PLANTILLAS
+   ========================================== */
+#tab-plant {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  min-height: 300px !important;
+  overflow: visible !important;
+}
+
+#listaPlantillas {
+  display: block !important;
+}
+
+#listaPlantillas .doc-item {
+  display: flex !important;
+}
+
+/* ==========================================
+   ALINEAR BADGES A LA DERECHA EN LISTA DE PROVEEDORES
+   ========================================== */
+.proveedor-row h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.proveedor-row h4 .badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.badge-pendiente-verificar,
+.badge-verificado-pendiente {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 12px;
+  border: 1px solid;
+  display: inline-block;
+}
+
+.badge-pendiente-verificar {
+  background: #fdba74;
+  color: #7c2d12;
+  border-color: #ea580c;
+}
+
+.badge-verificado-pendiente {
+  background: #fbbf24;
+  color: #78350f;
+  border-color: #f59e0b;
+}
+
+/* Separar paginación de la lista */
+#paginacion {
+  margin-bottom: 1rem !important;
+}
+
+/* Forzar visibilidad de pestañas */
+#tab-provs, #tab-plant {
+  display: block !important;
+}
+
+#tab-provs.hidden, #tab-plant.hidden {
+  display: none !important;
+}
+
+/* Estados de vencimiento */
+.badge-vigente {
+  background: #d1fae5;
+  color: #065f46;
+}
+.badge-proximo-a-vencer {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-vencido {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.badge-sin-fecha {
+background: #e5e7eb;
+color: #6b7280;
+}
+
+/* ==========================================================================
+🆕 SISTEMA VISUAL UNAB v4.4  (Capa 1 — solo presentación, 0 lógica)
+Va al FINAL para ganar por cascada sin borrar nada de arriba.
+========================================================================== */
+
+/* ---- Tipografía con contraste fuerte (display Extrabold vs cuerpo) ---- */
+h1, h2, h3, .navbar h1 { font-family: var(--fuente-display); font-weight: 800; letter-spacing: -0.02em; }
+.card h3, .modal h3 { font-weight: 800; letter-spacing: -0.015em; }
+label, .lp-sub, .badge { letter-spacing: 0.02em; }
+
+/* ---- Navbar preparado para el LOGO UNAB (versión negativa sobre fondo oscuro) ---- */
+.navbar {
+background: linear-gradient(100deg, #160a24 0%, #2a0f47 100%);
+border-bottom: 3px solid var(--color-acento);   /* filete dorado = acento de marca */
+box-shadow: var(--sombra-2);
+gap: 1rem;
+}
+.navbar h1 { display: flex; align-items: center; gap: 0.7rem; font-size: 1.2rem; }
+/* Slot del logo: cuando sueltes /img/unab-logo-negativo.svg aparecerá aquí solo */
+.navbar-logo { height: 38px; width: auto; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+/* Fallback tipográfico on-brand (se ve solo si el <img> falla) */
+.navbar-logo-fallback {
+font-family: var(--fuente-display); font-weight: 800; font-size: 1.25rem; letter-spacing: 0.06em;
+color: #fff; border: 2px solid var(--color-acento); border-radius: 6px;
+padding: 0.15rem 0.55rem; line-height: 1; text-transform: uppercase;
+}
+.navbar button { border-radius: 8px; font-weight: 600; }
+.navbar button:hover { background: var(--color-acento); border-color: var(--color-acento); color: #160a24; }
+
+/* ---- Cards con elevación en capas + filete de marca al hover ---- */
+.card {
+box-shadow: var(--sombra-1);
+border: 1px solid var(--color-borde);
+border-radius: 14px;
+transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+position: relative;
+overflow: hidden;
+}
+.card::after {   /* filete superior morado que "enciende" al pasar el cursor */
+content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%;
+background: linear-gradient(90deg, var(--color-primario), var(--color-acento));
+transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease;
+}
+.card:hover { box-shadow: var(--sombra-2); border-color: var(--color-borde-input); }
+.card:hover::after { transform: scaleX(1); }
+
+/* ---- Dashboard: números en DISPLAY gigante + entrada escalonada ---- */
+.dashboard-card {
+border-radius: 16px; position: relative; overflow: hidden;
+box-shadow: var(--sombra-2);
+transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), box-shadow 0.25s ease;
+}
+.dashboard-card::before {   /* brillo diagonal sutil */
+content: ""; position: absolute; inset: 0;
+background: radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,0.18), transparent 60%);
+pointer-events: none;
+}
+.dashboard-card:hover { transform: translateY(-6px); box-shadow: var(--sombra-3) !important; }
+.dashboard-card div:last-child {   /* el número: sobrescribe el inline 2rem/700 */
+font-family: var(--fuente-display) !important; font-weight: 800 !important;
+font-size: 2.5rem !important; letter-spacing: -0.03em !important; line-height: 1 !important;
+}
+.dashboard-card div:nth-child(2) {   /* el label en caja alta con tracking */
+text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+}
+@media (prefers-reduced-motion: no-preference) {
+.dashboard-card { animation: unabFadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+.dashboard-card:nth-child(1) { animation-delay: 0.04s; }
+.dashboard-card:nth-child(2) { animation-delay: 0.10s; }
+.dashboard-card:nth-child(3) { animation-delay: 0.16s; }
+.dashboard-card:nth-child(4) { animation-delay: 0.22s; }
+.dashboard-card:nth-child(5) { animation-delay: 0.28s; }
+}
+@keyframes unabFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ---- Botones con estados reales (elevación / hundimiento / foco / disabled) ---- */
+.btn { border-radius: 9px; font-weight: 600; box-shadow: var(--sombra-1); transition: all 0.18s ease; }
+.btn:hover { box-shadow: var(--sombra-2); }
+.btn:active { transform: translateY(1px) scale(0.99); box-shadow: none; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-primario-claro), var(--sombra-1); }
+.btn:disabled { filter: grayscale(0.6); opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-warning, .btn-naranja { color: #160a24; font-weight: 700; }   /* texto OSCURO sobre dorado (WCAG) */
+.btn-warning:hover, .btn-naranja:hover { color: #160a24; }
+
+/* ---- Inputs con foco de marca ---- */
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+border-color: var(--color-primario); box-shadow: 0 0 0 3px var(--color-primario-claro);
+}
+
+/* ---- Tabs con underline vivo ---- */
+.tab { font-weight: 600; transition: color 0.2s ease, border-color 0.2s ease; }
+.tab.active { border-bottom-width: 3px; }
+.tab:hover:not(.active) { color: var(--color-primario); }
+
+/* ---- Chips de filtro con estado activo animado ---- */
+.filtro-estado { border-radius: 999px; font-weight: 600; transition: all 0.2s cubic-bezier(0.16,1,0.3,1); }
+.filtro-estado:hover { transform: translateY(-1px); }
+.filtro-estado.active {
+background: linear-gradient(135deg, var(--color-primario), #a020f0);
+box-shadow: 0 4px 12px rgba(134, 0, 221, 0.35); transform: scale(1.03);
+}
+.filtro-estado .badge-count { transition: background 0.2s ease, color 0.2s ease; }
+
+/* ---- Listados: barra lateral de marca + respuesta al cursor ---- */
+.proveedor-row {
+border-radius: 12px; box-shadow: var(--sombra-1);
+border-left: 4px solid var(--color-primario-claro);
+transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.proveedor-row:hover { transform: translateX(6px); box-shadow: var(--sombra-2); border-left-color: var(--color-primario); }
+.doc-item { border-radius: 12px; box-shadow: var(--sombra-1); transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+.doc-item:hover { box-shadow: var(--sombra-2); border-color: var(--color-primario); }
+.doc-row { border-radius: 9px; transition: background 0.15s ease, border-color 0.15s ease; }
+.doc-row:hover { border-color: var(--color-borde-input); }
+
+/* ---- Badges de pendiente con pulso suave (solo existen si hay pendientes) ---- */
+@media (prefers-reduced-motion: no-preference) {
+.badge-recordatorio { animation: unabPulse 2.4s ease-in-out infinite; }
+}
+@keyframes unabPulse {
+0%, 100% { box-shadow: 0 0 0 0 rgba(233, 164, 39, 0.5); }
+50% { box-shadow: 0 0 0 5px rgba(233, 164, 39, 0); }
+}
+
+/* ---- Modales: entrada con escala + fondo con blur ---- */
+.modal-overlay { backdrop-filter: blur(3px); }
+.modal { box-shadow: var(--sombra-3); border-radius: 16px; }
+@media (prefers-reduced-motion: no-preference) {
+.modal-overlay.active .modal { animation: unabModalIn 0.28s cubic-bezier(0.16,1,0.3,1); }
+}
+@keyframes unabModalIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* ---- Footer institucional discreto (marca UNAB + ©, sin legal Mineducación) ---- */
+.unab-footer {
+text-align: center; color: var(--color-texto-suave); font-size: 0.78rem;
+padding: 1.5rem 1rem 2rem; letter-spacing: 0.02em;
+}
+.unab-footer strong { color: var(--color-acento-texto); font-weight: 700; letter-spacing: 0.06em; }
+
+/* ---- Respeta a quien prefiere menos movimiento (cierra TODO lo nuevo) ---- */
+@media (prefers-reduced-motion: reduce) {
+.card::after, .dashboard-card, .dashboard-card:hover, .filtro-estado.active,
+.proveedor-row, .btn, .modal-overlay.active .modal { animation: none !important; transition: none !important; }
+body::before { background: var(--color-fondo); }
 }

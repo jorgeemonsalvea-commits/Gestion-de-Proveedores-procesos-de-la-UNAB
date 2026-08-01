@@ -1,5 +1,8 @@
 # Scripts de mantenimiento (NUNCA subir secretos)
 reset-admin.js
+actualizar-fechas-aprobacion.js
+fix-estado.js
+update-habeas-existing.js
 
 # Dependencias
 node_modules/

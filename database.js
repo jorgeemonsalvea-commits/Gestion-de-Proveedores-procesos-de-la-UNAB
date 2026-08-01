@@ -4,10 +4,16 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const { generarPasswordAleatoria } = require('./security');
 
 // Usar volumen persistente en Railway, o local en desarrollo
 const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
-const db = new Database(path.join(dataDir, 'proveedores.db'));
+const dbPath = path.join(dataDir, 'proveedores.db');
+
+const db = new Database(dbPath);
+
+console.log('📂 Ruta de la base de datos:', dbPath);
+console.log('📂 dataDir:', dataDir);
 
 // Optimizaciones de SQLite
 db.pragma('journal_mode = WAL');
@@ -17,7 +23,6 @@ db.pragma('cache_size = -64000');
 db.pragma('busy_timeout = 5000');
 
 console.log('🗄️  Base de datos inicializada');
-
 
 // ==========================================
 // 2. CREACIÓN DE TABLAS BASE
@@ -49,6 +54,18 @@ db.exec(`
     direccion TEXT,
     estado_general TEXT DEFAULT 'pendiente' CHECK(estado_general IN ('pendiente','aprobado','rechazado')),
     fecha_aprobacion DATETIME,
+    ultimo_recordatorio_envio DATETIME,
+    todos_subidos INTEGER DEFAULT 0,
+    todos_verificados INTEGER DEFAULT 0,
+    numero_registro TEXT,
+    tipo_gestion TEXT CHECK(tipo_gestion IN ('inscripcion','actualizacion')),
+    notas_gestion TEXT,
+    fecha_gestion DATETIME,
+    etapa TEXT DEFAULT 'verificacion' CHECK(etapa IN ('verificacion','aprobacion','inscripcion','registrado','rechazado')),
+    evaluacion_inicial TEXT,
+    evaluacion_estado TEXT DEFAULT 'pendiente' CHECK(evaluacion_estado IN ('pendiente','aprobado','rechazado')),
+    evaluacion_fecha DATETIME,
+    tipo_proveedor TEXT,
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
   );
 
@@ -63,6 +80,11 @@ db.exec(`
     estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente','aprobado','rechazado')),
     comentario TEXT,
     no_aplica INTEGER DEFAULT 0,
+    verificado INTEGER DEFAULT 0,
+    fecha_vencimiento DATETIME,
+    ciclo TEXT,
+    es_historico INTEGER DEFAULT 0,
+    fecha_archivado DATETIME,
     subido_en DATETIME DEFAULT (datetime('now','-05:00')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
@@ -99,6 +121,7 @@ db.exec(`
     admin_nombre TEXT,
     mensaje TEXT NOT NULL,
     leido INTEGER DEFAULT 0,
+    cerrada INTEGER DEFAULT 0,
     creado_en DATETIME DEFAULT (datetime('now','-05:00')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
@@ -112,6 +135,7 @@ db.exec(`
     titulo TEXT NOT NULL,
     nota TEXT NOT NULL,
     leida INTEGER DEFAULT 0,
+    cerrada INTEGER DEFAULT 0,
     creado_en DATETIME DEFAULT (datetime('now','-05:00')),
     FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
   );
@@ -129,7 +153,7 @@ db.exec(`
     creado_en DATETIME DEFAULT (datetime('now','-05:00'))
   );
 
- -- Tabla de consentimiento de Habeas Data
+  -- Tabla de consentimiento de Habeas Data
   CREATE TABLE IF NOT EXISTS habeas_data_consent (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -140,31 +164,51 @@ db.exec(`
     version TEXT DEFAULT '1.0',
     creado_en DATETIME DEFAULT (datetime('now','-05:00')),
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-);
+  );
 
+  CREATE INDEX IF NOT EXISTS idx_habeas_data_usuario
+  ON habeas_data_consent(usuario_id, aceptado);
 
+  -- Tabla de recuperación de contraseña
+  CREATE TABLE IF NOT EXISTS password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    expiracion DATETIME NOT NULL,
+    usado INTEGER DEFAULT 0,
+    creado_en DATETIME DEFAULT (datetime('now','-05:00')),
+    FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+  );
 
-CREATE INDEX IF NOT EXISTS idx_habeas_data_usuario ON habeas_data_consent(usuario_id, aceptado);
+  CREATE INDEX IF NOT EXISTS idx_password_resets_token
+  ON password_resets(token);
 
--- Tabla de recuperación de contraseña
-CREATE TABLE IF NOT EXISTS password_resets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  usuario_id INTEGER NOT NULL,
-  token TEXT NOT NULL,
-  expiracion DATETIME NOT NULL,
-  usado INTEGER DEFAULT 0,
-  creado_en DATETIME DEFAULT (datetime('now','-05:00')),
-  FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-);
+  CREATE INDEX IF NOT EXISTS idx_password_resets_expiracion
+  ON password_resets(expiracion);
 
-CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
-CREATE INDEX IF NOT EXISTS idx_password_resets_expiracion ON password_resets(expiracion);
+  -- Tabla de configuración (parámetros del sistema)
+  CREATE TABLE IF NOT EXISTS configuracion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    clave TEXT UNIQUE NOT NULL,
+    valor TEXT NOT NULL,
+    descripcion TEXT,
+    actualizado_en DATETIME DEFAULT (datetime('now','-05:00'))
+  );
 
+  -- Tabla de ciclos de actualización (histórico de registros)
+  CREATE TABLE IF NOT EXISTS ciclos_actualizacion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proveedor_id INTEGER NOT NULL,
+    numero_registro TEXT NOT NULL,
+    fecha_inicio DATETIME DEFAULT (datetime('now','-05:00')),
+    fecha_fin DATETIME,
+    estado TEXT DEFAULT 'activo' CHECK(estado IN ('activo','cerrado','rechazado')),
+    creado_en DATETIME DEFAULT (datetime('now','-05:00')),
+    FOREIGN KEY(proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+  );
 `);
 
 console.log('✅ Estructura de tablas verificada');
-
-
 
 // ==========================================
 // 3. SISTEMA DE MIGRACIONES AUTOMÁTICAS
@@ -172,17 +216,44 @@ console.log('✅ Estructura de tablas verificada');
 console.log('🔄 Verificando migraciones...');
 
 const migraciones = [
+  // Usuarios
   { tabla: 'usuarios', campo: 'debe_cambiar_password', tipo: 'INTEGER DEFAULT 1' },
   { tabla: 'usuarios', campo: 'intentos_fallidos', tipo: 'INTEGER DEFAULT 0' },
   { tabla: 'usuarios', campo: 'bloqueado_hasta', tipo: 'DATETIME' },
+
+  // Proveedores
   { tabla: 'proveedores', campo: 'fecha_aprobacion', tipo: 'DATETIME' },
+  { tabla: 'proveedores', campo: 'ultimo_recordatorio_envio', tipo: 'DATETIME' },
+  { tabla: 'proveedores', campo: 'todos_subidos', tipo: 'INTEGER DEFAULT 0' },
+  { tabla: 'proveedores', campo: 'todos_verificados', tipo: 'INTEGER DEFAULT 0' },
+  { tabla: 'proveedores', campo: 'numero_registro', tipo: 'TEXT' },
+  { tabla: 'proveedores', campo: 'tipo_gestion', tipo: "TEXT CHECK(tipo_gestion IN ('inscripcion','actualizacion'))" },
+  { tabla: 'proveedores', campo: 'notas_gestion', tipo: 'TEXT' },
+  { tabla: 'proveedores', campo: 'fecha_gestion', tipo: 'DATETIME' },
+  { tabla: 'proveedores', campo: 'etapa', tipo: "TEXT DEFAULT 'verificacion' CHECK(etapa IN ('verificacion','aprobacion','inscripcion','registrado','rechazado'))" },
+  { tabla: 'proveedores', campo: 'evaluacion_inicial', tipo: 'TEXT' },
+  { tabla: 'proveedores', campo: 'evaluacion_estado', tipo: "TEXT DEFAULT 'pendiente' CHECK(evaluacion_estado IN ('pendiente','aprobado','rechazado'))" },
+  { tabla: 'proveedores', campo: 'evaluacion_fecha', tipo: 'DATETIME' },
+  { tabla: 'proveedores', campo: 'tipo_proveedor', tipo: 'TEXT' },
+
+  // Documentos
   { tabla: 'documentos', campo: 'hash_archivo', tipo: 'TEXT' },
   { tabla: 'documentos', campo: 'no_aplica', tipo: 'INTEGER DEFAULT 0' },
+  { tabla: 'documentos', campo: 'verificado', tipo: 'INTEGER DEFAULT 0' },
+  { tabla: 'documentos', campo: 'fecha_vencimiento', tipo: 'DATETIME' },
+  { tabla: 'documentos', campo: 'ciclo', tipo: 'TEXT' },
+  { tabla: 'documentos', campo: 'es_historico', tipo: 'INTEGER DEFAULT 0' },
+  { tabla: 'documentos', campo: 'fecha_archivado', tipo: 'DATETIME' },
+
+  // Historial
   { tabla: 'historial', campo: 'ip_origen', tipo: 'TEXT' },
+
+  // Notas
   { tabla: 'notas_proveedor', campo: 'leida', tipo: 'INTEGER DEFAULT 0' },
   { tabla: 'notas_proveedor', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
-  { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
-  { tabla: 'proveedores', campo: 'ultimo_recordatorio_envio', tipo: 'DATETIME' }
+
+  // Recordatorios
+  { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' }
 ];
 
 let migracionesAplicadas = 0;
@@ -191,13 +262,14 @@ let migracionesFallidas = 0;
 migraciones.forEach(m => {
   try {
     const columnas = db.prepare(`PRAGMA table_info(${m.tabla})`).all();
+
     if (!columnas.some(c => c.name === m.campo)) {
       db.exec(`ALTER TABLE ${m.tabla} ADD COLUMN ${m.campo} ${m.tipo}`);
-      console.log(`  ✅ ${m.tabla}.${m.campo}`);
+      console.log(`✅ ${m.tabla}.${m.campo}`);
       migracionesAplicadas++;
     }
   } catch (e) {
-    console.log(`  ⚠️  ${m.tabla}.${m.campo}: ${e.message}`);
+    console.log(`⚠️ ${m.tabla}.${m.campo}: ${e.message}`);
     migracionesFallidas++;
   }
 });
@@ -209,9 +281,47 @@ if (migracionesAplicadas > 0) {
 }
 
 if (migracionesFallidas > 0) {
-  console.log(`⚠️  ${migracionesFallidas} migración(es) fallida(s)`);
+  console.log(`⚠️ ${migracionesFallidas} migración(es) fallida(s)`);
 }
 
+// ==========================================
+// 3.5 NORMALIZACIÓN DE DATOS EXISTENTES
+// ==========================================
+console.log('🧹 Normalizando datos existentes...');
+
+try {
+  db.prepare(`UPDATE documentos SET es_historico = 0 WHERE es_historico IS NULL`).run();
+  db.prepare(`UPDATE documentos SET no_aplica = 0 WHERE no_aplica IS NULL`).run();
+  db.prepare(`UPDATE documentos SET verificado = 0 WHERE verificado IS NULL`).run();
+
+  db.prepare(`UPDATE proveedores SET todos_subidos = 0 WHERE todos_subidos IS NULL`).run();
+  db.prepare(`UPDATE proveedores SET todos_verificados = 0 WHERE todos_verificados IS NULL`).run();
+
+  db.prepare(`
+    UPDATE proveedores
+    SET etapa = 'verificacion'
+    WHERE etapa IS NULL OR etapa = ''
+  `).run();
+
+  db.prepare(`
+    UPDATE proveedores
+    SET evaluacion_estado = 'pendiente'
+    WHERE evaluacion_estado IS NULL OR evaluacion_estado = ''
+  `).run();
+
+  // Los documentos históricos deben quedar rechazados
+  db.prepare(`
+    UPDATE documentos
+    SET estado = 'rechazado',
+        comentario = COALESCE(comentario, 'Documento histórico')
+    WHERE es_historico = 1
+      AND estado != 'rechazado'
+  `).run();
+
+  console.log('✅ Normalización básica completada');
+} catch (err) {
+  console.error('⚠️ Error normalizando datos existentes:', err.message);
+}
 
 // ==========================================
 // 4. CREACIÓN DE ÍNDICES PARA OPTIMIZACIÓN
@@ -219,19 +329,48 @@ if (migracionesFallidas > 0) {
 console.log('📊 Verificando índices...');
 
 const indices = [
+  // Historial
   { nombre: 'idx_historial_prov', tabla: 'historial', columnas: 'proveedor_id, creado_en DESC' },
   { nombre: 'idx_historial_accion', tabla: 'historial', columnas: 'accion' },
+
+  // Recordatorios
   { nombre: 'idx_recordatorios_prov', tabla: 'recordatorios', columnas: 'proveedor_id, leido' },
   { nombre: 'idx_recordatorios_creado', tabla: 'recordatorios', columnas: 'creado_en DESC' },
+
+  // Logs
   { nombre: 'idx_logs_seguridad_fecha', tabla: 'logs_seguridad', columnas: 'creado_en DESC' },
   { nombre: 'idx_logs_seguridad_usuario', tabla: 'logs_seguridad', columnas: 'usuario_id' },
   { nombre: 'idx_logs_seguridad_accion', tabla: 'logs_seguridad', columnas: 'accion' },
+
+  // Documentos
   { nombre: 'idx_documentos_proveedor', tabla: 'documentos', columnas: 'proveedor_id, tipo' },
   { nombre: 'idx_documentos_estado', tabla: 'documentos', columnas: 'estado' },
+
+  // Índices críticos para históricos / activos
+  { nombre: 'idx_documentos_historico', tabla: 'documentos', columnas: 'proveedor_id, es_historico' },
+  { nombre: 'idx_documentos_ciclo', tabla: 'documentos', columnas: 'ciclo' },
+  { nombre: 'idx_documentos_proveedor_ciclo', tabla: 'documentos', columnas: 'proveedor_id, ciclo' },
+  { nombre: 'idx_documentos_historico_ciclo', tabla: 'documentos', columnas: 'proveedor_id, es_historico, ciclo' },
+  { nombre: 'idx_documentos_activo_tipo', tabla: 'documentos', columnas: 'proveedor_id, es_historico, tipo, estado' },
+  { nombre: 'idx_documentos_fecha_vencimiento', tabla: 'documentos', columnas: 'fecha_vencimiento' },
+
+  // Notas
   { nombre: 'idx_notas_proveedor', tabla: 'notas_proveedor', columnas: 'proveedor_id, leida' },
+
+  // Usuarios
   { nombre: 'idx_usuarios_email', tabla: 'usuarios', columnas: 'email' },
+
+  // Proveedores
   { nombre: 'idx_proveedores_estado', tabla: 'proveedores', columnas: 'estado_general' },
-  
+  { nombre: 'idx_proveedores_etapa', tabla: 'proveedores', columnas: 'etapa' },
+
+  // Ciclos
+  { nombre: 'idx_ciclos_proveedor', tabla: 'ciclos_actualizacion', columnas: 'proveedor_id' },
+  { nombre: 'idx_ciclos_numero_registro', tabla: 'ciclos_actualizacion', columnas: 'numero_registro' },
+  { nombre: 'idx_ciclos_estado', tabla: 'ciclos_actualizacion', columnas: 'estado' },
+
+  // Configuración
+  { nombre: 'idx_configuracion_clave', tabla: 'configuracion', columnas: 'clave' }
 ];
 
 let indicesCreados = 0;
@@ -241,33 +380,79 @@ indices.forEach(idx => {
     db.exec(`CREATE INDEX IF NOT EXISTS ${idx.nombre} ON ${idx.tabla}(${idx.columnas})`);
     indicesCreados++;
   } catch (e) {
-    console.log(`  ⚠️  Índice ${idx.nombre}: ${e.message}`);
+    console.log(`⚠️ Índice ${idx.nombre}: ${e.message}`);
   }
 });
 
 console.log(`✅ ${indicesCreados} índices verificados`);
 
+// ==========================================
+// 4.5 CONFIGURACIÓN INICIAL
+// ==========================================
+console.log('⚙️  Verificando configuración inicial...');
+
+const anioActual = new Date().getFullYear();
+const fechaVencimientoDefault = `${anioActual}-12-31 23:59:59`;
+
+const configuracionesIniciales = [
+  {
+    clave: 'dias_validez_documentos',
+    valor: '365',
+    descripcion: 'Número de días de validez de los documentos aprobados (por defecto 1 año)'
+  },
+  {
+    clave: 'fecha_vencimiento_fija',
+    valor: fechaVencimientoDefault,
+    descripcion: 'Fecha fija de vencimiento de los documentos aprobados (formato YYYY-MM-DD HH:MM:SS)'
+  }
+];
+
+configuracionesIniciales.forEach(cfg => {
+  const existente = db.prepare('SELECT id FROM configuracion WHERE clave = ?').get(cfg.clave);
+
+  if (!existente) {
+    db.prepare(`
+      INSERT INTO configuracion (clave, valor, descripcion)
+      VALUES (?, ?, ?)
+    `).run(cfg.clave, cfg.valor, cfg.descripcion);
+
+    console.log(`✅ Configuración inicial insertada: ${cfg.clave} = ${cfg.valor}`);
+  } else {
+    console.log(`✅ Configuración existente: ${cfg.clave} = ${existente.valor || ''}`);
+  }
+});
 
 // ==========================================
 // 5. CREACIÓN DE ADMIN POR DEFECTO
 // ==========================================
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@empresa.com';
-const adminPass = process.env.ADMIN_PASSWORD_INICIAL || 'Admin2024!';
-
 const adminExistente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(adminEmail);
-
 if (!adminExistente) {
-  try {
-    const hash = bcrypt.hashSync(adminPass, 12);
+try {
+// 🛡️ M5: si ADMIN_PASSWORD_INICIAL existe se usa; si no, se genera una fuerte
+// y se muestra UNA sola vez en el log (no queda escrita en código ni en BD en claro).
+const adminPass = process.env.ADMIN_PASSWORD_INICIAL || generarPasswordAleatoria(16);
+const hash = bcrypt.hashSync(adminPass, 12);
+
     db.prepare(`
-      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password) 
+      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password)
       VALUES (?, ?, ?, ?, 1)
     `).run(adminEmail, hash, 'admin', 'Administración');
-    
-    console.log(`\n✅ Admin creado exitosamente`);
-    console.log(`   📧 Email: ${adminEmail}`);
-    console.log(`   🔑 Contraseña: ${adminPass}`);
-    console.log(`   ⚠️  Deberás cambiar la contraseña al primer ingreso\n`);
+
+
+//Recomendación de despliegue en Railway: define ADMIN_PASSWORD_INICIAL en las variables de entorno (una fuerte, ≥ 16 caracteres). Así nunca dependes de leer el log.
+console.log(`
+✅ Admin creado exitosamente`);
+console.log(`   📧 Email: ${adminEmail}`);
+console.log(`   🔑 Contraseña: ${adminPass}`);
+console.log(`   ⚠️  Deberás cambiar la contraseña al primer ingreso
+`);
+if (!process.env.ADMIN_PASSWORD_INICIAL) {
+console.error(`
+⚠️  CONTRASEÑA DE ADMIN GENERADA AUTOMÁTICAMENTE — cópiala YA, no se volverá a mostrar:`);
+console.error(`   🔑 ${adminPass}
+`);
+}
   } catch (e) {
     console.error(`❌ Error creando admin: ${e.message}`);
   }
@@ -275,6 +460,75 @@ if (!adminExistente) {
   console.log(`✅ Admin existente: ${adminEmail}`);
 }
 
+// ==========================================
+// 5.5 MIGRACIÓN DE DATOS:
+// ASIGNAR CICLO Y FECHA DE VENCIMIENTO
+// A DOCUMENTOS APROBADOS ACTIVOS EXISTENTES
+// ==========================================
+console.log('🔄 Verificando datos existentes para vencimientos...');
+
+try {
+  // 1. Asignar ciclo a documentos aprobados activos sin ciclo
+  const docsSinCiclo = db.prepare(`
+    SELECT d.id, p.numero_registro
+    FROM documentos d
+    JOIN proveedores p ON d.proveedor_id = p.id
+    WHERE d.estado = 'aprobado'
+      AND d.es_historico = 0
+      AND (d.ciclo IS NULL OR d.ciclo = '')
+      AND p.numero_registro IS NOT NULL
+      AND p.numero_registro != ''
+  `).all();
+
+  if (docsSinCiclo.length > 0) {
+    console.log(`Asignando ciclo a ${docsSinCiclo.length} documentos aprobados activos...`);
+
+    const updateCiclo = db.prepare(`
+      UPDATE documentos
+      SET ciclo = ?
+      WHERE id = ?
+    `);
+
+    for (const doc of docsSinCiclo) {
+      updateCiclo.run(doc.numero_registro, doc.id);
+    }
+  }
+
+  // 2. Asignar fecha de vencimiento fija a documentos aprobados activos sin fecha
+  const configFecha = db.prepare(`
+    SELECT valor
+    FROM configuracion
+    WHERE clave = 'fecha_vencimiento_fija'
+  `).get();
+
+  const fechaVencimiento = configFecha?.valor || fechaVencimientoDefault;
+
+  const docsSinVencimiento = db.prepare(`
+    SELECT id
+    FROM documentos
+    WHERE estado = 'aprobado'
+      AND es_historico = 0
+      AND fecha_vencimiento IS NULL
+  `).all();
+
+  if (docsSinVencimiento.length > 0) {
+    console.log(`Asignando fecha de vencimiento a ${docsSinVencimiento.length} documentos aprobados activos (${fechaVencimiento})...`);
+
+    const updateVenc = db.prepare(`
+      UPDATE documentos
+      SET fecha_vencimiento = ?
+      WHERE id = ?
+    `);
+
+    for (const doc of docsSinVencimiento) {
+      updateVenc.run(fechaVencimiento, doc.id);
+    }
+  } else {
+    console.log('   No se requieren actualizaciones de fecha de vencimiento.');
+  }
+} catch (err) {
+  console.error('❌ Error en migración de datos de vencimientos:', err.message);
+}
 
 // ==========================================
 // 6. CONFIGURACIÓN DE DOCUMENTOS REQUERIDOS
@@ -290,28 +544,37 @@ const DOCUMENTOS_REQUERIDOS = [
   { tipo: 'parafiscales', nombre: 'Certificación de parafiscales', esPlantilla: false, cantidadMin: 1 },
   { tipo: 'calidad', nombre: 'Certificación de calidad (si aplica)', esPlantilla: false, cantidadMin: 1, opcional: true },
   { tipo: 'sgsst', nombre: 'Certificación Seguridad y Salud en el Trabajo', esPlantilla: false, cantidadMin: 1 },
-  { tipo: 'experiencia', nombre: 'Certificados de experiencia comercial (mínimo 3)', descripcion: 'Mínimo 3 certificados', esPlantilla: false, cantidadMin: 3 },
-  { tipo: 'cuenta_bancaria', nombre: 'Certificación de la Cuenta Bancaria', esPlantilla: false, cantidadMin: 1 }
+  { tipo: 'experiencia', nombre: 'Certificados de experiencia comercial (mínimo 3)', descripcion: 'Mínimo 3 certificados', esPlantilla: false, cantidadMin: 3, cantidadMax: 3 },
+  { tipo: 'cuenta_bancaria', nombre: 'Certificación de la Cuenta Bancaria', esPlantilla: false, cantidadMin: 1 },
+  { tipo: 'ambiental', nombre: 'Certificado Ambiental', esPlantilla: false, cantidadMin: 1 }
 ];
-
 
 // ==========================================
 // 7. FUNCIONES HELPER DE BASE DE DATOS
 // ==========================================
-
 function obtenerEstadisticas() {
   try {
     const stats = {
       usuarios: db.prepare('SELECT COUNT(*) as total FROM usuarios').get().total,
       proveedores: db.prepare('SELECT COUNT(*) as total FROM proveedores').get().total,
+
       documentos: db.prepare('SELECT COUNT(*) as total FROM documentos').get().total,
+      documentosActivos: db.prepare('SELECT COUNT(*) as total FROM documentos WHERE es_historico = 0').get().total,
+      documentosHistoricos: db.prepare('SELECT COUNT(*) as total FROM documentos WHERE es_historico = 1').get().total,
+
       documentosAprobados: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'aprobado'").get().total,
       documentosPendientes: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'pendiente'").get().total,
       documentosRechazados: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'rechazado'").get().total,
+
+      documentosAprobadosActivos: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'aprobado' AND es_historico = 0").get().total,
+      documentosPendientesActivos: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'pendiente' AND es_historico = 0").get().total,
+      documentosRechazadosActivos: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'rechazado' AND es_historico = 0").get().total,
+
       proveedoresAprobados: db.prepare("SELECT COUNT(*) as total FROM proveedores WHERE estado_general = 'aprobado'").get().total,
       proveedoresPendientes: db.prepare("SELECT COUNT(*) as total FROM proveedores WHERE estado_general = 'pendiente'").get().total,
       proveedoresRechazados: db.prepare("SELECT COUNT(*) as total FROM proveedores WHERE estado_general = 'rechazado'").get().total
     };
+
     return stats;
   } catch (e) {
     console.error('Error obteniendo estadísticas:', e.message);
@@ -322,10 +585,10 @@ function obtenerEstadisticas() {
 function limpiarLogsAntiguos() {
   try {
     const result = db.prepare(`
-      DELETE FROM logs_seguridad 
+      DELETE FROM logs_seguridad
       WHERE creado_en < datetime('now', '-90 days', 'localtime')
     `).run();
-    
+
     if (result.changes > 0) {
       console.log(`🧹 ${result.changes} logs de seguridad antiguos eliminados`);
     }
@@ -344,12 +607,11 @@ function verificarIntegridad() {
   }
 }
 
-
 // ==========================================
 // 8. EXPORTACIÓN
 // ==========================================
-module.exports = { 
-  db, 
+module.exports = {
+  db,
   DOCUMENTOS_REQUERIDOS,
   obtenerEstadisticas,
   limpiarLogsAntiguos,

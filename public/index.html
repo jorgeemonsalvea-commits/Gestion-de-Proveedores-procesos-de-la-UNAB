@@ -1,507 +1,694 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal de Proveedores</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    .login-wrapper {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-      background: linear-gradient(135deg, #7c3aed 0%, #111827 100%);
-    }
-    .login-card {
-      background: white;
-      border-radius: 16px;
-      padding: 2.5rem;
-      max-width: 440px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      border-top: 4px solid #7c3aed;
-    }
-    .login-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .login-header .logo {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-    }
-    .login-header h1 {
-      color: #111827;
-      font-size: 1.5rem;
-      margin-bottom: 0.3rem;
-      font-weight: 700;
-    }
-    .login-header p {
-      color: #6b7280;
-      font-size: 0.9rem;
-    }
-    .login-tabs {
-      display: flex;
-      background: #f3f4f6;
-      border-radius: 10px;
-      padding: 4px;
-      margin-bottom: 1.5rem;
-      gap: 4px;
-    }
-    .login-tab {
-      flex: 1;
-      padding: 0.7rem 1rem;
-      background: transparent;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: #6b7280;
-      transition: all 0.2s;
-    }
-    .login-tab.active {
-      background: white;
-      color: #7c3aed;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-    .login-tab:hover:not(.active) {
-      color: #111827;
-    }
-    .login-footer {
-      text-align: center;
-      margin-top: 1.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid #e5e7eb;
-      font-size: 0.85rem;
-      color: #6b7280;
-    }
-    .btn-primary {
-      background: #7c3aed;
-      color: white;
-      border: none;
-      padding: 0.85rem 1.5rem;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1rem;
-      font-weight: 600;
-      width: 100%;
-      transition: all 0.2s;
-      margin-top: 0.5rem;
-    }
-    .btn-primary:hover {
-      background: #6d28d9;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
-    }
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .form-group {
-      margin-bottom: 1rem;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 0.4rem;
-      font-weight: 500;
-      font-size: 0.9rem;
-      color: #1f2937;
-    }
-    .form-group input {
-      width: 100%;
-      padding: 0.75rem 0.9rem;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      transition: all 0.2s;
-      background: white;
-    }
-    .form-group input:focus {
-      outline: none;
-      border-color: #7c3aed;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-    }
-    .form-group small {
-      display: block;
-      margin-top: 0.3rem;
-      color: #6b7280;
-      font-size: 0.8rem;
-    }
-    .alert {
-      padding: 0.8rem 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-      animation: slideIn 0.3s ease-out;
-    }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .alert-error {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-    .alert-success {
-      background: #d1fae5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-    }
-    .hidden {
-      display: none !important;
-    }
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-      padding: 1rem;
-    }
-    .modal-overlay.active {
-      display: flex;
-    }
-    .modal {
-      background: white;
-      border-radius: 16px;
-      padding: 2rem;
-      max-width: 500px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      border-top: 4px solid #c2410c;
-    }
-    .modal h3 {
-      color: #111827;
-      margin-bottom: 0.5rem;
-      font-size: 1.3rem;
-    }
-    .modal p {
-      color: #6b7280;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
-    @media (max-width: 480px) {
-      .login-card { padding: 1.5rem; }
-      .login-header h1 { font-size: 1.3rem; }
-      .login-header .logo { font-size: 2.5rem; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Proveedores · UNAB</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* =====================================================================
+   LOGIN / REGISTRO — toggle deslizante · identidad UNAB (v4.4)
+   Paleta oficial: morado #8600dd (acciones) + dorado #e9a427 (acento).
+   Las variables usan fallback para que el login sea autosuficiente.
+   ===================================================================== */
+:root {
+  --lp-morado: #8600dd;
+  --lp-morado-hover: #6b00b0;
+  --lp-morado-claro: rgba(134, 0, 221, 0.12);
+  --lp-dorado: #e9a427;
+  --lp-dorado-hover: #cf8f1c;
+  --lp-negro: #160a24;
+  --lp-texto: #1f1830;
+  --lp-texto-suave: #6b6478;
+  --lp-borde: #e7e2f0;
+  --lp-borde-input: #d6cfe6;
+}
+
+/* ---- Fondo ambiente con trama "cimática" (guiño Vibra+) ---- */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  position: relative;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(233,164,39,0.14) 0, rgba(233,164,39,0.14) 1px, transparent 1px, transparent 30px),
+    radial-gradient(circle at 86% 82%, rgba(255,255,255,0.07) 0, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 34px),
+    radial-gradient(circle at 50% 50%, transparent 0, transparent 140px, rgba(255,255,255,0.05) 141px, transparent 143px, transparent 240px, rgba(255,255,255,0.035) 241px, transparent 243px),
+    linear-gradient(135deg, var(--lp-morado, #8600dd) 0%, var(--lp-negro, #160a24) 100%);
+}
+
+/* ---- Tarjeta contenedora del toggle ---- */
+.lp-container {
+  background-color: #fff;
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.40);
+  position: relative;
+  overflow: hidden;
+  width: 820px;
+  max-width: 100%;
+  min-height: 540px;
+}
+.lp-container p { font-size: 14px; line-height: 20px; letter-spacing: 0.3px; margin: 14px 0; }
+.lp-container span.lp-sub {
+  font-size: 11px; color: var(--lp-texto-suave, #6b6478); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 8px; display: inline-block; font-weight: 600;
+}
+.lp-container a { color: var(--lp-morado, #8600dd); font-size: 13px; text-decoration: none; }
+.lp-container a:hover { text-decoration: underline; }
+
+/* ---- Formularios (paneles deslizantes) ---- */
+.lp-container .lp-form {
+  background-color: #fff; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; padding: 0 42px; height: 100%; text-align: center;
+}
+.lp-container .lp-form h1 {
+  color: var(--lp-texto, #1f1830); font-size: 1.6rem; margin-bottom: 4px;
+  font-weight: 800; letter-spacing: -0.02em;
+}
+.lp-container .lp-form .form-group { width: 100%; text-align: left; margin-bottom: 0.7rem; }
+.lp-container .lp-form .form-group label {
+  display: block; margin-bottom: 0.35rem; font-weight: 600; font-size: 0.82rem; color: #3a3350;
+}
+.lp-container .lp-form .form-group small {
+  display: block; margin-top: 0.3rem; color: var(--lp-texto-suave, #6b6478); font-size: 0.72rem;
+}
+
+/* ---- Inputs con foco de marca ---- */
+.lp-container input[type="text"],
+.lp-container input[type="email"],
+.lp-container input[type="password"] {
+  background-color: #f4f2fa; border: 1px solid transparent; margin: 4px 0;
+  padding: 12px 15px; font-size: 13px; border-radius: 10px; width: 100%; outline: none;
+  color: var(--lp-texto, #1f1830);
+  transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.lp-container .lp-form input:focus,
+.lp-container .modal input:focus {
+  border-color: var(--lp-morado, #8600dd);
+  box-shadow: 0 0 0 3px var(--lp-morado-claro, rgba(134,0,221,0.12));
+  background: #fff;
+}
+
+/* ---- Wrapper del ojo para mostrar/ocultar contraseña ---- */
+.lp-container .password-wrapper { position: relative; width: 100%; }
+.lp-container .password-wrapper input { padding-right: 2.9rem; }
+.toggle-password {
+  position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; cursor: pointer; font-size: 1.05rem;
+  color: var(--lp-texto-suave, #6b6478); padding: 0.2rem; line-height: 1;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.toggle-password:hover { color: var(--lp-morado, #8600dd); transform: translateY(-50%) scale(1.12); }
+
+/* ---- Checkbox Habeas Data ---- */
+.lp-habeas label { font-weight: 400 !important; }
+.lp-habeas input[type="checkbox"] { width: auto !important; margin: 0 !important; flex-shrink: 0; }
+.lp-habeas span { color: #4b4560; font-size: 0.82rem; line-height: 1.45; }
+
+/* ---- Link olvidar contraseña ---- */
+.lp-forgot { align-self: flex-end; margin: 6px 0 4px; font-weight: 500; }
+
+/* ---- Switch textual solo para móvil ---- */
+.lp-mobile-switch { display: none; font-size: 13px; color: var(--lp-texto-suave, #6b6478); margin-top: 16px; }
+
+/* ---- Botón submit de los formularios ---- */
+.lp-form > button[type="submit"] {
+  background-color: var(--lp-morado, #8600dd); color: #fff; font-size: 13px; padding: 13px 46px;
+  border: none; border-radius: 10px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; margin-top: 14px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(134, 0, 221, 0.30);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.lp-form > button[type="submit"]:hover {
+  background-color: var(--lp-morado-hover, #6b00b0);
+  transform: translateY(-2px); box-shadow: 0 10px 26px rgba(134, 0, 221, 0.40);
+}
+.lp-form > button[type="submit"]:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(134,0,221,0.30); }
+.lp-form > button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ---- Paneles deslizantes (login / registro) ---- */
+.lp-container .form-container { position: absolute; top: 0; height: 100%; transition: all 0.6s ease-in-out; }
+.lp-container .sign-in { left: 0; width: 50%; z-index: 2; }
+.lp-container.active .sign-in { transform: translateX(100%); }
+.lp-container .sign-up { left: 0; width: 50%; opacity: 0; z-index: 1; }
+.lp-container.active .sign-up { transform: translateX(100%); opacity: 1; z-index: 5; animation: lpMove 0.6s; }
+@keyframes lpMove { 0%, 49.99% { opacity: 0; z-index: 1; } 50%, 100% { opacity: 1; z-index: 5; } }
+
+/* ---- Panel de color con curva (toggle) ---- */
+.lp-container .toggle-container {
+  position: absolute; top: 0; left: 50%; width: 50%; height: 100%; overflow: hidden;
+  transition: all 0.6s ease-in-out; border-radius: 140px 0 0 100px; z-index: 1000;
+}
+.lp-container.active .toggle-container { transform: translateX(-100%); border-radius: 0 140px 100px 0; }
+.lp-container .toggle {
+  background:
+    radial-gradient(circle at 22% 28%, rgba(255,255,255,0.12) 0, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 22px),
+    radial-gradient(circle at 78% 72%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 26px),
+    radial-gradient(circle at 50% 50%, transparent 0, transparent 90px, rgba(255,255,255,0.07) 91px, transparent 93px, transparent 150px, rgba(255,255,255,0.05) 151px, transparent 153px),
+    linear-gradient(to right, var(--lp-morado, #8600dd), var(--lp-dorado, #e9a427));
+  color: #fff; position: relative; left: -100%; height: 100%; width: 200%;
+  transform: translateX(0); transition: all 0.6s ease-in-out;
+}
+.lp-container.active .toggle { transform: translateX(50%); }
+.lp-container .toggle-panel {
+  position: absolute; width: 50%; height: 100%; display: flex; align-items: center;
+  justify-content: center; flex-direction: column; padding: 0 32px; text-align: center;
+  top: 0; transition: all 0.6s ease-in-out;
+}
+.lp-container .toggle-panel h1 {
+  color: #fff; font-size: 1.7rem; margin-bottom: 8px; font-weight: 800;
+  letter-spacing: -0.01em; text-shadow: 0 2px 12px rgba(0,0,0,0.28);
+}
+.lp-container .toggle-panel p { color: rgba(255,255,255,0.92); font-size: 13px; text-shadow: 0 1px 6px rgba(0,0,0,0.22); }
+.lp-container .toggle-left { transform: translateX(-200%); }
+.lp-container.active .toggle-left { transform: translateX(0); }
+.lp-container .toggle-right { right: 0; transform: translateX(0); }
+.lp-container.active .toggle-right { transform: translateX(200%); }
+
+/* ---- Stand-in tipográfico UNAB dentro del panel de color ---- */
+.lp-container .toggle-panel .navbar-logo-fallback {
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 800; font-size: 1.2rem; letter-spacing: 0.08em; color: #fff;
+  border: 2px solid rgba(255,255,255,0.9); border-radius: 7px;
+  padding: 0.18rem 0.6rem; line-height: 1; text-transform: uppercase; margin-bottom: 0.8rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+}
+
+/* ---- Botón fantasma del panel de color ---- */
+.lp-container button.ghost {
+  background-color: transparent; border: 1.5px solid rgba(255,255,255,0.85); color: #fff;
+  font-size: 12px; padding: 11px 46px; border-radius: 10px; font-weight: 700; letter-spacing: 0.6px;
+  text-transform: uppercase; margin-top: 12px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.20);
+  transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+}
+.lp-container button.ghost:hover {
+  background-color: rgba(255,255,255,0.16); transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.30);
+}
+
+/* ---- Alertas ---- */
+.alert {
+  padding: 0.7rem 0.9rem; border-radius: 9px; margin: 8px 0; font-size: 0.85rem;
+  width: 100%; text-align: left; animation: lpSlideIn 0.3s ease-out;
+}
+@keyframes lpSlideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+
+/* ---- Footer discreto del login ---- */
+.lp-footer {
+  position: absolute; bottom: 14px; left: 0; right: 0; text-align: center;
+  color: rgba(255,255,255,0.72); font-size: 0.72rem; padding: 0 1rem; letter-spacing: 0.02em;
+}
+
+/* ---- Modal de cambio obligatorio de contraseña ---- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(22,10,36,0.72); display: none;
+  justify-content: center; align-items: center; z-index: 2000; padding: 1rem; backdrop-filter: blur(3px);
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: #fff; border-radius: 18px; padding: 2rem; max-width: 500px; width: 100%;
+  max-height: 90vh; overflow-y: auto; border-top: 4px solid var(--lp-dorado, #e9a427);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.modal h3 { color: var(--lp-texto, #1f1830); margin-bottom: 0.5rem; font-size: 1.3rem; font-weight: 800; }
+.modal p { color: var(--lp-texto-suave, #6b6478); margin-bottom: 1rem; font-size: 0.9rem; }
+.modal .form-group { text-align: left; margin-bottom: 1rem; }
+.modal .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: #3a3350; }
+.modal .form-group input {
+  width: 100%; padding: 0.75rem 0.9rem; border: 1px solid var(--lp-borde-input, #d6cfe6);
+  border-radius: 10px; font-size: 0.95rem; background: #fff; outline: none;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+.modal .form-group small { display: block; margin-top: 0.3rem; color: var(--lp-texto-suave, #6b6478); font-size: 0.8rem; }
+.modal .password-wrapper { position: relative; }
+.modal .password-wrapper input { padding-right: 2.9rem; }
+.modal button[type="submit"] {
+  background: var(--lp-morado, #8600dd); color: #fff; border: none; padding: 0.9rem 1.5rem;
+  border-radius: 10px; cursor: pointer; font-size: 1rem; font-weight: 700; width: 100%; margin-top: 0.5rem;
+  box-shadow: 0 6px 18px rgba(134,0,221,0.30); transition: background 0.2s ease, transform 0.15s ease;
+}
+.modal button[type="submit"]:hover { background: var(--lp-morado-hover, #6b00b0); transform: translateY(-1px); }
+@media (prefers-reduced-motion: no-preference) {
+  .modal-overlay.active .modal { animation: lpModalIn 0.28s cubic-bezier(0.16,1,0.3,1); }
+}
+@keyframes lpModalIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* =====================================================================
+   RESPONSIVE del toggle (escrito desde cero): en móvil se apila,
+   se oculta la curva y aparece el switch textual al pie de cada form.
+   ===================================================================== */
+@media (max-width: 768px) {
+  .login-wrapper { align-items: stretch; padding: 0; }
+  .lp-container { width: 100%; min-height: 100vh; border-radius: 0; box-shadow: none; }
+  .lp-container .form-container {
+    position: relative; width: 100% !important; height: auto; min-height: 100vh;
+    transform: none !important; opacity: 1 !important; padding: 2.8rem 0;
+  }
+  .lp-container .sign-in { display: flex; z-index: 2; }
+  .lp-container .sign-up { display: none; z-index: 2; }
+  .lp-container.active .sign-in { display: none; transform: none !important; }
+  .lp-container.active .sign-up { display: flex; transform: none !important; animation: none; }
+  .lp-container .toggle-container { display: none; }
+  .lp-mobile-switch { display: block; }
+  .lp-container .lp-form { padding: 0 24px; }
+  .lp-footer { position: static; color: rgba(255,255,255,0.85); padding: 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-container .form-container, .lp-container .toggle-container,
+  .lp-container .toggle, .lp-container .toggle-panel { transition: none !important; animation: none !important; }
+}
+.lp-container .toggle-panel .toggle-logo {
+  height: 90px;
+  width: auto;
+  display: block;
+  align-self: center;
+  margin: 0 0 0.9rem;
+  filter: drop-shadow(0 2px 7px rgba(0,0,0,0.50)) drop-shadow(0 0 3px rgba(22,10,36,0.40));
+  transition: transform 0.3s ease;
+}
+.lp-container .toggle-panel:hover .toggle-logo { transform: scale(1.04); }
+
+/*Marca de agua institucional: isotipo UNAB blanco en la esquina inferior derecha.
+   fixed = ancla a la ventana (no a la tarjeta). Entra suave al cargar y en hover
+   se levanta con un halo dorado de marca. No se anima en bucle (respeto de marca). */
+.unab-corner-logo {
+  position: fixed;
+  right: clamp(1rem, 3vw, 2.75rem);
+  bottom: clamp(0.9rem, 3vh, 2rem);
+  z-index: 1;                       /* por debajo de cualquier modal (100+) */
+  width: clamp(200px, 24vw, 340px);
+  height: auto;
+  display: block;
+  opacity: 0.9;
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.38));
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+  animation: unabCornerIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards; /* backwards: arranca en opacity 0 */
+}
+@keyframes unabCornerIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.94); }
+  /* el "to" hereda el reposo: opacity .9 / transform none */
+}
+.unab-corner-logo:hover {
+  opacity: 1;
+}
+@media (max-width: 768px) {
+  .unab-corner-logo { width: 130px; right: 0.9rem; bottom: 0.9rem; opacity: 0.7; }
+}
+@media (max-width: 480px) {
+  .unab-corner-logo { display: none; }   /* no estorba en móvil chico; quítalo si lo quieres siempre */
+}
+@media (prefers-reduced-motion: reduce) {
+  .unab-corner-logo { animation: none; }
+}
+.unab-corner-link:focus-visible .unab-corner-logo {
+  outline: 3px solid var(--lp-dorado, #e9a427);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+</style>
 </head>
 <body>
-  <div class="login-wrapper">
-    <div class="login-card">
-      <div class="login-header">
-        <div class="logo">🏢</div>
-        <h1>Portal de Proveedores</h1>
-        <p>Gestión segura de documentos</p>
-      </div>
-      
-      <div id="alerta"></div>
-      
-      <div class="login-tabs">
-        <button class="login-tab active" data-tab="login">🔐 Ingresar</button>
-        <button class="login-tab" data-tab="registro">📝 Registrarse</button>
-      </div>
-      
-      <form id="form-login">
-        <div class="form-group">
-          <label for="login-email">📧 Email</label>
-          <input type="email" id="login-email" name="email" required autocomplete="username" placeholder="correo@empresa.com">
-        </div>
-        <div class="form-group">
-          <label for="login-password">🔑 Contraseña</label>
-          <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="Tu contraseña">
-        </div>
-<div style="text-align: right; margin-bottom: 1rem;">
-  <a href="recuperar-password.html" style="color: var(--color-primario); font-size: 0.875rem; text-decoration: none;">
-    🔐 ¿Olvidaste tu contraseña?
-  </a>
-</div>
-        <button type="submit" class="btn-primary">Iniciar sesión</button>
-      </form>
-      
-      <form id="form-registro" class="hidden">
+<div class="login-wrapper">
+  <div class="lp-container" id="container">
+    <!-- ============ REGISTRO ============ -->
+    <div class="form-container sign-up">
+      <form id="form-registro" class="lp-form">
+        <h1>📝 Crear cuenta</h1>
+        <span class="lp-sub">Portal de Proveedores</span>
+        <div id="alertaReg"></div>
         <div class="form-group">
           <label for="reg-empresa">🏢 Nombre de la empresa</label>
           <input type="text" id="reg-empresa" name="nombre_empresa" required placeholder="Mi Empresa SAS">
         </div>
         <div class="form-group">
           <label for="reg-email">📧 Email de acceso</label>
-          <input type="email" id="reg-email" name="email" required placeholder="correo@empresa.com">
+          <input type="email" id="reg-email" name="email" required autocomplete="email" placeholder="correo@empresa.com">
         </div>
         <div class="form-group">
           <label for="reg-password">🔑 Contraseña</label>
-          <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="Mín. 8 caracteres">
+          <div class="password-wrapper">
+            <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="Mín. 8 caracteres">
+            <button type="button" class="toggle-password" data-target="#reg-password" aria-label="Mostrar contraseña">👁️</button>
+          </div>
           <small>Mín. 8, mayúscula, minúscula, número y especial. Ej: MiEmpresa2024!</small>
         </div>
-        <div class="form-group">
-  <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
-    <input type="checkbox" name="habeas_data" required style="margin-top: 0.2rem; width: auto;">
-    <span style="font-size: 0.85rem; color: var(--color-texto);">
-      He leído y acepto la 
-      <a href="/habeas-data.html" target="_blank" style="color: var(--color-primario); text-decoration: underline;">
-        Política de Tratamiento de Datos Personales
-      </a>
-      y autorizo el tratamiento de mis datos personales. *
-    </span>
-  </label>
-</div>
-        <button type="submit" class="btn-primary">Crear cuenta</button>
+        <div class="form-group lp-habeas">
+          <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer;">
+            <input type="checkbox" name="habeas_data" required>
+            <span>
+              He leído y acepto la
+              <a href="/habeas-data.html" target="_blank">Política de Tratamiento de Datos Personales</a>
+              y autorizo el tratamiento de mis datos. *
+            </span>
+          </label>
+        </div>
+    <!-- 🛡️ M6 anti-bot: honeypot (oculto a humanos y lectores de pantalla; los bots lo rellenan) -->
+        <div style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;" aria-hidden="true">
+          <label for="reg-website">No rellenar este campo</label>
+          <input type="text" id="reg-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+    <!-- 🛡️ M6 anti-bot: marca de tiempo de carga del form (se rellena por JS al pintar la página) -->
+        <input type="hidden" id="reg-ts" name="_ts" value="">
+        <button type="submit">Crear cuenta</button>
+        <p class="lp-mobile-switch">¿Ya tienes cuenta? <a href="#" id="m-login">Ingresa aquí</a></p>
       </form>
-      
-      <div class="login-footer">
-        🔐 Conexión segura con cifrado AES-256.
-        <p>© 2026 Jorge Alvarez. Todos los derechos reservados.</p>       
-
+    </div>
+    <!-- ============ LOGIN ============ -->
+    <div class="form-container sign-in">
+      <form id="form-login" class="lp-form">
+        <h1>🔐 Ingresar</h1>
+        <span class="lp-sub">Portal de Proveedores</span>
+        <div id="alerta"></div>
+        <div class="form-group">
+          <label for="login-email">📧 Email</label>
+          <input type="email" id="login-email" name="email" required autocomplete="username" placeholder="correo@empresa.com">
+        </div>
+        <div class="form-group">
+          <label for="login-password">🔑 Contraseña</label>
+          <div class="password-wrapper">
+            <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="Tu contraseña">
+            <button type="button" class="toggle-password" data-target="#login-password" aria-label="Mostrar contraseña">👁️</button>
+          </div>
+        </div>
+        <a href="recuperar-password.html" class="lp-forgot">🔐 ¿Olvidaste tu contraseña?</a>
+        <button type="submit">Iniciar sesión</button>
+        <p class="lp-mobile-switch">¿No tienes cuenta? <a href="#" id="m-register">Regístrate aquí</a></p>
+      </form>
+    </div>
+    <!-- ============ PANEL DESLIZANTE ============ -->
+    <div class="toggle-container">
+      <div class="toggle">
+        <div class="toggle-panel toggle-left">
+          <img src="/img/unab-logo-negativo.png" alt="UNAB" class="toggle-logo"
+               onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-block'">
+          <span class="navbar-logo-fallback" style="display:none">UNAB</span>
+          <h1>¡Bienvenido de nuevo!</h1>
+          <p>Ingresa tus credenciales para acceder al portal de gestión de proveedores.</p>
+          <button type="button" class="ghost" id="login">Ingresar</button>
+        </div>
+        <div class="toggle-panel toggle-right">
+          <img src="/img/unab-logo-negativo.png" alt="UNAB" class="toggle-logo"
+               onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-block'">
+          <span class="navbar-logo-fallback" style="display:none">UNAB</span>
+          <h1>¡Hola, Proveedor!</h1>
+          <p>Registra tu empresa para comenzar a gestionar tu documentación.</p>
+          <button type="button" class="ghost" id="register">Registrarse</button>
+        </div>
       </div>
     </div>
   </div>
+  <div class="lp-footer">🔐 Conexión segura con cifrado AES-256 · © 2026 Jorge Alvarez · Versión 4.7</div>
+</div>
 
-  <div class="modal-overlay" id="modalPassword">
-    <div class="modal">
-      <h3>🔐 Cambia tu contraseña</h3>
-      <p>Por seguridad, debes cambiar tu contraseña antes de continuar.</p>
-      <div id="alertaPassword"></div>
-      <form id="form-cambiar-password">
-        <div class="form-group">
-          <label>Contraseña actual</label>
-          <input type="password" name="password_actual" required>
+<!-- ============ MODAL CAMBIO OBLIGATORIO DE CONTRASEÑA ============ -->
+<!-- 🏛️ Isotipo UNAB blanco — esquina inferior derecha (firma institucional) -->
+<a class="unab-corner-link" href="https://www.unab.edu.co" target="_blank" rel="noopener noreferrer" aria-label="Sitio oficial de la UNAB">
+<img class="unab-corner-logo"
+src="/img/unab-logo-blanco.png"
+alt="Universidad Autónoma de Bucaramanga — UNAB"
+onerror="this.onerror=function(){this.style.display='none'};">
+</a>
+
+<div class="modal-overlay" id="modalPassword">
+<div class="modal">
+<h3>🔐 Cambia tu contraseña</h3>
+    <p>Por seguridad, debes cambiar tu contraseña antes de continuar.</p>
+    <div id="alertaPassword"></div>
+    <form id="form-cambiar-password">
+      <div class="form-group">
+        <label for="cp-actual">Contraseña actual</label>
+        <div class="password-wrapper">
+          <input type="password" name="password_actual" id="cp-actual" required autocomplete="current-password">
+          <button type="button" class="toggle-password" data-target="#cp-actual" aria-label="Mostrar contraseña">👁️</button>
         </div>
-        <div class="form-group">
-          <label>Nueva contraseña</label>
-          <input type="password" name="password_nueva" minlength="8" required>
-          <small>Mín. 8, mayúscula, minúscula, número y especial</small>
+      </div>
+      <div class="form-group">
+        <label for="cp-nueva">Nueva contraseña</label>
+        <div class="password-wrapper">
+          <input type="password" name="password_nueva" id="cp-nueva" minlength="8" required autocomplete="new-password">
+          <button type="button" class="toggle-password" data-target="#cp-nueva" aria-label="Mostrar contraseña">👁️</button>
         </div>
-        <div class="form-group">
-          <label>Confirmar nueva contraseña</label>
-          <input type="password" name="password_confirmar" minlength="8" required>
+        <small>Mín. 8, mayúscula, minúscula, número y especial</small>
+      </div>
+      <div class="form-group">
+        <label for="cp-confirmar">Confirmar nueva contraseña</label>
+        <div class="password-wrapper">
+          <input type="password" name="password_confirmar" id="cp-confirmar" minlength="8" required autocomplete="new-password">
+          <button type="button" class="toggle-password" data-target="#cp-confirmar" aria-label="Mostrar contraseña">👁️</button>
         </div>
-        <button type="submit" class="btn-primary">Cambiar contraseña</button>
-      </form>
-    </div>
+      </div>
+      <button type="submit" class="btn-primary">Cambiar contraseña</button>
+    </form>
   </div>
+</div>
 
-  <script>
-    // ==========================================
-    // 🔧 FUNCIÓN HELPER: fetchAPI
-    // ==========================================
-    // Simplifica todas las llamadas fetch y SIEMPRE incluye credentials
-    // Esto es CRÍTICO para Railway/Render (proxy inverso con HTTPS)
-    function fetchAPI(url, options = {}) {
-      return fetch(url, {
-        ...options,
-        credentials: 'include'  // 🔑 Envía cookies de sesión
-      });
-    }
+<script>
+// ==========================================
+// 🔧 FUNCIÓN HELPER: fetchAPI
+// ==========================================
+function fetchAPI(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    credentials: 'include'
+  });
+}
 
-    // ==========================================
-    // 📋 FUNCIONES AUXILIARES
-    // ==========================================
-    function mostrarAlerta(msg, tipo = 'error') {
-      const el = document.getElementById('alerta');
-      el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
-      setTimeout(() => { el.innerHTML = ''; }, 5000);
-    }
+// ==========================================
+// 📋 FUNCIONES AUXILIARES DE ALERTA
+// ==========================================
+function mostrarAlerta(msg, tipo = 'error') {
+  const html = `<div class="alert alert-${tipo}">${msg}</div>`;
+  const elLogin = document.getElementById('alerta');
+  const elReg = document.getElementById('alertaReg');
+  if (elLogin) elLogin.innerHTML = html;
+  if (elReg) elReg.innerHTML = html;
+  setTimeout(() => { if (elLogin) elLogin.innerHTML = ''; if (elReg) elReg.innerHTML = ''; }, 5000);
+}
+function mostrarAlertaPassword(msg, tipo = 'error') {
+  const el = document.getElementById('alertaPassword');
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 5000);
+}
 
-    function mostrarAlertaPassword(msg, tipo = 'error') {
-      const el = document.getElementById('alertaPassword');
-      el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
-      setTimeout(() => { el.innerHTML = ''; }, 5000);
-    }
-
-    // ==========================================
-    // 🔄 NAVEGACIÓN ENTRE TABS
-    // ==========================================
-    document.querySelectorAll('.login-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('form-login').classList.toggle('hidden', tab.dataset.tab !== 'login');
-        document.getElementById('form-registro').classList.toggle('hidden', tab.dataset.tab !== 'registro');
-        document.getElementById('alerta').innerHTML = '';
-      });
-    });
-
-    // ==========================================
-    // 🔐 FORMULARIO DE LOGIN
-    // ==========================================
-    document.getElementById('form-login').addEventListener('submit', async e => {
-      e.preventDefault();
-      
-      const btn = e.target.querySelector('button[type="submit"]');
-      const textoOriginal = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = '⏳ Iniciando sesión...';
-      
-      try {
-        const data = Object.fromEntries(new FormData(e.target));
-        console.log('🔐 Intentando login con email:', data.email);
-        
-        const res = await fetchAPI('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        
-        const r = await res.json();
-        console.log('📥 Respuesta del servidor:', r);
-        
-        if (!res.ok) {
-          mostrarAlerta(r.error || 'Error al iniciar sesión');
-          btn.disabled = false;
-          btn.textContent = textoOriginal;
-          return;
-        }
-        
-        if (r.debe_cambiar_password) {
-          mostrarAlerta('✅ Inicio exitoso. Cambia tu contraseña.', 'success');
-          setTimeout(() => {
-            document.getElementById('modalPassword').classList.add('active');
-          }, 500);
-        } else {
-          mostrarAlerta('✅ Inicio exitoso. Redirigiendo...', 'success');
-          setTimeout(() => {
-            window.location.href = r.rol === 'admin' ? 'admin.html' : 'proveedor.html';
-          }, 800);
-        }
-      } catch (err) {
-        console.error('❌ Error de conexión:', err);
-        mostrarAlerta('Error de conexión: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = textoOriginal;
-      }
-    });
-
-    // ==========================================
-    // 📝 FORMULARIO DE REGISTRO
-    // ==========================================
-  document.getElementById('form-registro').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  const formData = new FormData(e.target);
-  
-  // ✅ Verificar checkbox de habeas data
-  const habeasDataCheckbox = document.querySelector('input[name="habeas_data"]');
-  const habeasData = habeasDataCheckbox ? habeasDataCheckbox.checked : false;
-  
-  if (!habeasData) {
-    alert('❌ Debes aceptar la Política de Tratamiento de Datos Personales para registrarte');
-    return;
+// ==========================================
+// 🔐 VALIDACIÓN DE CONTRASEÑA (espejo del backend)
+// ==========================================
+function validarPasswordCliente(password) {
+  if (!password || typeof password !== 'string') {
+    return { valido: false, mensaje: 'La contraseña debe ser un texto válido' };
   }
-  
-  // Preparar datos
-  const data = {
-    nombre_empresa: formData.get('nombre_empresa'),
-    email: formData.get('email'),
-    password: formData.get('password'),
-    habeas_data: 'true'  // ✅ Enviar al servidor
-  };
-  
+  const trimmed = password.trim();
+  if (trimmed.length < 8) return { valido: false, mensaje: 'La contraseña debe tener al menos 8 caracteres' };
+  if (!/[A-Z]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos una letra mayúscula (A-Z)' };
+  if (!/[a-z]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos una letra minúscula (a-z)' };
+  if (!/[0-9]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un número (0-9)' };
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un carácter especial (!@#$%^&*...)' };
+  return { valido: true, mensaje: 'Contraseña válida' };
+}
+
+// ==========================================
+// 👁️ MOSTRAR / OCULTAR CONTRASEÑA
+// ==========================================
+document.querySelectorAll('.toggle-password').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = document.querySelector(btn.dataset.target);
+    if (!target) return;
+    const esPassword = target.type === 'password';
+    target.type = esPassword ? 'text' : 'password';
+    btn.textContent = esPassword ? '🙈' : '👁️';
+  });
+});
+
+// ==========================================
+// 🔄 NAVEGACIÓN ENTRE PANELES (toggle deslizante)
+// ==========================================
+const lpContainer = document.getElementById('container');
+const registerBtn = document.getElementById('register');
+const loginBtn = document.getElementById('login');
+const mRegisterBtn = document.getElementById('m-register');
+const mLoginBtn = document.getElementById('m-login');
+if (registerBtn) registerBtn.addEventListener('click', () => lpContainer.classList.add('active'));
+if (mRegisterBtn) mRegisterBtn.addEventListener('click', (e) => { e.preventDefault(); lpContainer.classList.add('active'); });
+if (loginBtn) loginBtn.addEventListener('click', () => lpContainer.classList.remove('active'));
+if (mLoginBtn) mLoginBtn.addEventListener('click', (e) => { e.preventDefault(); lpContainer.classList.remove('active'); });
+
+// ==========================================
+// 🔐 FORMULARIO DE LOGIN
+// ==========================================
+document.getElementById('form-login').addEventListener('submit', async e => {
+  e.preventDefault();
   const btn = e.target.querySelector('button[type="submit"]');
   const textoOriginal = btn.textContent;
   btn.disabled = true;
-  btn.textContent = ' Creando cuenta...';
-  
+  btn.textContent = '⏳ Iniciando sesión...';
   try {
-    // ✅ USAR fetch EN LUGAR DE fetchAPI
-    const res = await fetch('/api/registro', {
+    const data = Object.fromEntries(new FormData(e.target));
+    const res = await fetchAPI('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(data)
     });
-    
     const r = await res.json();
-    
-    if (res.ok) {
-      alert('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.');
-      e.target.reset();
-      // Cambiar a pestaña de login
-      const tabLogin = document.querySelector('.tab-btn');
-      if (tabLogin) tabLogin.click();
+    if (!res.ok) {
+      if (res.status === 429 && r.minutos_restantes) {
+        mostrarAlerta(`⏳ ${r.error || 'Demasiados intentos.'} Espera ${r.minutos_restantes} minutos.`);
+      } else {
+        mostrarAlerta(r.error || 'Error al iniciar sesión');
+      }
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+      return;
+    }
+    if (r.debe_cambiar_password) {
+      mostrarAlerta('✅ Inicio exitoso. Cambia tu contraseña.', 'success');
+      setTimeout(() => { document.getElementById('modalPassword').classList.add('active'); }, 500);
     } else {
-      alert('❌ ' + (r.error || 'Error al registrarse'));
+      mostrarAlerta('✅ Inicio exitoso. Redirigiendo...', 'success');
+      setTimeout(() => { window.location.href = r.rol === 'admin' ? 'admin.html' : 'proveedor.html'; }, 800);
+    }
+  } catch (err) {
+    console.error('❌ Error de conexión:', err);
+    mostrarAlerta('Error de conexión: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+});
+
+// ==========================================
+// 📝 FORMULARIO DE REGISTRO
+// ==========================================
+document.getElementById('form-registro').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const habeasDataCheckbox = document.querySelector('input[name="habeas_data"]');
+  const habeasData = habeasDataCheckbox ? habeasDataCheckbox.checked : false;
+  if (!habeasData) {
+    mostrarAlerta('❌ Debes aceptar la Política de Tratamiento de Datos Personales para registrarte');
+    return;
+  }
+  const password = formData.get('password');
+  const validacion = validarPasswordCliente(password);
+  if (!validacion.valido) {
+    mostrarAlerta('❌ ' + validacion.mensaje);
+    return;
+  }
+  const data = {
+      nombre_empresa: formData.get('nombre_empresa'),
+      email: formData.get('email'),
+      password: password,
+      habeas_data: 'true',
+      website: formData.get('website') || '',   // 🛡️ M6 honeypot
+      _ts: formData.get('_ts') || ''            // 🛡️ M6 timing
+  };
+  const btn = e.target.querySelector('button[type="submit"]');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Creando cuenta...';
+  try {
+    const res = await fetchAPI('/api/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const r = await res.json();
+    if (res.ok) {
+      mostrarAlerta('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.', 'success');
+      e.target.reset();
+      setTimeout(() => {
+        const c = document.getElementById('container');
+        if (c) c.classList.remove('active');
+      }, 1200);
+    } else {
+      mostrarAlerta('❌ ' + (r.error || 'Error al registrarse'));
     }
   } catch (err) {
     console.error('❌ Error:', err);
-    alert('❌ Error de conexión: ' + err.message);
+    mostrarAlerta('❌ Error de conexión: ' + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = textoOriginal;
   }
 });
 
-    // ==========================================
-    // 🔑 FORMULARIO DE CAMBIO DE CONTRASEÑA
-    // ==========================================
-    document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
-      e.preventDefault();
-      
-      const data = Object.fromEntries(new FormData(e.target));
-      
-      if (data.password_nueva !== data.password_confirmar) {
-        return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
-      }
-      
-      const btn = e.target.querySelector('button[type="submit"]');
-      const textoOriginal = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = '⏳ Cambiando...';
-      
-      try {
-        const res = await fetchAPI('/api/cambiar-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            password_actual: data.password_actual,
-            password_nueva: data.password_nueva
-          })
-        });
-        
-        const r = await res.json();
-        
-        if (!res.ok) {
-          mostrarAlertaPassword(r.error || 'Error al cambiar contraseña');
-          btn.disabled = false;
-          btn.textContent = textoOriginal;
-          return;
-        }
-        
-        mostrarAlertaPassword('✅ Contraseña cambiada. Redirigiendo...', 'success');
-        
-        setTimeout(async () => {
-          try {
-            const meRes = await fetchAPI('/api/me');
-            const me = await meRes.json();
-            
-            if (me.usuario) {
-              window.location.href = me.usuario.rol === 'admin' ? 'admin.html' : 'proveedor.html';
-            } else {
-              window.location.href = '/';
-            }
-          } catch (err) {
-            window.location.href = '/';
-          }
-        }, 1500);
-      } catch (err) {
-        console.error('❌ Error:', err);
-        mostrarAlertaPassword('Error de conexión: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = textoOriginal;
-      }
+// ==========================================
+// 🔑 FORMULARIO DE CAMBIO DE CONTRASEÑA
+// ==========================================
+document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  if (data.password_nueva !== data.password_confirmar) {
+    return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
+  }
+  const validacion = validarPasswordCliente(data.password_nueva);
+  if (!validacion.valido) {
+    return mostrarAlertaPassword('❌ ' + validacion.mensaje);
+  }
+  const btn = e.target.querySelector('button[type="submit"]');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Cambiando...';
+  try {
+    const res = await fetchAPI('/api/cambiar-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password_actual: data.password_actual,
+        password_nueva: data.password_nueva
+      })
     });
+    const r = await res.json();
+    if (!res.ok) {
+      mostrarAlertaPassword(r.error || 'Error al cambiar contraseña');
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+      return;
+    }
+    mostrarAlertaPassword('✅ Contraseña cambiada. Redirigiendo...', 'success');
+    setTimeout(async () => {
+      try {
+        const meRes = await fetchAPI('/api/me');
+        const me = await meRes.json();
+        if (me.usuario) {
+          window.location.href = me.usuario.rol === 'admin' ? 'admin.html' : 'proveedor.html';
+        } else {
+          window.location.href = '/';
+        }
+      } catch (err) {
+        window.location.href = '/';
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('❌ Error:', err);
+    mostrarAlertaPassword('Error de conexión: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+});
 
-    console.log('✅ Portal de Proveedores cargado');
-  </script>
+// ==========================================
+// 🧹 CERRAR MODAL DE CONTRASEÑA (click fuera)
+// ==========================================
+document.getElementById('modalPassword').addEventListener('click', e => {
+  if (e.target.id === 'modalPassword') {
+    document.getElementById('modalPassword').classList.remove('active');
+  }
+});
+
+// 🛡️ M6 anti-bot: sella el instante en que se pintó el form de registro.
+// El backend comparará esto con el momento del envío (un humano tarda segundos).
+try { const _regTs = document.getElementById('reg-ts'); if (_regTs) _regTs.value = Date.now(); } catch (e) {}
+console.log('✅ Portal de Proveedores cargado (v4.7)');
+</script>
 </body>
 </html>
