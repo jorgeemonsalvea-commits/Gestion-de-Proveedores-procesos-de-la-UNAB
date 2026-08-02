@@ -320,374 +320,360 @@
 <body>
 <div class="login-wrapper">
   <div class="lp-container" id="container">
-    <!-- ============ REGISTRO ============ -->
-    <div class="form-container sign-up">
-      <form id="form-registro" class="lp-form">
-        <h1>📝 Crear cuenta</h1>
-        <span class="lp-sub">Portal de Proveedores</span>
-        <div id="alertaReg"></div>
-        <div class="form-group">
-          <label for="reg-empresa">🏢 Nombre de la empresa</label>
-          <input type="text" id="reg-empresa" name="nombre_empresa" required placeholder="Mi Empresa SAS">
-        </div>
-        <div class="form-group">
-          <label for="reg-email">📧 Email de acceso</label>
-          <input type="email" id="reg-email" name="email" required autocomplete="email" placeholder="correo@empresa.com">
-        </div>
-        <div class="form-group">
-          <label for="reg-password">🔑 Contraseña</label>
-          <div class="password-wrapper">
-            <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="Mín. 8 caracteres">
-            <button type="button" class="toggle-password" data-target="#reg-password" aria-label="Mostrar contraseña">👁️</button>
-          </div>
-          <small>Mín. 8, mayúscula, minúscula, número y especial. Ej: MiEmpresa2024!</small>
-        </div>
-        <div class="form-group lp-habeas">
-          <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer;">
-            <input type="checkbox" name="habeas_data" required>
-            <span>
-              He leído y acepto la
-              <a href="/habeas-data.html" target="_blank">Política de Tratamiento de Datos Personales</a>
-              y autorizo el tratamiento de mis datos. *
-            </span>
-          </label>
-        </div>
-    <!-- 🛡️ M6 anti-bot: honeypot (oculto a humanos y lectores de pantalla; los bots lo rellenan) -->
-        <div style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;" aria-hidden="true">
-          <label for="reg-website">No rellenar este campo</label>
-          <input type="text" id="reg-website" name="website" tabindex="-1" autocomplete="off">
-        </div>
-    <!-- 🛡️ M6 anti-bot: marca de tiempo de carga del form (se rellena por JS al pintar la página) -->
-        <input type="hidden" id="reg-ts" name="_ts" value="">
-        <button type="submit">Crear cuenta</button>
-        <p class="lp-mobile-switch">¿Ya tienes cuenta? <a href="#" id="m-login">Ingresa aquí</a></p>
-      </form>
-    </div>
-    <!-- ============ LOGIN ============ -->
-    <div class="form-container sign-in">
-      <form id="form-login" class="lp-form">
-        <h1>🔐 Ingresar</h1>
-        <span class="lp-sub">Portal de Proveedores</span>
-        <div id="alerta"></div>
-        <div class="form-group">
-          <label for="login-email">📧 Email</label>
-          <input type="email" id="login-email" name="email" required autocomplete="username" placeholder="correo@empresa.com">
-        </div>
-        <div class="form-group">
-          <label for="login-password">🔑 Contraseña</label>
-          <div class="password-wrapper">
-            <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="Tu contraseña">
-            <button type="button" class="toggle-password" data-target="#login-password" aria-label="Mostrar contraseña">👁️</button>
-          </div>
-        </div>
-        <a href="recuperar-password.html" class="lp-forgot">🔐 ¿Olvidaste tu contraseña?</a>
-        <button type="submit">Iniciar sesión</button>
-        <p class="lp-mobile-switch">¿No tienes cuenta? <a href="#" id="m-register">Regístrate aquí</a></p>
-      </form>
-    </div>
-    <!-- ============ PANEL DESLIZANTE ============ -->
-    <div class="toggle-container">
-      <div class="toggle">
-        <div class="toggle-panel toggle-left">
-          <img src="/img/unab-logo-negativo.png" alt="UNAB" class="toggle-logo"
-               onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-block'">
-          <span class="navbar-logo-fallback" style="display:none">UNAB</span>
-          <h1>¡Bienvenido de nuevo!</h1>
-          <p>Ingresa tus credenciales para acceder al portal de gestión de proveedores.</p>
-          <button type="button" class="ghost" id="login">Ingresar</button>
-        </div>
-        <div class="toggle-panel toggle-right">
-          <img src="/img/unab-logo-negativo.png" alt="UNAB" class="toggle-logo"
-               onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-block'">
-          <span class="navbar-logo-fallback" style="display:none">UNAB</span>
-          <h1>¡Hola, Proveedor!</h1>
-          <p>Registra tu empresa para comenzar a gestionar tu documentación.</p>
-          <button type="button" class="ghost" id="register">Registrarse</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="lp-footer">🔐 Conexión segura con cifrado AES-256 · © 2026 Jorge Alvarez · Versión 4.7</div>
+<style>
+.lp-pw-meter{display:flex;gap:5px;margin:8px 0 2px;height:5px}
+.lp-pw-meter span{flex:1;border-radius:3px;background:var(--lp-borde,#e7e2f0);transition:background .25s ease}
+.lp-pw-meter span.on{background:var(--lp-morado,#8600dd)}
+.lp-pw-meter span.ok{background:#059669}
+.lp-pw-hint{font-size:.72rem;min-height:1em;margin:2px 0 0;color:var(--lp-texto-suave,#6b6478);letter-spacing:.2px;transition:color .2s ease}
+.lp-pw-hint.ok{color:#047857;font-weight:700}
+@media (prefers-reduced-motion: reduce){.lp-pw-meter span{transition:none}}
+</style>
+<div class="form-container sign-up">
+<form id="Fr5Gd7" class="lp-form">
+<h1>📝 Crear cuenta</h1>
+<span class="lp-sub">Portal de Proveedores</span>
+<div id="Ar8Rg3"></div>
+<div class="form-group">
+<label for="Ae1No5">🏢 Nombre de la empresa</label>
+<input type="text" id="Ae1No5" name="nombre_empresa" required placeholder="Mi Empresa SAS">
 </div>
-
-<!-- ============ MODAL CAMBIO OBLIGATORIO DE CONTRASEÑA ============ -->
-<!-- 🏛️ Isotipo UNAB blanco — esquina inferior derecha (firma institucional) -->
+<div class="form-group">
+<label for="Re3Ma8">📧 Email de acceso</label>
+<input type="email" id="Re3Ma8" name="email" required autocomplete="email" placeholder="correo@empresa.com">
+</div>
+<div class="form-group">
+<label for="Rp7Pw2">🔑 Contraseña</label>
+<div class="password-wrapper">
+<input type="password" id="Rp7Pw2" name="password" minlength="8" required autocomplete="new-password" placeholder="Mín. 8 caracteres">
+<button type="button" class="toggle-password" data-target="#Rp7Pw2" aria-label="Mostrar contraseña">👁️</button>
+</div>
+<div class="lp-pw-meter" id="Mr5Xq3" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+<p class="lp-pw-hint" id="Hr9Ys2"></p>
+<small>Mín. 8, mayúscula, minúscula, número y especial. Ej: MiEmpresa2024!</small>
+</div>
+<div class="form-group lp-habeas">
+<label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer;">
+<input type="checkbox" name="habeas_data" required>
+<span>
+He leído y acepto la
+<a href="/habeas-data.html" target="_blank">Política de Tratamiento de Datos Personales</a>
+y autorizo el tratamiento de mis datos. *
+</span>
+</label>
+</div>
+<div style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;" aria-hidden="true">
+<label for="Wh4Hp9" aria-hidden="true"></label>
+<input type="text" id="Wh4Hp9" name="website" tabindex="-1" autocomplete="off">
+</div>
+<input type="hidden" id="Ts6Tm1" name="_ts" value="">
+<button type="submit">Crear cuenta</button>
+<p class="lp-mobile-switch">¿Ya tienes cuenta? <a href="#" id="Zf8Bu3">Ingresa aquí</a></p>
+</form>
+</div>
+<div class="form-container sign-in">
+<form id="Fl2Hc4" class="lp-form">
+<h1>🔐 Ingresar</h1>
+<span class="lp-sub">Portal de Proveedores</span>
+<div id="Al1Lg6"></div>
+<div class="form-group">
+<label for="Le2Em7">📧 Email</label>
+<input type="email" id="Le2Em7" name="email" required autocomplete="username" placeholder="correo@empresa.com">
+</div>
+<div class="form-group">
+<label for="Lp5Pw4">🔑 Contraseña</label>
+<div class="password-wrapper">
+<input type="password" id="Lp5Pw4" name="password" required autocomplete="current-password" placeholder="Tu contraseña">
+<button type="button" class="toggle-password" data-target="#Lp5Pw4" aria-label="Mostrar contraseña">👁️</button>
+</div>
+</div>
+<a href="recuperar-password.html" class="lp-forgot">🔐 ¿Olvidaste tu contraseña?</a>
+<button type="submit">Iniciar sesión</button>
+<p class="lp-mobile-switch">¿No tienes cuenta? <a href="#" id="Wq6Yt1">Regístrate aquí</a></p>
+</form>
+</div>
+<div class="toggle-container">
+<div class="toggle">
+<div class="toggle-panel toggle-left">
+<img src="/img/unab-logo-negativo.png" alt="UNAB" class="toggle-logo"
+onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-block'">
+<span class="navbar-logo-fallback" style="display:none">UNAB</span>
+<h1>¡Bienvenido de nuevo!</h1>
+<p>Ingresa tus credenciales para acceder al portal de gestión de proveedores.</p>
+<button type="button" class="ghost" id="Jm4Xs9">Ingresar</button>
+</div>
+<div class="toggle-panel toggle-right">
+<img src="/img/unab-logo-negativo.png" alt="UNAB" class="toggle-logo"
+onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-block'">
+<span class="navbar-logo-fallback" style="display:none">UNAB</span>
+<h1>¡Hola, Proveedor!</h1>
+<p>Registra tu empresa para comenzar a gestionar tu documentación.</p>
+<button type="button" class="ghost" id="Hn7Lp2">Registrarse</button>
+</div>
+</div>
+</div>
+</div>
+<div class="lp-footer">🔐 Conexión segura con cifrado AES-256 · © 2026 Jorge Alvarez · Versión 4.7</div>
+</div>
 <a class="unab-corner-link" href="https://www.unab.edu.co" target="_blank" rel="noopener noreferrer" aria-label="Sitio oficial de la UNAB">
 <img class="unab-corner-logo"
 src="/img/unab-logo-blanco.png"
 alt="Universidad Autónoma de Bucaramanga — UNAB"
 onerror="this.onerror=function(){this.style.display='none'};">
 </a>
-
-<div class="modal-overlay" id="modalPassword">
+<div class="modal-overlay" id="Mp3Md8">
 <div class="modal">
 <h3>🔐 Cambia tu contraseña</h3>
-    <p>Por seguridad, debes cambiar tu contraseña antes de continuar.</p>
-    <div id="alertaPassword"></div>
-    <form id="form-cambiar-password">
-      <div class="form-group">
-        <label for="cp-actual">Contraseña actual</label>
-        <div class="password-wrapper">
-          <input type="password" name="password_actual" id="cp-actual" required autocomplete="current-password">
-          <button type="button" class="toggle-password" data-target="#cp-actual" aria-label="Mostrar contraseña">👁️</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="cp-nueva">Nueva contraseña</label>
-        <div class="password-wrapper">
-          <input type="password" name="password_nueva" id="cp-nueva" minlength="8" required autocomplete="new-password">
-          <button type="button" class="toggle-password" data-target="#cp-nueva" aria-label="Mostrar contraseña">👁️</button>
-        </div>
-        <small>Mín. 8, mayúscula, minúscula, número y especial</small>
-      </div>
-      <div class="form-group">
-        <label for="cp-confirmar">Confirmar nueva contraseña</label>
-        <div class="password-wrapper">
-          <input type="password" name="password_confirmar" id="cp-confirmar" minlength="8" required autocomplete="new-password">
-          <button type="button" class="toggle-password" data-target="#cp-confirmar" aria-label="Mostrar contraseña">👁️</button>
-        </div>
-      </div>
-      <button type="submit" class="btn-primary">Cambiar contraseña</button>
-    </form>
-  </div>
+<p>Por seguridad, debes cambiar tu contraseña antes de continuar.</p>
+<div id="Ap7Pw5"></div>
+<form id="Fc9Ke6">
+<div class="form-group">
+<label for="Ca4Ac9">Contraseña actual</label>
+<div class="password-wrapper">
+<input type="password" name="password_actual" id="Ca4Ac9" required autocomplete="current-password">
+<button type="button" class="toggle-password" data-target="#Ca4Ac9" aria-label="Mostrar contraseña">👁️</button>
+</div>
+</div>
+<div class="form-group">
+<label for="Cn2Nw7">Nueva contraseña</label>
+<div class="password-wrapper">
+<input type="password" name="password_nueva" id="Cn2Nw7" minlength="8" required autocomplete="new-password">
+<button type="button" class="toggle-password" data-target="#Cn2Nw7" aria-label="Mostrar contraseña">👁️</button>
+</div>
+<div class="lp-pw-meter" id="Mm1Zt4" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+<p class="lp-pw-hint" id="Hm8Wv6"></p>
+<small>Mín. 8, mayúscula, minúscula, número y especial</small>
+</div>
+<div class="form-group">
+<label for="Cc6Cw1">Confirmar nueva contraseña</label>
+<div class="password-wrapper">
+<input type="password" name="password_confirmar" id="Cc6Cw1" minlength="8" required autocomplete="new-password">
+<button type="button" class="toggle-password" data-target="#Cc6Cw1" aria-label="Mostrar contraseña">👁️</button>
+</div>
+</div>
+<button type="submit" class="btn-primary">Cambiar contraseña</button>
+</form>
+</div>
 </div>
 
 <script>
-// ==========================================
-// 🔧 FUNCIÓN HELPER: fetchAPI
-// ==========================================
 function fetchAPI(url, options = {}) {
-  return fetch(url, {
-    ...options,
-    credentials: 'include'
-  });
+return fetch(url, { ...options, credentials: 'include' });
 }
-
-// ==========================================
-// 📋 FUNCIONES AUXILIARES DE ALERTA
-// ==========================================
 function mostrarAlerta(msg, tipo = 'error') {
-  const html = `<div class="alert alert-${tipo}">${msg}</div>`;
-  const elLogin = document.getElementById('alerta');
-  const elReg = document.getElementById('alertaReg');
-  if (elLogin) elLogin.innerHTML = html;
-  if (elReg) elReg.innerHTML = html;
-  setTimeout(() => { if (elLogin) elLogin.innerHTML = ''; if (elReg) elReg.innerHTML = ''; }, 5000);
+const html = `<div class="alert alert-${tipo}">${msg}</div>`;
+const a = document.getElementById('Al1Lg6');
+const b = document.getElementById('Ar8Rg3');
+if (a) a.innerHTML = html;
+if (b) b.innerHTML = html;
+setTimeout(() => { if (a) a.innerHTML = ''; if (b) b.innerHTML = ''; }, 5000);
 }
 function mostrarAlertaPassword(msg, tipo = 'error') {
-  const el = document.getElementById('alertaPassword');
-  if (!el) return;
-  el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
-  setTimeout(() => { el.innerHTML = ''; }, 5000);
+const el = document.getElementById('Ap7Pw5');
+if (!el) return;
+el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+setTimeout(() => { el.innerHTML = ''; }, 5000);
 }
-
-// ==========================================
-// 🔐 VALIDACIÓN DE CONTRASEÑA (espejo del backend)
-// ==========================================
 function validarPasswordCliente(password) {
-  if (!password || typeof password !== 'string') {
-    return { valido: false, mensaje: 'La contraseña debe ser un texto válido' };
-  }
-  const trimmed = password.trim();
-  if (trimmed.length < 8) return { valido: false, mensaje: 'La contraseña debe tener al menos 8 caracteres' };
-  if (!/[A-Z]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos una letra mayúscula (A-Z)' };
-  if (!/[a-z]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos una letra minúscula (a-z)' };
-  if (!/[0-9]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un número (0-9)' };
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un carácter especial (!@#$%^&*...)' };
-  return { valido: true, mensaje: 'Contraseña válida' };
+if (!password || typeof password !== 'string') {
+return { valido: false, mensaje: 'La contraseña debe ser un texto válido' };
 }
-
-// ==========================================
-// 👁️ MOSTRAR / OCULTAR CONTRASEÑA
-// ==========================================
+const trimmed = password.trim();
+if (trimmed.length < 8) return { valido: false, mensaje: 'La contraseña debe tener al menos 8 caracteres' };
+if (!/[A-Z]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos una letra mayúscula (A-Z)' };
+if (!/[a-z]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos una letra minúscula (a-z)' };
+if (!/[0-9]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un número (0-9)' };
+if (!/[!@#$%^&*(),.?":{}|<>]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un carácter especial (!@#$%^&*...)' };
+return { valido: true, mensaje: 'Contraseña válida' };
+}
+function _pwMeter(iid, mid, hid) {
+const inp = document.getElementById(iid), m = document.getElementById(mid), h = document.getElementById(hid);
+if (!inp || !m || !h) return;
+const bars = m.querySelectorAll('span');
+const R = [
+v => v.length >= 8,
+v => /[A-Z]/.test(v),
+v => /[a-z]/.test(v),
+v => /[0-9]/.test(v),
+v => /[!@#$%^&*(),.?":{}|<>]/.test(v)
+];
+const paint = () => {
+const v = inp.value;
+let n = 0;
+for (let k = 0; k < R.length; k++) { const ok = R[k](v); if (ok) n++; bars[k].className = ok ? 'on' : ''; }
+if (v.length === 0) { h.textContent = ''; h.className = 'lp-pw-hint'; for (let j = 0; j < bars.length; j++) bars[j].className = ''; return; }
+if (n === R.length) { for (let j = 0; j < bars.length; j++) bars[j].className = 'ok'; h.textContent = '✓ Contraseña segura'; h.className = 'lp-pw-hint ok'; }
+else { h.textContent = 'Cumple ' + n + ' de ' + R.length; h.className = 'lp-pw-hint'; }
+};
+inp.addEventListener('input', paint);
+}
 document.querySelectorAll('.toggle-password').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = document.querySelector(btn.dataset.target);
-    if (!target) return;
-    const esPassword = target.type === 'password';
-    target.type = esPassword ? 'text' : 'password';
-    btn.textContent = esPassword ? '🙈' : '👁️';
-  });
+btn.addEventListener('click', () => {
+const target = document.querySelector(btn.dataset.target);
+if (!target) return;
+const esPassword = target.type === 'password';
+target.type = esPassword ? 'text' : 'password';
+btn.textContent = esPassword ? '🙈' : '👁️';
 });
-
-// ==========================================
-// 🔄 NAVEGACIÓN ENTRE PANELES (toggle deslizante)
-// ==========================================
-const lpContainer = document.getElementById('container');
-const registerBtn = document.getElementById('register');
-const loginBtn = document.getElementById('login');
-const mRegisterBtn = document.getElementById('m-register');
-const mLoginBtn = document.getElementById('m-login');
+});
+const lpContainer = document.getElementById('Qk3Rv8');
+const registerBtn = document.getElementById('Hn7Lp2');
+const loginBtn = document.getElementById('Jm4Xs9');
+const mRegisterBtn = document.getElementById('Wq6Yt1');
+const mLoginBtn = document.getElementById('Zf8Bu3');
 if (registerBtn) registerBtn.addEventListener('click', () => lpContainer.classList.add('active'));
 if (mRegisterBtn) mRegisterBtn.addEventListener('click', (e) => { e.preventDefault(); lpContainer.classList.add('active'); });
 if (loginBtn) loginBtn.addEventListener('click', () => lpContainer.classList.remove('active'));
 if (mLoginBtn) mLoginBtn.addEventListener('click', (e) => { e.preventDefault(); lpContainer.classList.remove('active'); });
-
-// ==========================================
-// 🔐 FORMULARIO DE LOGIN
-// ==========================================
-document.getElementById('form-login').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = e.target.querySelector('button[type="submit"]');
-  const textoOriginal = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⏳ Iniciando sesión...';
-  try {
-    const data = Object.fromEntries(new FormData(e.target));
-    const res = await fetchAPI('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const r = await res.json();
-    if (!res.ok) {
-      if (res.status === 429 && r.minutos_restantes) {
-        mostrarAlerta(`⏳ ${r.error || 'Demasiados intentos.'} Espera ${r.minutos_restantes} minutos.`);
-      } else {
-        mostrarAlerta(r.error || 'Error al iniciar sesión');
-      }
-      btn.disabled = false;
-      btn.textContent = textoOriginal;
-      return;
-    }
-    if (r.debe_cambiar_password) {
-      mostrarAlerta('✅ Inicio exitoso. Cambia tu contraseña.', 'success');
-      setTimeout(() => { document.getElementById('modalPassword').classList.add('active'); }, 500);
-    } else {
-      mostrarAlerta('✅ Inicio exitoso. Redirigiendo...', 'success');
-      setTimeout(() => { window.location.href = r.rol === 'admin' ? 'admin.html' : 'proveedor.html'; }, 800);
-    }
-  } catch (err) {
-    console.error('❌ Error de conexión:', err);
-    mostrarAlerta('Error de conexión: ' + err.message);
-    btn.disabled = false;
-    btn.textContent = textoOriginal;
-  }
+document.getElementById('Fl2Hc4').addEventListener('submit', async e => {
+e.preventDefault();
+const btn = e.target.querySelector('button[type="submit"]');
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Iniciando sesión...';
+try {
+const data = Object.fromEntries(new FormData(e.target));
+const res = await fetchAPI('/api/login', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(data)
 });
-
-// ==========================================
-// 📝 FORMULARIO DE REGISTRO
-// ==========================================
-document.getElementById('form-registro').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  const habeasDataCheckbox = document.querySelector('input[name="habeas_data"]');
-  const habeasData = habeasDataCheckbox ? habeasDataCheckbox.checked : false;
-  if (!habeasData) {
-    mostrarAlerta('❌ Debes aceptar la Política de Tratamiento de Datos Personales para registrarte');
-    return;
-  }
-  const password = formData.get('password');
-  const validacion = validarPasswordCliente(password);
-  if (!validacion.valido) {
-    mostrarAlerta('❌ ' + validacion.mensaje);
-    return;
-  }
-  const data = {
-      nombre_empresa: formData.get('nombre_empresa'),
-      email: formData.get('email'),
-      password: password,
-      habeas_data: 'true',
-      website: formData.get('website') || '',   // 🛡️ M6 honeypot
-      _ts: formData.get('_ts') || ''            // 🛡️ M6 timing
-  };
-  const btn = e.target.querySelector('button[type="submit"]');
-  const textoOriginal = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⏳ Creando cuenta...';
-  try {
-    const res = await fetchAPI('/api/registro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const r = await res.json();
-    if (res.ok) {
-      mostrarAlerta('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.', 'success');
-      e.target.reset();
-      setTimeout(() => {
-        const c = document.getElementById('container');
-        if (c) c.classList.remove('active');
-      }, 1200);
-    } else {
-      mostrarAlerta('❌ ' + (r.error || 'Error al registrarse'));
-    }
-  } catch (err) {
-    console.error('❌ Error:', err);
-    mostrarAlerta('❌ Error de conexión: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = textoOriginal;
-  }
+const r = await res.json();
+if (!res.ok) {
+if (res.status === 429 && r.minutos_restantes) {
+mostrarAlerta(`⏳ ${r.error || 'Demasiados intentos.'} Espera ${r.minutos_restantes} minutos.`);
+} else {
+mostrarAlerta(r.error || 'Error al iniciar sesión');
+}
+btn.disabled = false;
+btn.textContent = textoOriginal;
+return;
+}
+if (r.debe_cambiar_password) {
+mostrarAlerta('✅ Inicio exitoso. Cambia tu contraseña.', 'success');
+setTimeout(() => { document.getElementById('Mp3Md8').classList.add('active'); }, 500);
+} else {
+mostrarAlerta('✅ Inicio exitoso. Redirigiendo...', 'success');
+setTimeout(() => { window.location.href = r.rol === 'admin' ? 'admin.html' : 'proveedor.html'; }, 800);
+}
+} catch (err) {
+console.error('❌ Error de conexión:', err);
+mostrarAlerta('Error de conexión: ' + err.message);
+btn.disabled = false;
+btn.textContent = textoOriginal;
+}
 });
-
-// ==========================================
-// 🔑 FORMULARIO DE CAMBIO DE CONTRASEÑA
-// ==========================================
-document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
-  e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  if (data.password_nueva !== data.password_confirmar) {
-    return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
-  }
-  const validacion = validarPasswordCliente(data.password_nueva);
-  if (!validacion.valido) {
-    return mostrarAlertaPassword('❌ ' + validacion.mensaje);
-  }
-  const btn = e.target.querySelector('button[type="submit"]');
-  const textoOriginal = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⏳ Cambiando...';
-  try {
-    const res = await fetchAPI('/api/cambiar-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        password_actual: data.password_actual,
-        password_nueva: data.password_nueva
-      })
-    });
-    const r = await res.json();
-    if (!res.ok) {
-      mostrarAlertaPassword(r.error || 'Error al cambiar contraseña');
-      btn.disabled = false;
-      btn.textContent = textoOriginal;
-      return;
-    }
-    mostrarAlertaPassword('✅ Contraseña cambiada. Redirigiendo...', 'success');
-    setTimeout(async () => {
-      try {
-        const meRes = await fetchAPI('/api/me');
-        const me = await meRes.json();
-        if (me.usuario) {
-          window.location.href = me.usuario.rol === 'admin' ? 'admin.html' : 'proveedor.html';
-        } else {
-          window.location.href = '/';
-        }
-      } catch (err) {
-        window.location.href = '/';
-      }
-    }, 1500);
-  } catch (err) {
-    console.error('❌ Error:', err);
-    mostrarAlertaPassword('Error de conexión: ' + err.message);
-    btn.disabled = false;
-    btn.textContent = textoOriginal;
-  }
+document.getElementById('Fr5Gd7').addEventListener('submit', async (e) => {
+e.preventDefault();
+const formData = new FormData(e.target);
+const habeasDataCheckbox = document.querySelector('input[name="habeas_data"]');
+const habeasData = habeasDataCheckbox ? habeasDataCheckbox.checked : false;
+if (!habeasData) {
+mostrarAlerta('❌ Debes aceptar la Política de Tratamiento de Datos Personales para registrarte');
+return;
+}
+const password = formData.get('password');
+const validacion = validarPasswordCliente(password);
+if (!validacion.valido) {
+mostrarAlerta('❌ ' + validacion.mensaje);
+return;
+}
+const data = {
+nombre_empresa: formData.get('nombre_empresa'),
+email: formData.get('email'),
+password: password,
+habeas_data: 'true',
+website: formData.get('website') || '',
+_ts: formData.get('_ts') || ''
+};
+const btn = e.target.querySelector('button[type="submit"]');
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Creando cuenta...';
+try {
+const res = await fetchAPI('/api/registro', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(data)
 });
-
-// ==========================================
-// 🧹 CERRAR MODAL DE CONTRASEÑA (click fuera)
-// ==========================================
-document.getElementById('modalPassword').addEventListener('click', e => {
-  if (e.target.id === 'modalPassword') {
-    document.getElementById('modalPassword').classList.remove('active');
-  }
+const r = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.', 'success');
+e.target.reset();
+setTimeout(() => {
+const c = document.getElementById('Qk3Rv8');
+if (c) c.classList.remove('active');
+}, 1200);
+} else {
+mostrarAlerta('❌ ' + (r.error || 'Error al registrarse'));
+}
+} catch (err) {
+console.error('❌ Error:', err);
+mostrarAlerta('❌ Error de conexión: ' + err.message);
+} finally {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+}
 });
-
-// 🛡️ M6 anti-bot: sella el instante en que se pintó el form de registro.
-// El backend comparará esto con el momento del envío (un humano tarda segundos).
-try { const _regTs = document.getElementById('reg-ts'); if (_regTs) _regTs.value = Date.now(); } catch (e) {}
+document.getElementById('Fc9Ke6').addEventListener('submit', async e => {
+e.preventDefault();
+const data = Object.fromEntries(new FormData(e.target));
+if (data.password_nueva !== data.password_confirmar) {
+return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
+}
+const validacion = validarPasswordCliente(data.password_nueva);
+if (!validacion.valido) {
+return mostrarAlertaPassword('❌ ' + validacion.mensaje);
+}
+const btn = e.target.querySelector('button[type="submit"]');
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Cambiando...';
+try {
+const res = await fetchAPI('/api/cambiar-password', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+password_actual: data.password_actual,
+password_nueva: data.password_nueva
+})
+});
+const r = await res.json();
+if (!res.ok) {
+mostrarAlertaPassword(r.error || 'Error al cambiar contraseña');
+btn.disabled = false;
+btn.textContent = textoOriginal;
+return;
+}
+mostrarAlertaPassword('✅ Contraseña cambiada. Redirigiendo...', 'success');
+setTimeout(async () => {
+try {
+const meRes = await fetchAPI('/api/me');
+const me = await meRes.json();
+if (me.usuario) {
+window.location.href = me.usuario.rol === 'admin' ? 'admin.html' : 'proveedor.html';
+} else {
+window.location.href = '/';
+}
+} catch (err) {
+window.location.href = '/';
+}
+}, 1500);
+} catch (err) {
+console.error('❌ Error:', err);
+mostrarAlertaPassword('Error de conexión: ' + err.message);
+btn.disabled = false;
+btn.textContent = textoOriginal;
+}
+});
+document.getElementById('Mp3Md8').addEventListener('click', e => {
+if (e.target.id === 'Mp3Md8') {
+document.getElementById('Mp3Md8').classList.remove('active');
+}
+});
+_pwMeter('Rp7Pw2', 'Mr5Xq3', 'Hr9Ys2');
+_pwMeter('Cn2Nw7', 'Mm1Zt4', 'Hm8Wv6');
+try { const _t = document.getElementById('Ts6Tm1'); if (_t) _t.value = Date.now(); } catch (e) {}
 console.log('✅ Portal de Proveedores cargado (v4.7)');
 </script>
 </body>
