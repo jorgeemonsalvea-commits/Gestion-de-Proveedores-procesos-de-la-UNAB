@@ -131,7 +131,7 @@ const limiterLogin = rateLimit({
   },
   skipSuccessfulRequests: true,
 skip: (req) => {
-// 🛡️ A3: ya NO eximimos al admin del rate-limit por rol.
+////////////////////
 // Solo se salta el límite si ya hay una sesión activa (usuario logueado).
 // Así los intentos contra el admin SÍ cuentan y se limitan por IP (20/15 min),
 // cerrando el bypass que permitía fuerza bruta a velocidad de red contra el admin.

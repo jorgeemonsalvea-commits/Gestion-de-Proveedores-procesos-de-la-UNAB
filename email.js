@@ -51,7 +51,7 @@ sendSmtpEmail.subject = subject;
 sendSmtpEmail.htmlContent = htmlContent;
 sendSmtpEmail.sender = {
 name: process.env.BREVO_SENDER_NAME || 'Portal de Proveedores',
-email: process.env.BREVO_SENDER_EMAIL || 'adminempresapruebas1@gmail.com'
+email: process.env.BREVO_SENDER_EMAIL || 'padminprog@gmail.com'
 };
 sendSmtpEmail.to = [{ email: toEmail }];
 const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
@@ -77,7 +77,7 @@ return { ok: false, error: typeof errorDetail === 'string' ? errorDetail : JSON.
 // PLANTILLA: Proveedor subió documento (para admin) — MARCA (morado)
 // ==========================================
 function emailProveedorSubioDocumento(nombreProveedor, nombreDocumento, nombreArchivo) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
+
 const prov = escapeHtml(nombreProveedor);
 const doc = escapeHtml(nombreDocumento);
 const arch = escapeHtml(nombreArchivo);
@@ -106,7 +106,7 @@ Ir al Panel Admin
 // PLANTILLA: Documento rechazado (para proveedor) — PELIGRO (rojo)
 // ==========================================
 function emailDocumentoRechazado(nombreProveedor, nombreDocumento, motivo) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
+////////////////////
 const prov = escapeHtml(nombreProveedor);
 const doc = escapeHtml(nombreDocumento);
 const mot = escapeHtml(motivo);
@@ -142,7 +142,7 @@ Ir al Portal
 // PLANTILLA: Proveedor completó todos los documentos (para ADMIN) — ÉXITO (verde, intacta)
 // ==========================================
 function emailProveedorCompletoDocumentos(nombreProveedor, emailProveedor, totalDocumentos) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
+////////////////////
 const prov = escapeHtml(nombreProveedor);
 const email = escapeHtml(emailProveedor);
 return `
@@ -186,7 +186,7 @@ Saludos,<br>
 // PLANTILLA: Proveedor completamente aprobado (¡Felicidades!) — ÉXITO (verde)
 // ==========================================
 function emailProveedorAprobado(nombreProveedor) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
+////////////////////
 const prov = escapeHtml(nombreProveedor);
 return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -226,7 +226,6 @@ Si tienes alguna pregunta o necesitas actualizar tu información, no dudes en co
 // Mismo lenguaje visual de aprobación (header verde + filete dorado) por coherencia.
 // ==========================================
 function emailProveedorActualizacionAprobada(nombreProveedor) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
 const prov = escapeHtml(nombreProveedor);
 return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -263,7 +262,7 @@ Saludos,<br>
 // PLANTILLA: Nueva nota del admin (para proveedor) — MARCA (morado)
 // ==========================================
 function emailNuevaNota(nombreProveedor, titulo, nota) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
+////////////////////
 const prov = escapeHtml(nombreProveedor);
 const tit = escapeHtml(titulo);
 const nt = escapeHtml(nota);
@@ -293,7 +292,6 @@ Ver en el Portal
 // PLANTILLA: Bienvenida con credenciales (para proveedor nuevo) — MARCA (morado)
 // ==========================================
 function emailBienvenidaProveedor(email, password, nombreEmpresa) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
 const emp = escapeHtml(nombreEmpresa);
 const eml = escapeHtml(email);
 const pass = escapeHtml(password);
@@ -329,7 +327,6 @@ Si no reconoces esta cuenta o tienes problemas para acceder, contacta al adminis
 // PLANTILLA: Recordatorio (para proveedor) — MARCA (morado)
 // ==========================================
 function emailRecordatorio(nombreProveedor, mensaje) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
 const prov = escapeHtml(nombreProveedor);
 const msg = escapeHtml(mensaje);
 return `
@@ -357,7 +354,6 @@ Ir al Portal
 // PLANTILLA: Recordatorio de documentos faltantes — MARCA (morado)
 // ==========================================
 function emailRecordatorioDocumentosFaltantes(nombreProveedor, documentosFaltantes) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
 const prov = escapeHtml(nombreProveedor);
 const listaHtml = documentosFaltantes.map(doc => {
 const nombreDoc = escapeHtml(doc.nombre);
@@ -413,7 +409,6 @@ Este es un recordatorio automático del Sistema de Gestión de Proveedores.
 // PLANTILLA: Evaluación inicial rechazada — PELIGRO (rojo, intacta)
 // ==========================================
 function emailEvaluacionRechazada(nombreProveedor, motivo) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
 const prov = escapeHtml(nombreProveedor);
 const mot = escapeHtml(motivo);
 const motivoHtml = motivo ? `
@@ -450,7 +445,7 @@ Saludos,<br>
 // PLANTILLA: Solicitud de actualización anual — PROCESO (azul, intacta)
 // ==========================================
 function emailSolicitudActualizacion(nombreProveedor, mensajeAdmin, año) {
-// 🛡️ M4: escapar datos del usuario antes de inyectar en HTML
+////////////////////
 const prov = escapeHtml(nombreProveedor);
 const msgAdmin = escapeHtml(mensajeAdmin);
 const mensajeHtml = mensajeAdmin ? `
