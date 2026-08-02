@@ -259,13 +259,16 @@
   // ==========================================
   // 📋 FUNCIONES AUXILIARES
   // ==========================================
-  function formatearFecha(f) {
-    if (!f) return '';
-    return new Date(f.replace(' ', 'T')).toLocaleString('es-CO', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-  }
+function formatearFecha(f) {
+  if (!f) return '';
+  // 🕐 FIX TZ: los strings de la BD están en hora civil de Bogotá (Colombia = UTC-5 fijo).
+  // Forzamos el parseo como -05:00 y mostramos en 'America/Bogota' para que el resultado
+  // sea idéntico en cualquier zona y NO sume ni reste 5h.
+  return new Date(String(f).replace(' ', 'T') + '-05:00').toLocaleString('es-CO', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Bogota'
+  });
+}
 
 function formatearEtapa(etapa) {
 const map = {
@@ -315,9 +318,10 @@ return r ? r.nombre : (tipo || 'Documento');
     if (!fechaVencimiento) {
       return { clase: 'sin-fecha', texto: 'Sin fecha', icono: '⚪' };
     }
-    const hoy = new Date();
-    const venc = new Date(fechaVencimiento.replace(' ', 'T'));
-    const diffDias = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24));
+  const hoy = new Date();
+  // 🕐 FIX TZ: fechaVencimiento es civil Bogotá → lo parseamos como -05:00 (instante real).
+  const venc = new Date(String(fechaVencimiento).replace(' ', 'T') + '-05:00');
+  const diffDias = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24));
     if (diffDias < 0) {
       return { clase: 'vencido', texto: 'Vencido', icono: '🔴' };
     } else if (diffDias <= 30) {

@@ -761,8 +761,8 @@ function todosDocumentosVencidos(proveedorId) {
       SELECT COUNT(*) as total
       FROM documentos
       WHERE proveedor_id = ?
-        AND es_historico = 0
-        AND fecha_vencimiento <= datetime('now')
+      AND es_historico = 0
+      AND fecha_vencimiento <= datetime('now', '-5 hours')
     `).get(proveedorId).total;
 
     return countVencidos === countActivos;
@@ -871,7 +871,7 @@ async function procesarVencimientos() {
       SELECT id, proveedor_id, archivo, ciclo
       FROM documentos
       WHERE es_historico = 0
-        AND fecha_vencimiento <= datetime('now')
+      AND fecha_vencimiento <= datetime('now', '-5 hours')
     `).all();
 
     if (docsVencidos.length === 0) {
@@ -2715,8 +2715,8 @@ WHERE c.id = ?
     const documentos = db.prepare(`
       SELECT d.*,
         CASE
-          WHEN d.fecha_vencimiento IS NOT NULL AND d.fecha_vencimiento <= datetime('now') THEN 'vencido'
-          WHEN d.fecha_vencimiento IS NOT NULL AND d.fecha_vencimiento <= datetime('now', '+30 days') THEN 'proximo_a_vencer'
+          WHEN d.fecha_vencimiento IS NOT NULL AND d.fecha_vencimiento <= datetime('now', '-5 hours') THEN 'vencido'
+          WHEN d.fecha_vencimiento IS NOT NULL AND d.fecha_vencimiento <= datetime('now', '-5 hours', '+30 days') THEN 'proximo_a_vencer'
           ELSE 'vigente'
         END as estado_vencimiento
       FROM documentos d
@@ -2915,7 +2915,14 @@ app.put('/api/admin/configuracion', requiereAdmin, (req, res) => {
     return res.status(400).json({ error: 'Debes proporcionar una fecha y hora' });
   }
 
-  const fecha = new Date(valor);
+    // 🕐 FIX TZ: el datetime-local del admin YA es hora civil de Bogotá (UTC-5 fijo, sin DST).
+    // NO pasar por new Date()/toISOString(): en Railway (UTC) hoy "funciona" por casualidad,
+    // pero es frágil. Guardamos el string tal cual, normalizado a 'YYYY-MM-DD HH:MM:SS'.
+    const m = String(valor).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/);
+    if (!m) {
+      return res.status(400).json({ error: 'Fecha inválida. Usa formato YYYY-MM-DDTHH:mm' });
+    }
+    const fechaStr = `${m[1]} ${m[2]}:${m[3] || '00'}`;
 
   if (isNaN(fecha)) {
     return res.status(400).json({ error: 'Fecha inválida. Usa formato YYYY-MM-DDTHH:mm' });
