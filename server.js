@@ -101,14 +101,21 @@ const DUMMY_BCRYPT_HASH = '$2a$12$WApznUPhDubN0oeveSXoqOe6eHZMVj7S5rJtgvQXlhQl1J
 // ==========================================
 // 2. SEGURIDAD Y MIDDLEWARES
 // ==========================================
+
+// Middleware para generar nonce y configurarlo en res.locals
+app.use((req, res, next) => {
+  res.locals.nonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
-      scriptSrcAttr: ["'self'", "'unsafe-inline'"],
-      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'strict-dynamic'", (req, res) => `'nonce-${res.locals.nonce}'`],
+      scriptSrcAttr: ["'self'"],
+      scriptSrcElem: [(req, res) => `'nonce-${res.locals.nonce}'`],
+      styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
       imgSrc: ["'self'", "data:", "blob:"],
       frameSrc: ["'self'", "blob:"],
       connectSrc: ["'self'"],
@@ -355,7 +362,49 @@ app.use((err, req, res, next) => {
 });
 
 app.use('/plantillas', express.static(plantillasDir));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware personalizado para servir archivos HTML estáticos con nonces
+app.use((req, res, next) => {
+  // Solo procesar archivos HTML
+  if (!req.path.endsWith('.html')) {
+    return next();
+  }
+  
+  const filePath = path.join(__dirname, 'public', req.path);
+  
+  // Verificar si el archivo existe
+  if (!fs.existsSync(filePath)) {
+    return next();
+  }
+  
+  const nonce = res.locals.nonce || crypto.randomBytes(16).toString('base64');
+  
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      return next(err);
+    }
+    
+    // Inyectar nonce en scripts y estilos inline
+    let modifiedData = data
+      .replace(/<script>/gi, `<script nonce="${nonce}">`)
+      .replace(/<style[^>]*>/gi, (match) => {
+        // Si ya tiene nonce, no agregar otro
+        if (match.includes('nonce=')) return match;
+        return match.replace('>', ` nonce="${nonce}">`);
+      });
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(modifiedData);
+  });
+});
+
+app.use(express.static(path.join(__dirname, 'public'), {
+  // Excluir archivos HTML del static normal para que los maneje nuestro middleware
+  extensions: ['css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'woff2', 'woff', 'ttf', 'eot']
+}));
+
+
+
 
 // ==========================================
 // 3. FUNCIONES HELPER

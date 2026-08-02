@@ -1,38 +1,49 @@
-# Scripts de mantenimiento (NUNCA subir secretos)
-reset-admin.js
-actualizar-fechas-aprobacion.js
-fix-estado.js
-update-habeas-existing.js
+```
+# Database files
+*.db
+*.db-shm
+*.db-wal
 
-# Dependencias
+# Dependencies
 node_modules/
 
-# Variables de entorno (NUNCA subir secretos)
+# Environment
 .env
-
-# Archivos subidos por usuarios
-uploads/
-plantillas/
-
-
-# Sesiones
-sessions/
-
-# Base de datos (si se genera localmente)
-*.db
-*.db-wal
-*.db-shm
+.env.local
+.env.*
 
 # Logs
 *.log
 
-# Sistema
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Editor
+# Editor/IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+.env
+
+# Build outputs
+dist/
+build/
+target/
+*.out
+*.exe
+*.dll
+*.so
+*.a
+*.obj
+
+# OS generated files
+.DS_Store
+Thumbs.db
+```
