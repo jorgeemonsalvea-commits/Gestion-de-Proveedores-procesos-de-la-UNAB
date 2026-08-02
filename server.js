@@ -2910,31 +2910,21 @@ app.get('/api/admin/configuracion', requiereAdmin, (req, res) => {
 
 app.put('/api/admin/configuracion', requiereAdmin, (req, res) => {
   const { valor } = req.body;
-
   if (!valor) {
     return res.status(400).json({ error: 'Debes proporcionar una fecha y hora' });
   }
-
-    // 🕐 FIX TZ: el datetime-local del admin YA es hora civil de Bogotá (UTC-5 fijo, sin DST).
-    // NO pasar por new Date()/toISOString(): en Railway (UTC) hoy "funciona" por casualidad,
-    // pero es frágil. Guardamos el string tal cual, normalizado a 'YYYY-MM-DD HH:MM:SS'.
-    const m = String(valor).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/);
-    if (!m) {
-      return res.status(400).json({ error: 'Fecha inválida. Usa formato YYYY-MM-DDTHH:mm' });
-    }
-    const fechaStr = `${m[1]} ${m[2]}:${m[3] || '00'}`;
-
-  if (isNaN(fecha)) {
+  // 🕐 FIX TZ: datetime-local del admin = hora civil Bogotá (UTC-5 fijo).
+  // NO pasar por new Date()/toISOString() (en Railway/UTC desplaza 5h).
+  const m = String(valor).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/);
+  if (!m) {
     return res.status(400).json({ error: 'Fecha inválida. Usa formato YYYY-MM-DDTHH:mm' });
   }
-
-  const fechaStr = fecha.toISOString().replace('T', ' ').slice(0, 19);
-
+  const fechaStr = `${m[1]} ${m[2]}:${m[3] || '00'}`;
   try {
     db.prepare(`
       UPDATE configuracion
       SET valor = ?,
-          actualizado_en = datetime('now', 'localtime')
+      actualizado_en = datetime('now', 'localtime')
       WHERE clave = 'fecha_vencimiento_fija'
     `).run(fechaStr);
 
