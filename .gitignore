@@ -1,1 +1,15 @@
-(server.js is a source file, and there are no build artifacts, dependencies, or temp files in the changes)
+```
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Dependencies
+.nvmrc
+```

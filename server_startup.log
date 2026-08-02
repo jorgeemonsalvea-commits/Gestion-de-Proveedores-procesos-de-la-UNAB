@@ -1,0 +1,40 @@
+📂 Ruta de la base de datos: /workspace/proveedores.db
+📂 dataDir: /workspace
+🗄️  Base de datos inicializada
+📋 Verificando estructura de tablas...
+✅ Estructura de tablas verificada
+🔄 Verificando migraciones...
+✅ No se requieren migraciones
+🧹 Normalizando datos existentes...
+✅ Normalización básica completada
+📊 Verificando índices...
+✅ 23 índices verificados
+⚙️  Verificando configuración inicial...
+✅ Configuración existente: dias_validez_documentos = 
+✅ Configuración existente: fecha_vencimiento_fija = 
+✅ Admin existente: admin@empresa.com
+🔄 Verificando datos existentes para vencimientos...
+   No se requieren actualizaciones de fecha de vencimiento.
+✅ Base de datos completamente inicializada
+
+✅ Socket.IO inicializado sobre el servidor HTTP
+
+🔐 Configuración de seguridad:
+┌────────────────────────┬───────────────┐
+│ (index)                │ Values        │
+├────────────────────────┼───────────────┤
+│ algoritmo              │ 'aes-256-gcm' │
+│ longitudClave          │ '256 bits'    │
+│ longitudIV             │ '128 bits'    │
+│ iteracionesPBKDF2      │ 100000        │
+│ algoritmoHash          │ 'sha512'      │
+│ longitudMinimaPassword │ 8             │
+└────────────────────────┴───────────────┘
+✅ Sistema de cifrado funcionando correctamente
+⏰ Cron job de recordatorios configurado para las 8:00 AM (Colombia)
+⏰ Cron job de vencimientos configurado para las 12:00 AM (Colombia)
+
+🚀 Servidor: http://localhost:3000
+🔐 Seguridad: AES-256-GCM + Rate Limiting + Helmet
+👤 Admin: admin@empresa.com
+
