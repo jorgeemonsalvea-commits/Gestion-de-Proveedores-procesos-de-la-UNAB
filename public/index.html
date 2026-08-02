@@ -320,15 +320,6 @@
 <body>
 <div class="login-wrapper">
   <div class="lp-container" id="container">
-<style>
-.lp-pw-meter{display:flex;gap:5px;margin:8px 0 2px;height:5px}
-.lp-pw-meter span{flex:1;border-radius:3px;background:var(--lp-borde,#e7e2f0);transition:background .25s ease}
-.lp-pw-meter span.on{background:var(--lp-morado,#8600dd)}
-.lp-pw-meter span.ok{background:#059669}
-.lp-pw-hint{font-size:.72rem;min-height:1em;margin:2px 0 0;color:var(--lp-texto-suave,#6b6478);letter-spacing:.2px;transition:color .2s ease}
-.lp-pw-hint.ok{color:#047857;font-weight:700}
-@media (prefers-reduced-motion: reduce){.lp-pw-meter span{transition:none}}
-</style>
 <div class="form-container sign-up">
 <form id="Fr5Gd7" class="lp-form">
 <h1>📝 Crear cuenta</h1>
@@ -440,8 +431,6 @@ onerror="this.onerror=function(){this.style.display='none'};">
 <input type="password" name="password_nueva" id="Cn2Nw7" minlength="8" required autocomplete="new-password">
 <button type="button" class="toggle-password" data-target="#Cn2Nw7" aria-label="Mostrar contraseña">👁️</button>
 </div>
-<div class="lp-pw-meter" id="Mm1Zt4" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
-<p class="lp-pw-hint" id="Hm8Wv6"></p>
 <small>Mín. 8, mayúscula, minúscula, número y especial</small>
 </div>
 <div class="form-group">
@@ -486,27 +475,7 @@ if (!/[0-9]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al m
 if (!/[!@#$%^&*(),.?":{}|<>]/.test(trimmed)) return { valido: false, mensaje: 'Debe contener al menos un carácter especial (!@#$%^&*...)' };
 return { valido: true, mensaje: 'Contraseña válida' };
 }
-function _pwMeter(iid, mid, hid) {
-const inp = document.getElementById(iid), m = document.getElementById(mid), h = document.getElementById(hid);
-if (!inp || !m || !h) return;
-const bars = m.querySelectorAll('span');
-const R = [
-v => v.length >= 8,
-v => /[A-Z]/.test(v),
-v => /[a-z]/.test(v),
-v => /[0-9]/.test(v),
-v => /[!@#$%^&*(),.?":{}|<>]/.test(v)
-];
-const paint = () => {
-const v = inp.value;
-let n = 0;
-for (let k = 0; k < R.length; k++) { const ok = R[k](v); if (ok) n++; bars[k].className = ok ? 'on' : ''; }
-if (v.length === 0) { h.textContent = ''; h.className = 'lp-pw-hint'; for (let j = 0; j < bars.length; j++) bars[j].className = ''; return; }
-if (n === R.length) { for (let j = 0; j < bars.length; j++) bars[j].className = 'ok'; h.textContent = '✓ Contraseña segura'; h.className = 'lp-pw-hint ok'; }
-else { h.textContent = 'Cumple ' + n + ' de ' + R.length; h.className = 'lp-pw-hint'; }
-};
-inp.addEventListener('input', paint);
-}
+
 document.querySelectorAll('.toggle-password').forEach(btn => {
 btn.addEventListener('click', () => {
 const target = document.querySelector(btn.dataset.target);
@@ -516,7 +485,7 @@ target.type = esPassword ? 'text' : 'password';
 btn.textContent = esPassword ? '🙈' : '👁️';
 });
 });
-const lpContainer = document.getElementById('Qk3Rv8');
+const lpContainer = (document.getElementById('Qk3Rv8') || document.getElementById('container'))
 const registerBtn = document.getElementById('Hn7Lp2');
 const loginBtn = document.getElementById('Jm4Xs9');
 const mRegisterBtn = document.getElementById('Wq6Yt1');
@@ -601,7 +570,7 @@ if (res.ok) {
 mostrarAlerta('✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.', 'success');
 e.target.reset();
 setTimeout(() => {
-const c = document.getElementById('Qk3Rv8');
+const c = (document.getElementById('Qk3Rv8') || document.getElementById('container'))
 if (c) c.classList.remove('active');
 }, 1200);
 } else {
@@ -671,8 +640,7 @@ if (e.target.id === 'Mp3Md8') {
 document.getElementById('Mp3Md8').classList.remove('active');
 }
 });
-_pwMeter('Rp7Pw2', 'Mr5Xq3', 'Hr9Ys2');
-_pwMeter('Cn2Nw7', 'Mm1Zt4', 'Hm8Wv6');
+
 try { const _t = document.getElementById('Ts6Tm1'); if (_t) _t.value = Date.now(); } catch (e) {}
 console.log('✅ Portal de Proveedores cargado (v4.7)');
 </script>
