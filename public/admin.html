@@ -2575,7 +2575,7 @@ function verDocumento(url, nombre) {
 document.getElementById('modalVisor').style.zIndex = '9000';
 document.getElementById('visorTitulo').textContent = nombre;
 document.getElementById('visorDescargar').href = url + '?download=true';
-document.getElementById('visorDescargar').setAttribute('download', nombre);
+document.getElementById('visorDescargar').setAttribute('download', /\.pdf$/i.test(nombre) ? nombre : nombre + '.pdf');
 document.getElementById('visorNuevaPestana').href = url;
 const iframe = document.getElementById('visorIframe');
 const cargando = document.getElementById('visorCargando');

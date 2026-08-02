@@ -5023,8 +5023,17 @@ const usuario = req.session.usuario;
     res.setHeader('Content-Type', 'application/pdf');
 
     if (esDescarga) {
-      const nombreArchivo = nombreFormatoServer(documentoInfo?.tipo) || documentoInfo?.nombre_original || path.basename(req.params.path);
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(nombreArchivo)}"`);
+      // 🩹 FIX DESCARGA: los nombres de formato (nombreFormatoServer) NO traen
+      // extensión, así que el SO guardaba el archivo como "tipo archivo" genérico
+      // y no lo abría como PDF. Todos los docs del sistema son PDF (multer solo
+      // acepta .pdf), por lo que garantizamos la extensión .pdf si falta.
+      let nombreArchivo = nombreFormatoServer(documentoInfo?.tipo) || documentoInfo?.nombre_original || path.basename(req.params.path);
+      if (!/\.pdf$/i.test(nombreArchivo)) nombreArchivo += '.pdf';
+      // Header dual RFC 6266/5987: filename= (ASCII, fallback) + filename*= (UTF-8
+      // completo). Así los nombres con espacios/tildes no salen con %20 ni raros.
+      const asciiName = nombreArchivo.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+      const utf8Name = encodeURIComponent(nombreArchivo).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+      res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`);
     } else {
       res.setHeader('Content-Disposition', 'inline');
     }
