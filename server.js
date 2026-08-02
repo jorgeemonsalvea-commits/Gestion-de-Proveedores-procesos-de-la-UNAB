@@ -118,7 +118,7 @@ app.use(helmet({
       styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
       imgSrc: ["'self'", "data:", "blob:"],
       frameSrc: ["'self'", "blob:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "ws:", "wss:"],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
