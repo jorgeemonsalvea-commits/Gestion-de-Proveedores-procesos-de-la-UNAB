@@ -118,11 +118,14 @@
     <p style="margin-bottom:0.5rem;">
       Estado general: <strong id="estadoGeneral">-</strong>
     </p>
+<p style="margin-bottom:0.5rem;">
+Etapa: <strong id="etapaActual">-</strong>
+</p>
+<p style="margin-bottom:0.5rem;">
+Tipo de persona: <strong id="tipoPersonaLabel">Sin definir</strong>
+</p>
     <p style="margin-bottom:0.5rem;">
-      Etapa: <strong id="etapaActual">-</strong>
-    </p>
-    <p style="margin-bottom:0.5rem;">
-      <strong id="docsCompletos">0</strong> de <strong id="docsTotal">13</strong> tipos de documentos completos
+      <strong id="docsCompletos">0</strong> de <strong id="docsTotal">14</strong> tipos de documentos completos
     </p>
     <p style="font-size:0.85rem;color:#6b7280;margin:0;">
       📌 Todos los documentos deben adjuntarse en formato PDF.
@@ -154,7 +157,22 @@
   <div id="tab-datos" class="card hidden">
     <h3 style="margin-bottom:1rem;">Datos de la empresa</h3>
     <form id="form-datos">
-      <div class="grid-2">
+<!-- 🆕 Selector de tipo de persona (define la documentación requerida) -->
+<div class="form-group" style="background:#f0f9ff;padding:1rem;border-radius:8px;border:1px solid #bae6fd;">
+<label style="font-weight:700;">🧾 Tipo de persona *</label>
+<div style="display:flex;gap:1.5rem;margin-top:0.4rem;flex-wrap:wrap;">
+<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+<input type="radio" name="tipo_persona" value="juridica"> 🏢 Persona Jurídica
+</label>
+<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+<input type="radio" name="tipo_persona" value="natural"> 🧍 Persona Natural
+</label>
+</div>
+<small style="color:#6b7280;font-size:0.8rem;display:block;margin-top:0.4rem;">
+Este valor define la documentación que se te solicitará. Una vez subas documentos, no podrás cambiarlo sin ayuda del administrador.
+</small>
+</div>
+<div class="grid-2">
         <div class="form-group">
           <label>Razón social</label>
           <input type="text" name="razon_social" id="razon_social">
@@ -306,10 +324,21 @@ const r = (requeridos || []).find(x => x.tipo === tipo);
 return r ? r.nombre : (tipo || 'Documento');
 }
 
-  // Indica si el proveedor puede subir/modificar documentos según su etapa
-  function puedeSubirDocumentos() {
-    return etapaActual === 'verificacion' || etapaActual === 'rechazado' || etapaActual === '';
-  }
+// 🚫 Punto 8: además de la etapa, bloquea si hay rechazo total con documentos rechazados activos
+function puedeSubirDocumentos() {
+const etapasPermitidas = ['verificacion', 'rechazado', ''];
+if (!etapasPermitidas.includes(etapaActual)) return false;
+
+const activos = (documentos || []).filter(d => d.es_historico !== 1);
+const rechazados = activos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+const todosActivosRechazados = activos.length > 0 && activos.every(d => d.estado === 'rechazado');
+
+if (rechazados.length > 0 && (etapaActual === 'rechazado' || todosActivosRechazados)) {
+return false;
+}
+
+return true;
+}
 
   // ==========================================
   // 📅 ESTADO DE VENCIMIENTO
@@ -386,25 +415,25 @@ return r ? r.nombre : (tipo || 'Documento');
     bannerRegistrado.style.display = 'none';
     alerta.innerHTML = '';
 
-    if (etapaActual === 'rechazado') {
-      let tituloRechazo = '❌ Proceso rechazado';
-      let mensajeRechazo = `No cuentas con la calificación necesaria para ser proveedor. Si deseas volver a participar, <strong>sube los documentos actualizados</strong>. El administrador revisará tu nueva documentación.`;
+if (etapaActual === 'rechazado') {
+let tituloRechazo = '❌ Proceso rechazado';
+let mensajeRechazo = `No cuentas con la calificación necesaria para ser proveedor. Si deseas volver a participar, <strong>sube los documentos actualizados</strong>. El administrador revisará tu nueva documentación.`;
+let pasoRechazo = `Para continuar, primero debes <strong>eliminar los documentos rechazados</strong> desde la pestaña <strong>Documentos</strong>. Cuando los elimines, el sistema te habilitará nuevamente la carga de documentos.`;
 
-      if (prov.notas_gestion && String(prov.notas_gestion).toLowerCase().includes('vencimiento')) {
-        tituloRechazo = '⏰ Documentos vencidos';
-        mensajeRechazo = `Tus documentos han vencido y tu perfil ha sido desactivado automáticamente. Para volver a ser proveedor activo, debes <strong>subir toda la documentación actualizada</strong>. El administrador revisará los nuevos documentos y habilitará tu cuenta nuevamente.`;
-      }
+if (prov.notas_gestion && String(prov.notas_gestion).toLowerCase().includes('vencimiento')) {
+tituloRechazo = '⏰ Documentos vencidos';
+mensajeRechazo = `Tus documentos han vencido y tu perfil ha sido desactivado automáticamente.`;
+pasoRechazo = `Para volver a ser proveedor activo, primero <strong>selecciona tu tipo de persona</strong> (Natural o Jurídica) en la pestaña <strong>Mis datos</strong> y luego sube toda la documentación actualizada desde la pestaña <strong>Documentos</strong>.`;
+}
 
-      bannerRechazado.style.display = 'block';
-      bannerRechazado.innerHTML = `
-        <h2 style="color:#991b1b;">${tituloRechazo}</h2>
-        <p style="color:#7f1d1d; font-size:1.1rem;">${mensajeRechazo}</p>
-        <p style="color:#6b7280; margin-top:0.5rem;">
-          Puedes subir nuevos documentos desde la pestaña <strong>Documentos</strong>.
-          Al subir un documento, tu proceso se reiniciará automáticamente.
-        </p>
-      `;
-    } else if (etapaActual === 'registrado') {
+bannerRechazado.style.display = 'block';
+bannerRechazado.innerHTML = `
+<h2 style="color:#991b1b;">${tituloRechazo}</h2>
+<p style="color:#7f1d1d; font-size:1.1rem;">${mensajeRechazo}</p>
+<p style="color:#6b7280; margin-top:0.5rem;">${pasoRechazo}</p>
+`;
+} 
+else if (etapaActual === 'registrado') {
       bannerRegistrado.style.display = 'block';
     }
   }
@@ -412,38 +441,73 @@ return r ? r.nombre : (tipo || 'Documento');
   // ==========================================
   // 🚫 VERIFICAR Y BLOQUEAR PERFIL
   // ==========================================
-  function verificarYBloquearPerfil(prov) {
-    perfilCompleto = (
-      prov.razon_social && prov.razon_social.trim() !== '' &&
-      prov.rfc && prov.rfc.trim() !== '' &&
-      prov.representante && prov.representante.trim() !== '' &&
-      prov.telefono && prov.telefono.trim() !== '' &&
-      prov.direccion && prov.direccion.trim() !== ''
-    );
+function verificarYBloquearPerfil(prov) {
+// 🆕 El tipo de persona también es obligatorio para desbloquear el portal
+const tipoOk = (prov.tipo_proveedor === 'natural' || prov.tipo_proveedor === 'juridica');
+const datosOk = (
+prov.razon_social && prov.razon_social.trim() !== '' &&
+prov.rfc && prov.rfc.trim() !== '' &&
+prov.representante && prov.representante.trim() !== '' &&
+prov.telefono && prov.telefono.trim() !== '' &&
+prov.direccion && prov.direccion.trim() !== ''
+);
+perfilCompleto = datosOk && tipoOk;
 
-    const alerta = document.getElementById('alerta-perfil-incompleto');
-    const tabs = document.querySelectorAll('.tab');
+const alerta = document.getElementById('alerta-perfil-incompleto');
+const tabs = document.querySelectorAll('.tab');
 
-    if (!perfilCompleto) {
-      alerta.style.display = 'block';
-      tabs.forEach(tab => {
-        if (tab.dataset.tab !== 'datos') {
-          tab.classList.add('tab-bloqueada');
-        } else {
-          tab.classList.remove('tab-bloqueada');
-          if (!tab.classList.contains('active')) tab.click();
-        }
-      });
-      document.getElementById('tab-docs').classList.add('hidden');
-      document.getElementById('tab-hist').classList.add('hidden');
-      document.getElementById('tab-datos').classList.remove('hidden');
-    } else {
-      alerta.style.display = 'none';
-      tabs.forEach(tab => tab.classList.remove('tab-bloqueada'));
-      document.getElementById('tab-docs').classList.remove('hidden');
-      document.getElementById('tab-hist').classList.remove('hidden');
-    }
-  }
+if (!perfilCompleto) {
+alerta.style.display = 'block';
+alerta.innerHTML = !datosOk
+? '⚠️ <strong>Acción Requerida:</strong> Para continuar usando el portal y subir documentos, debes completar los datos de tu empresa.'
+: '⚠️ <strong>Acción Requerida:</strong> Para continuar, selecciona si eres <strong>Persona Natural</strong> o <strong>Persona Jurídica</strong> y guarda los datos.';
+tabs.forEach(tab => {
+if (tab.dataset.tab !== 'datos') {
+tab.classList.add('tab-bloqueada');
+} else {
+tab.classList.remove('tab-bloqueada');
+if (!tab.classList.contains('active')) tab.click();
+}
+});
+document.getElementById('tab-docs').classList.add('hidden');
+document.getElementById('tab-hist').classList.add('hidden');
+document.getElementById('tab-datos').classList.remove('hidden');
+} else {
+alerta.style.display = 'none';
+tabs.forEach(tab => tab.classList.remove('tab-bloqueada'));
+// 🚫 FIX: mostrar únicamente la tarjeta de la pestaña activa
+const tabActiva = document.querySelector('.tab.active');
+cambiarTab(tabActiva ? tabActiva.dataset.tab : 'docs');
+}
+}
+
+// ==========================================
+// 🔀 CAMBIO DE PESTAÑAS (centralizado)
+// ==========================================
+function cambiarTab(tgt) {
+document.querySelectorAll('.tab').forEach(t => {
+t.classList.toggle('active', t.dataset.tab === tgt);
+});
+document.getElementById('tab-docs').classList.toggle('hidden', tgt !== 'docs');
+document.getElementById('tab-datos').classList.toggle('hidden', tgt !== 'datos');
+document.getElementById('tab-hist').classList.toggle('hidden', tgt !== 'hist');
+if (tgt === 'hist') cargarHistorial();
+}
+// ==========================================
+// 🧾 ACTUALIZAR UI DE TIPO DE PERSONA
+// ==========================================
+function actualizarTipoPersonaUI(prov) {
+document.querySelectorAll('input[name="tipo_persona"]').forEach(r => {
+r.checked = (prov.tipo_proveedor === r.value);
+});
+
+const lblTipo = document.getElementById('tipoPersonaLabel');
+if (lblTipo) {
+lblTipo.textContent =
+prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
+prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
+}
+}
 
   // ==========================================
   // 📋 VERIFICAR HABEAS DATA
@@ -541,6 +605,11 @@ return r ? r.nombre : (tipo || 'Documento');
       mostrarNotificacion(`📦 Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
       recargarDatosProveedor();
     });
+      socket.on('tipo_persona_actualizado', (data) => {
+      console.log('🧾 Tipo de persona actualizado por admin:', data);
+      mostrarNotificacion('🧾 El administrador definió tu tipo de persona. Recargando...', 'info');
+      location.reload();
+    });
   }
 
   // ==========================================
@@ -557,6 +626,10 @@ return r ? r.nombre : (tipo || 'Documento');
           prov.estado_general === 'rechazado' ? '#dc2626' : '#d97706';
         document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
         actualizarBannerEstado(prov);
+const lblTipo = document.getElementById('tipoPersonaLabel');
+if (lblTipo) lblTipo.textContent =
+prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
+prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
 
         documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
         renderDocumentos();
@@ -590,6 +663,8 @@ return r ? r.nombre : (tipo || 'Documento');
         document.getElementById('representante').value = prov.representante || '';
         document.getElementById('telefono').value = prov.telefono || '';
         document.getElementById('direccion').value = prov.direccion || '';
+    // 🆕 Cargar tipo de persona en el radio y en la tarjeta de estado
+    actualizarTipoPersonaUI(prov);
         document.getElementById('estadoGeneral').textContent = prov.estado_general || 'pendiente';
         document.getElementById('estadoGeneral').style.color =
           prov.estado_general === 'aprobado' ? '#059669' :
@@ -628,27 +703,34 @@ return r ? r.nombre : (tipo || 'Documento');
 
       await verificarHabeasData();
 
-      if (perfilCompleto) {
-        try {
-          requeridos = await (await fetchAPI('/api/proveedor/requerimientos')).json();
-          if (!requeridos || requeridos.length === 0) {
-            console.warn('⚠️ No se cargaron requerimientos');
-            mostrarAlerta('No se pudieron cargar los documentos requeridos. Contacta al administrador.', 'warning');
-          }
-          documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
-          document.getElementById('docsTotal').textContent = requeridos.length || 0;
-          renderDocumentos();
-          await cargarRecordatorios();
-          await cargarNotas();
-          await actualizarBadgesVerificacion();
-        } catch (err) {
-          console.error('❌ Error cargando documentos:', err);
-          mostrarAlerta('Error al cargar documentos. Recarga la página o contacta al administrador.', 'error');
-        }
-      } else {
+if (perfilCompleto) {
+    try {
+    // ⚡ OPT: requeridos y documentos son independientes → en paralelo
+    const [reqRes, docsRes] = await Promise.all([
+    fetchAPI('/api/proveedor/requerimientos'),
+    fetchAPI('/api/proveedor/documentos')
+    ]);
+    requeridos = await reqRes.json();
+    documentos = await docsRes.json();
+    if (!requeridos || requeridos.length === 0) {
+    console.warn('⚠️ No se cargaron requerimientos');
+    mostrarAlerta('No se pudieron cargar los documentos requeridos. Contacta al administrador.', 'warning');
+    }
+    document.getElementById('docsTotal').textContent = requeridos.length || 0;
+    renderDocumentos();
+    // ⚡ OPT: recordatorios y notas también en paralelo
+    await Promise.all([cargarRecordatorios(), cargarNotas()]);
+    await actualizarBadgesVerificacion();
+    } catch (err) {
+    console.error('❌ Error cargando documentos:', err);
+    mostrarAlerta('Error al cargar documentos. Recarga la página o contacta al administrador.', 'error');
+}
+}
+
+  else {
         console.log('⏳ Perfil incompleto, esperando que el usuario complete datos.');
         document.getElementById('docsCompletos').textContent = '0';
-        document.getElementById('docsTotal').textContent = '13';
+        document.getElementById('docsTotal').textContent = '14';
       }
 
       conectarSocket();
@@ -675,17 +757,33 @@ return r ? r.nombre : (tipo || 'Documento');
       map[d.tipo].push(d);
     });
 
-    // Aviso según la etapa del proveedor
-    const subirHabilitado = puedeSubirDocumentos();
-    if (etapaActual === 'registrado') {
-      avisoEtapa.innerHTML = `<div class="alert alert-info">ℹ️ Estás registrado como proveedor activo. La carga de documentos está deshabilitada. Para actualizar tu documentación, espera la solicitud del administrador.</div>`;
-    } else if (etapaActual === 'aprobacion') {
-      avisoEtapa.innerHTML = `<div class="alert alert-info">📋 Tus documentos están en etapa de aprobación. No puedes modificarlos en este momento.</div>`;
-    } else if (etapaActual === 'inscripcion') {
-      avisoEtapa.innerHTML = `<div class="alert alert-info">📝 Tus documentos están en etapa de inscripción. No puedes modificarlos en este momento.</div>`;
-    } else {
-      avisoEtapa.innerHTML = '';
-    }
+// 🚫 Punto 8: detectar documentos rechazados activos
+const rechazadosActivos = docsActivos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+const todosActivosRechazados = docsActivos.length > 0 && docsActivos.every(d => d.estado === 'rechazado');
+const rechazoTotal = rechazadosActivos.length > 0 && (etapaActual === 'rechazado' || todosActivosRechazados);
+
+// Aviso según la etapa del proveedor
+let subirHabilitado = puedeSubirDocumentos();
+if (rechazoTotal) subirHabilitado = false;
+
+if (rechazoTotal) {
+avisoEtapa.innerHTML = `
+<div class="alert alert-error" style="margin-bottom:1rem;">
+<strong>🚫 Tienes ${rechazadosActivos.length} documento(s) rechazado(s).</strong><br>
+Para poder subir nueva documentación, primero debes eliminar todos los documentos rechazados.
+<div style="margin-top:0.8rem;">
+<button type="button" class="btn btn-danger btn-sm" onclick="eliminarTodosRechazados()">🗑️ Eliminar todos los rechazados</button>
+</div>
+</div>`;
+} else if (etapaActual === 'registrado') {
+avisoEtapa.innerHTML = `<div class="alert alert-info">ℹ️ Estás registrado como proveedor activo. La carga de documentos está deshabilitada. Para actualizar tu documentación, espera la solicitud del administrador.</div>`;
+} else if (etapaActual === 'aprobacion') {
+avisoEtapa.innerHTML = `<div class="alert alert-info">📋 Tus documentos están en etapa de aprobación. No puedes modificarlos en este momento.</div>`;
+} else if (etapaActual === 'inscripcion') {
+avisoEtapa.innerHTML = `<div class="alert alert-info">📝 Tus documentos están en etapa de inscripción. No puedes modificarlos en este momento.</div>`;
+} else {
+avisoEtapa.innerHTML = '';
+}
 
     let completados = 0;
 
@@ -695,9 +793,18 @@ return r ? r.nombre : (tipo || 'Documento');
       const noAplica = sub.some(d => d.no_aplica === 1);
       const tieneArchivos = sub.length > 0;
 
-      const puedeSubir = req.cantidadMin === 1
-        ? (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica))
-        : true;
+// 🆕 Documentos con cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
+// siempre permiten agregar mientras no se alcance el máximo (cantidadMax).
+const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
+const rechazadosDelTipo = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+const tieneRechazado = rechazadosDelTipo.length > 0;
+
+const puedeSubir = rechazoTotal
+? false
+: (tieneRechazado
+  ? false
+  : (permiteMultiples ? true : sub.length === 0));
+
 
       if (ok || noAplica) completados++;
 
@@ -711,32 +818,47 @@ return r ? r.nombre : (tipo || 'Documento');
           </small>
         </div>`;
 
-      // BLOQUE EXPERIENCIA (máximo 3)
-      if (req.tipo === 'experiencia') {
-        const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
-        const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
-        const maxAlcanzado = subidosValidos >= 3;
+// 🚫 Punto 8: aviso por tipo con rechazo activo
+if (tieneRechazado) {
+html += `
+<div class="alert alert-error" style="margin-bottom:0.8rem;">
+🚫 Este documento está rechazado. Debes eliminar la versión rechazada antes de subir una nueva.
+</div>`;
+}
 
-        html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-            <span style="font-size:0.85rem;color:#065f46;">
-              📄 Certificados subidos: <strong>${subidosValidos}/3</strong>
-              ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
-              ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
-            </span>
-            ${subirHabilitado && (!maxAlcanzado || subidosRechazados > 0) && puedeSubir ? `
-              <form class="form-upload" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
-                <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-                <button type="submit" class="btn btn-sm" style="background:#059669;">${subidosRechazados > 0 ? '🔄 Reemplazar rechazado' : '📤 Subir PDF'}</button>
-              </form>
-            ` : `
-              <span style="color:#6b7280;font-size:0.9rem;">
-                ${maxAlcanzado && subidosRechazados === 0 ? '✅ Máximo de 3 certificados alcanzado' : (subirHabilitado ? 'No disponible' : '🔒 Solo lectura')}
-              </span>
-            `}
-          </div>
-        </div>`;
-      }
+// BLOQUE EXPERIENCIA (máximo 3)
+if (req.tipo === 'experiencia') {
+const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
+const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
+const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
+const maxAlcanzado = subidosValidos >= maxExp;
+
+html += `
+<div style="margin-top:0.8rem;padding:0.8rem;background:${subidosRechazados > 0 ? '#fee2e2' : '#f0fdf4'};border-radius:6px;border:1px solid ${subidosRechazados > 0 ? '#dc2626' : '#86efac'};">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+    <span style="font-size:0.85rem;color:${subidosRechazados > 0 ? '#991b1b' : '#065f46'};">
+      📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
+      ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazado(s))` : ''}
+      ${maxAlcanzado && subidosRechazados === 0 ? ' ✅ Límite alcanzado' : ''}
+    </span>
+
+    ${subirHabilitado && !tieneRechazado && !maxAlcanzado && puedeSubir ? `
+      <form class="form-upload" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
+        <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+        <button type="submit" class="btn btn-sm" style="background:#059669;">📤 Subir PDF</button>
+      </form>
+    ` : `
+      <span style="color:${subidosRechazados > 0 ? '#991b1b' : '#6b7280'};font-size:0.9rem;font-weight:${subidosRechazados > 0 ? '700' : '400'};">
+        ${subidosRechazados > 0
+          ? '🗑️ Debes eliminar los certificados rechazados antes de subir uno nuevo'
+          : (maxAlcanzado
+            ? `✅ Máximo de ${maxExp} certificados alcanzado`
+            : (subirHabilitado ? 'No disponible' : '🔒 Solo lectura'))}
+      </span>
+    `}
+  </div>
+</div>`;
+}
 
       // PLANTILLA
       if (req.esPlantilla && req.plantilla) {
@@ -752,9 +874,13 @@ return r ? r.nombre : (tipo || 'Documento');
       if (!sub.length) {
         html += '<small style="color:#9ca3af;">📭 No has subido documentos aún</small>';
       } else {
-        sub.forEach(d => {
-          const esHistorico = d.es_historico === 1;
-          const puedeEliminar = subirHabilitado && !esHistorico && d.estado !== 'aprobado' && d.verificado !== 1;
+sub.forEach(d => {
+const esHistorico = d.es_historico === 1;
+// 🚫 Punto 8: aunque la carga esté bloqueada por rechazo, el documento rechazado se puede eliminar
+const puedeEliminar = !esHistorico && d.estado !== 'aprobado' && d.verificado !== 1 && (subirHabilitado || d.estado === 'rechazado');
+const esNoAplica = d.no_aplica === 1;
+const esMarcadorNoAplicaInvalido = !esNoAplica && (!d.archivo || d.archivo === 'no_aplica');
+const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.trim() !== ''; // 🆕 sin archivo físico
 
           html += `<div class="doc-row">
             <div style="flex:1;min-width:180px;">
@@ -769,11 +895,18 @@ return r ? r.nombre : (tipo || 'Documento');
                 </span>
               ` : ''}
             </div>
-            <div class="doc-row-actions">
-              <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
-              <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
-              ${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">🗑️</button>` : ''}
-            </div>
+<div class="doc-row-actions">
+${esNoAplica && !tieneArchivoReal
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: esMarcadorNoAplicaInvalido ? `
+<small style="color:#9ca3af;">Marcador No aplica inválido</small>
+${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">🗑️</button>` : ''}
+` : tieneArchivoReal ? `
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
+${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">🗑️</button>` : ''}
+` : '<small style="color:#9ca3af;">Sin archivo</small>'}
+</div>
           </div>`;
         });
       }
@@ -801,18 +934,23 @@ return r ? r.nombre : (tipo || 'Documento');
         </div>`;
       }
 
-      // FORMULARIO DE SUBIDA
-      if (req.tipo !== 'experiencia' && subirHabilitado && puedeSubir && !noAplica) {
-        const label = sub.length === 0 ? '📤 Subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
-        html += `<form class="form-upload" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
-          <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-          <button type="submit" class="btn btn-sm" style="background:#059669;">${label}</button>
-        </form>`;
-      } else if (req.tipo !== 'experiencia' && noAplica) {
-        html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
-          <small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
-        </div>`;
-      }
+// FORMULARIO DE SUBIDA
+if (req.tipo !== 'experiencia' && subirHabilitado && puedeSubir && !noAplica && !tieneRechazado) {
+const label = sub.length === 0 ? '📤 Subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
+html += `<form class="form-upload" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
+<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+<button type="submit" class="btn btn-sm" style="background:#059669;">${label}</button>
+</form>`;
+} else if (req.tipo !== 'experiencia' && tieneRechazado && !noAplica) {
+html += `
+<div style="margin-top:0.8rem;padding:0.8rem;background:#fee2e2;border-radius:6px;border:1px solid #dc2626;">
+<small style="color:#991b1b;font-weight:600;">🗑️ Documento rechazado: elimínalo antes de subir uno nuevo.</small>
+</div>`;
+} else if (req.tipo !== 'experiencia' && noAplica) {
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+</div>`;
+}
 
       html += '</div>';
       return html;
@@ -853,13 +991,12 @@ return r ? r.nombre : (tipo || 'Documento');
     fd.append('tipo', form.dataset.tipo);
 
     const btn = form.querySelector('button');
-    const textoOriginal = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Subiendo...';
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Subiendo...';
 
-    const estabaRechazado = (etapaActual === 'rechazado');
-
-    const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica');
+// 🚫 Cambio 9: ya no se controla reinicio automático; el flujo exige eliminar documentos rechazados antes de subir.
+const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica');
     if (checkboxNoAplica && checkboxNoAplica.checked) {
       try {
         const tipo = form.dataset.tipo;
@@ -880,17 +1017,14 @@ return r ? r.nombre : (tipo || 'Documento');
     try {
       const res = await fetchAPI('/api/proveedor/documento', { method: 'POST', body: fd });
       const r = await res.json();
-      if (res.ok) {
-        mostrarAlerta('👌 Documento subido correctamente', 'success');
-        documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
-        renderDocumentos();
-        await actualizarEstado();
+if (res.ok) {
+mostrarAlerta('👌 Documento subido correctamente', 'success');
+documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+renderDocumentos();
+await actualizarEstado();
 
-        // Si estaba rechazado y el backend reinició el proceso, informar
-        if (estabaRechazado && etapaActual !== 'rechazado') {
-          mostrarNotificacion('✅ Tu proceso se reinició automáticamente. El administrador revisará tus nuevos documentos.', 'success', 6000);
-        }
-      } else {
+// 🚫 Cambio 9: sin mensaje de reinicio automático
+} else {
         mostrarAlerta(`❌ ${r.error}`);
       }
     } catch (err) {
@@ -902,14 +1036,23 @@ return r ? r.nombre : (tipo || 'Documento');
     }
   }
 
+
+
   // ==========================================
   // HANDLER PARA "NO APLICA"
   // ==========================================
-  async function handleNoAplicaChange(e) {
-    const checkbox = e.target;
-    const tipo = checkbox.dataset.tipo;
-    const noAplica = checkbox.checked;
-    checkbox.disabled = true;
+async function handleNoAplicaChange(e) {
+const checkbox = e.target;
+const tipo = checkbox.dataset.tipo;
+const noAplica = checkbox.checked;
+
+if (!puedeSubirDocumentos()) {
+mostrarAlerta('🔒 No puedes modificar documentos mientras tengas rechazados activos o en la etapa actual.', 'warning');
+checkbox.checked = !noAplica;
+return;
+}
+
+checkbox.disabled = true;
 
     try {
       const res = await fetchAPI('/api/proveedor/documento', {
@@ -990,6 +1133,52 @@ return r ? r.nombre : (tipo || 'Documento');
       mostrarAlerta('Error al eliminar el documento');
     }
   }
+
+  // ==========================================
+// 🗑️ ELIMINAR TODOS LOS DOCUMENTOS RECHAZADOS
+// ==========================================
+async function eliminarTodosRechazados() {
+const rechazados = (documentos || []).filter(d =>
+d.es_historico !== 1 &&
+d.estado === 'rechazado' &&
+d.no_aplica === 0
+);
+
+if (rechazados.length === 0) {
+mostrarAlerta('No hay documentos rechazados para eliminar.', 'info');
+return;
+}
+
+if (!confirm(`¿Estás seguro de eliminar ${rechazados.length} documento(s) rechazado(s)?`)) return;
+
+let eliminados = 0;
+let errores = 0;
+
+for (const doc of rechazados) {
+try {
+const res = await fetchAPI(`/api/proveedor/documento/${doc.id}`, { method: 'DELETE' });
+
+if (res.ok) {
+  eliminados++;
+} else {
+  errores++;
+}
+} catch (err) {
+console.error(`Error eliminando documento ${doc.id}:`, err);
+errores++;
+}
+}
+
+documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+renderDocumentos();
+await actualizarEstado();
+
+if (errores === 0) {
+mostrarAlerta(`👌 Se eliminaron ${eliminados} documento(s) rechazados.`, 'success');
+} else {
+mostrarAlerta(`⚠️ Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning');
+}
+}
 
   // ==========================================
   // 👁️ VISOR DE DOCUMENTOS
@@ -1178,15 +1367,17 @@ return r ? r.nombre : (tipo || 'Documento');
         registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
         documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
         documento_no_aplica: '📋', documento_requiere_carga: '📄', datos_actualizados: '✏️',
-        reinicio_automatico: '♻️', solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰'
+        reinicio_automatico: '♻️', solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰',tipo_persona_definido: '🧾'
       };
       const clases = {
         documento_subido: 'subida', documento_reemplazado: 'subida',
         documento_aprobado: 'aprobado', documento_rechazado: 'rechazado',
         documento_eliminado: 'eliminado', datos_actualizados: 'datos',
         registro: 'registro', documento_no_aplica: 'aprobado', documento_requiere_carga: 'datos',
-        reinicio_automatico: 'subida', solicitud_actualizacion: 'recordatorio', vencimiento_automatico: 'rechazado'
+        reinicio_automatico: 'subida', solicitud_actualizacion: 'recordatorio', vencimiento_automatico: 'rechazado',tipo_persona_definido: 'datos'
       };
+
+      
 
       return `
         <div class="historial-item">
@@ -1203,55 +1394,85 @@ return r ? r.nombre : (tipo || 'Documento');
   // ==========================================
   // 🏢 GUARDAR DATOS
   // ==========================================
-  document.getElementById('form-datos').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    const textoOriginal = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Guardando...';
+document.getElementById('form-datos').addEventListener('submit', async e => {
+e.preventDefault();
 
-    try {
-      const data = Object.fromEntries(new FormData(e.target));
-      const res = await fetchAPI('/api/proveedor/datos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+const btn = e.target.querySelector('button');
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Guardando...';
 
-      if (res.ok) {
-        mostrarAlerta('👌 Datos guardados correctamente', 'success');
-        const prov = await (await fetchAPI('/api/proveedor/info')).json();
-        const perfilAhoraCompleto = (
-          prov.razon_social && prov.razon_social.trim() !== '' &&
-          prov.rfc && prov.rfc.trim() !== '' &&
-          prov.representante && prov.representante.trim() !== '' &&
-          prov.telefono && prov.telefono.trim() !== '' &&
-          prov.direccion && prov.direccion.trim() !== ''
-        );
-        if (perfilAhoraCompleto && !perfilCompleto) location.reload();
-      } else {
-        const r = await res.json();
-        mostrarAlerta(`❌ ${r.error}`);
-      }
-    } catch (err) {
-      console.error('Error guardando datos:', err);
-      mostrarAlerta('Error al guardar los datos');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = textoOriginal;
-    }
-  });
+try {
+const data = Object.fromEntries(new FormData(e.target));
+
+const res = await fetchAPI('/api/proveedor/datos', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(data)
+});
+
+if (res.ok) {
+mostrarAlerta('👌 Datos guardados correctamente', 'success');
+
+const prov = await (await fetchAPI('/api/proveedor/info')).json();
+
+// Actualizar radios y etiqueta del tipo de persona
+actualizarTipoPersonaUI(prov);
+
+// Recalcular bloqueo/desbloqueo del portal
+verificarYBloquearPerfil(prov);
+
+if (perfilCompleto) {
+try {
+requeridos = await (await fetchAPI('/api/proveedor/requerimientos')).json();
+
+if (!requeridos || requeridos.length === 0) {
+console.warn('⚠️ No se pudieron cargar los requerimientos después de guardar los datos.');
+mostrarAlerta('No se pudieron cargar los documentos requeridos. Recarga la página o contacta al administrador.', 'warning');
+}
+
+documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+
+document.getElementById('docsTotal').textContent = requeridos.length || 0;
+
+renderDocumentos();
+await actualizarBadgesVerificacion();
+} catch (err) {
+console.error('❌ Error recargando documentos después de guardar datos:', err);
+mostrarAlerta('Error al cargar los documentos actualizados.', 'error');
+}
+
+// 🚫 FIX: pasar EXPLÍCITAMENTE a la pestaña Documentos
+// (oculta "Mis datos", activa "Documentos" y muestra la lista recién cargada)
+cambiarTab('docs');
+}
+} else {
+const r = await res.json();
+mostrarAlerta(`❌ ${r.error}`);
+}
+} catch (err) {
+console.error('Error guardando datos:', err);
+mostrarAlerta('Error al guardar los datos');
+} finally {
+btn.disabled = false;
+btn.textContent = textoOriginal;
+}
+});
 
   // ==========================================
   // 🔑 CAMBIAR CONTRASEÑA
   // ==========================================
   document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
 
-    if (data.password_nueva !== data.password_confirmar) {
-      return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
-    }
+const data = Object.fromEntries(new FormData(e.target));
+if (data.password_nueva !== data.password_confirmar) {
+return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
+}
+// ⚡ OPT (#6): feedback inmediato sin round-trip al servidor
+if (data.password_nueva === data.password_actual) {
+return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actual');
+}
 
     const btn = e.target.querySelector('button');
     const textoOriginal = btn.textContent;
@@ -1293,16 +1514,10 @@ return r ? r.nombre : (tipo || 'Documento');
   // ==========================================
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      if (tab.classList.contains('tab-bloqueada')) return;
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const tgt = tab.dataset.tab;
-      document.getElementById('tab-docs').classList.toggle('hidden', tgt !== 'docs');
-      document.getElementById('tab-datos').classList.toggle('hidden', tgt !== 'datos');
-      document.getElementById('tab-hist').classList.toggle('hidden', tgt !== 'hist');
-      if (tgt === 'hist') cargarHistorial();
+    if (tab.classList.contains('tab-bloqueada')) return;
+    cambiarTab(tab.dataset.tab);
     });
-  });
+    });
 
   document.getElementById('modalVisor').addEventListener('click', e => {
     if (e.target.id === 'modalVisor') cerrarVisor();

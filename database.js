@@ -3,13 +3,47 @@
 // ==========================================
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { generarPasswordAleatoria } = require('./security');
-
 // Usar volumen persistente en Railway, o local en desarrollo
 const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
 const dbPath = path.join(dataDir, 'proveedores.db');
-
+// 🩹 SELF-HEALING (Railway): si la BD principal está corrupta y hay backups en el
+// volumen, restaura automáticamente el más reciente ANTES de abrir el servicio.
+// El archivo dañado se conserva cuarentenado como proveedores.db.corrupt_<ts>.
+function asegurarIntegridadInicial() {
+  const backupsDir = path.join(dataDir, 'backups');
+  try {
+    if (fs.existsSync(dbPath)) {
+      let temp = null;
+      try {
+        temp = new Database(dbPath, { readonly: true, fileMustExist: true });
+        const check = temp.pragma('integrity_check', { simple: true });
+        temp.close();
+        if (check === 'ok') return; // BD sana: no hacer nada
+        console.error(`⚠️ integrity_check de la BD principal falló: ${check}`);
+      } catch (e) {
+        try { if (temp) temp.close(); } catch (_) {}
+        console.error('⚠️ No se pudo abrir la BD principal para verificación:', e.message);
+      }
+    }
+    if (!fs.existsSync(backupsDir)) return;
+    const candidatos = fs.readdirSync(backupsDir)
+      .filter(f => /^proveedores_\d{4}-\d{2}-\d{2}(_\d{4})?\.db$/.test(f))
+      .sort();
+    if (!candidatos.length) { console.warn('⚠️ SELF-HEALING: no hay backups disponibles en el volumen'); return; }
+    const ultimo = path.join(backupsDir, candidatos[candidatos.length - 1]);
+    if (fs.existsSync(dbPath)) fs.renameSync(dbPath, `${dbPath}.corrupt_${Date.now()}`);
+    fs.rmSync(`${dbPath}-wal`, { force: true });
+    fs.rmSync(`${dbPath}-shm`, { force: true });
+    fs.copyFileSync(ultimo, dbPath);
+    console.log(`🩹 SELF-HEALING: BD restaurada automáticamente desde ${path.basename(ultimo)}`);
+  } catch (e) {
+    console.error('❌ Error en self-healing:', e.message);
+  }
+}
+asegurarIntegridadInicial();
 const db = new Database(dbPath);
 
 console.log('📂 Ruta de la base de datos:', dbPath);
@@ -21,6 +55,7 @@ db.pragma('foreign_keys = ON');
 db.pragma('synchronous = NORMAL');
 db.pragma('cache_size = -64000');
 db.pragma('busy_timeout = 5000');
+db.pragma('mmap_size = 268435456'); // 256 MB mapeados en memoria (lecturas más rápidas)
 
 console.log('🗄️  Base de datos inicializada');
 
@@ -318,6 +353,38 @@ try {
       AND estado != 'rechazado'
   `).run();
 
+  // 🧹 Eliminar marcadores "No aplica" que quedaron desmarcados y sin archivo real
+const marcadoresNoAplicaInvalidos = db.prepare(`
+  DELETE FROM documentos
+  WHERE no_aplica = 0
+    AND (archivo IS NULL OR archivo = 'no_aplica')
+    AND es_historico = 0
+`).run();
+
+if (marcadoresNoAplicaInvalidos.changes > 0) {
+  console.log(`🧹 ${marcadoresNoAplicaInvalidos.changes} marcador(es) No aplica inválido(s) eliminado(s)`);
+}
+
+
+  // 🆕 Normalizar tipo_proveedor: los existentes quedan como 'juridica'
+//    (equivalente al comportamiento actual). Solo se preserva quien ya
+//    tenga la palabra "natural" en el texto libre que haya puesto el admin.
+db.prepare(`
+  UPDATE proveedores
+  SET tipo_proveedor = 'natural'
+  WHERE tipo_proveedor IS NOT NULL
+    AND tipo_proveedor != ''
+    AND lower(tipo_proveedor) LIKE '%natural%'
+`).run();
+db.prepare(`
+  UPDATE proveedores
+  SET tipo_proveedor = 'juridica'
+  WHERE tipo_proveedor IS NULL
+     OR tipo_proveedor = ''
+     OR tipo_proveedor != 'natural'
+`).run();
+console.log('✅ tipo_proveedor normalizado (natural/juridica)');
+
   console.log('✅ Normalización básica completada');
 } catch (err) {
   console.error('⚠️ Error normalizando datos existentes:', err.message);
@@ -537,6 +604,7 @@ const DOCUMENTOS_REQUERIDOS = [
   { tipo: 'gaf01', nombre: 'GAF04-01-FO-01 Abastacimiento de Bienes y Servicios V11', descripcion: 'Aba Bie Serv V1.1', esPlantilla: true, requiereFirma: true, requiereHuella: false, cantidadMin: 1 },
   { tipo: 'gaf07', nombre: 'GAF04-01-FO-07 Lavado de activos V2', descripcion: 'Lavado de activos V2', esPlantilla: true, requiereFirma: true, requiereHuella: true, cantidadMin: 1 },
   { tipo: 'gaf08', nombre: 'GAF04-01-FO-08 Declaración de Origen de Fondos V2', descripcion: 'Declaración origen de fondos V2', esPlantilla: true, requiereFirma: true, requiereHuella: true, cantidadMin: 1 },
+  { tipo: 'carta_ica', nombre: 'Carta ICA', descripcion: 'Carta ICA - formato institucional', esPlantilla: true, cantidadMin: 1 },
   { tipo: 'rut', nombre: 'RUT', esPlantilla: false, cantidadMin: 1 },
   { tipo: 'camara_comercio', nombre: 'Certificado Cámara de Comercio', esPlantilla: false, cantidadMin: 1 },
   { tipo: 'cedula_rl', nombre: 'Fotocopia cédula de ciudadanía del Representante Legal', esPlantilla: false, cantidadMin: 1 },
@@ -546,47 +614,73 @@ const DOCUMENTOS_REQUERIDOS = [
   { tipo: 'sgsst', nombre: 'Certificación Seguridad y Salud en el Trabajo', esPlantilla: false, cantidadMin: 1 },
   { tipo: 'experiencia', nombre: 'Certificados de experiencia comercial (mínimo 3)', descripcion: 'Mínimo 3 certificados', esPlantilla: false, cantidadMin: 3, cantidadMax: 3 },
   { tipo: 'cuenta_bancaria', nombre: 'Certificación de la Cuenta Bancaria', esPlantilla: false, cantidadMin: 1 },
-  { tipo: 'ambiental', nombre: 'Certificado Ambiental', esPlantilla: false, cantidadMin: 1 }
+  { tipo: 'ambiental', nombre: 'Certificado Ambiental', esPlantilla: false, cantidadMin: 1, opcional: true }
 ];
+
+// ==========================================
+// 🆕 6.1 DOCUMENTOS POR TIPO DE PERSONA
+// ==========================================
+
+// Documento exclusivo de Persona Natural
+const DOC_COMPETENCIAS = {
+  tipo: 'competencias',
+  nombre: 'Certificados de competencia (cuando aplique)',
+  descripcion: 'Alturas, manipulación de alimentos, matrícula electricista, espacios confinados, etc.',
+  esPlantilla: false,
+  cantidadMin: 1,
+  opcional: true
+};
+
+// Orden de presentación solicitado para Persona Natural
+const ORDEN_NATURAL = [
+  'gaf01', 'gaf07', 'gaf08', 'carta_ica', 'rut', 'camara_comercio', 'cedula_rl',
+  'estados_financieros', 'experiencia', 'parafiscales', 'calidad',
+  'ambiental', 'sgsst', 'competencias'
+];
+
+const OBLIGATORIOS_NATURAL = ['gaf01', 'gaf07', 'gaf08', 'carta_ica', 'rut', 'cedula_rl'];
+/**
+ * 🆕 Devuelve los documentos requeridos según el tipo de persona.
+ * - 'juridica' (o vacío/null) → lista ACTUAL sin cambios.
+ * - 'natural' → todos con "No aplica", experiencia 1-2, sin cuenta_bancaria, + competencias.
+ */
+function requerimientosPara(tipoPersona) {
+  if (String(tipoPersona || '').trim().toLowerCase() !== 'natural') {
+  return DOCUMENTOS_REQUERIDOS; // 👈 Jurídica = flujo actual intacto
+  }
+  return DOCUMENTOS_REQUERIDOS
+  .filter(r => r.tipo !== 'cuenta_bancaria')
+  .map(r => {
+  // 🆕 Los obligatorios para natural NO llevan "No aplica"; el resto sí
+  const esObligatorio = OBLIGATORIOS_NATURAL.includes(r.tipo);
+  const doc = esObligatorio ? { ...r } : { ...r, opcional: true };
+  if (r.tipo === 'experiencia') {
+  doc.nombre = 'Certificados comerciales como proveedores (1 o 2)';
+  doc.cantidadMin = 1;
+  doc.cantidadMax = 2;
+  }
+  if (r.tipo === 'camara_comercio') doc.nombre = 'Cámara de Comercio actualizada';
+  if (r.tipo === 'parafiscales') doc.nombre = 'Certificación de revisor fiscal, contador o representante legal al día con pagos de seguridad social';
+  if (r.tipo === 'sgsst') doc.nombre = 'Certificación ARL y/o evaluación SGSST';
+  return doc;
+  })
+  .concat([DOC_COMPETENCIAS])
+  .sort((a, b) => ORDEN_NATURAL.indexOf(a.tipo) - ORDEN_NATURAL.indexOf(b.tipo));
+}
+
+/** 🆕 Configuración de un tipo de documento según el tipo de persona del proveedor */
+function configDocumento(tipoDoc, tipoPersona) {
+  return requerimientosPara(tipoPersona).find(d => d.tipo === tipoDoc) || null;
+  }
 
 // ==========================================
 // 7. FUNCIONES HELPER DE BASE DE DATOS
 // ==========================================
-function obtenerEstadisticas() {
-  try {
-    const stats = {
-      usuarios: db.prepare('SELECT COUNT(*) as total FROM usuarios').get().total,
-      proveedores: db.prepare('SELECT COUNT(*) as total FROM proveedores').get().total,
-
-      documentos: db.prepare('SELECT COUNT(*) as total FROM documentos').get().total,
-      documentosActivos: db.prepare('SELECT COUNT(*) as total FROM documentos WHERE es_historico = 0').get().total,
-      documentosHistoricos: db.prepare('SELECT COUNT(*) as total FROM documentos WHERE es_historico = 1').get().total,
-
-      documentosAprobados: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'aprobado'").get().total,
-      documentosPendientes: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'pendiente'").get().total,
-      documentosRechazados: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'rechazado'").get().total,
-
-      documentosAprobadosActivos: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'aprobado' AND es_historico = 0").get().total,
-      documentosPendientesActivos: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'pendiente' AND es_historico = 0").get().total,
-      documentosRechazadosActivos: db.prepare("SELECT COUNT(*) as total FROM documentos WHERE estado = 'rechazado' AND es_historico = 0").get().total,
-
-      proveedoresAprobados: db.prepare("SELECT COUNT(*) as total FROM proveedores WHERE estado_general = 'aprobado'").get().total,
-      proveedoresPendientes: db.prepare("SELECT COUNT(*) as total FROM proveedores WHERE estado_general = 'pendiente'").get().total,
-      proveedoresRechazados: db.prepare("SELECT COUNT(*) as total FROM proveedores WHERE estado_general = 'rechazado'").get().total
-    };
-
-    return stats;
-  } catch (e) {
-    console.error('Error obteniendo estadísticas:', e.message);
-    return null;
-  }
-}
-
 function limpiarLogsAntiguos() {
   try {
     const result = db.prepare(`
       DELETE FROM logs_seguridad
-      WHERE creado_en < datetime('now', '-90 days', 'localtime')
+      WHERE creado_en < datetime('now', '-90 days', '-05:00')
     `).run();
 
     if (result.changes > 0) {
@@ -597,25 +691,15 @@ function limpiarLogsAntiguos() {
   }
 }
 
-function verificarIntegridad() {
-  try {
-    const result = db.prepare('PRAGMA integrity_check').get();
-    return result.integrity_check === 'ok';
-  } catch (e) {
-    console.error('Error verificando integridad:', e.message);
-    return false;
-  }
-}
-
 // ==========================================
 // 8. EXPORTACIÓN
 // ==========================================
 module.exports = {
   db,
-  DOCUMENTOS_REQUERIDOS,
-  obtenerEstadisticas,
-  limpiarLogsAntiguos,
-  verificarIntegridad
+    DOCUMENTOS_REQUERIDOS,
+    requerimientosPara,
+    configDocumento,
+    limpiarLogsAntiguos
 };
 
 console.log('✅ Base de datos completamente inicializada\n');

@@ -263,14 +263,22 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <input type="email" name="email" required placeholder="correo@empresa.com">
 </div>
 <div class="form-group">
-<label>Contraseña inicial *</label>
-<input type="text" name="password" required minlength="8" placeholder="Mín. 8 caracteres">
-<small style="color:#6b7280;font-size:0.8rem;">Debe tener mayúscula, minúscula, número y especial</small>
+<label>Contraseña inicial (opcional)</label>
+<input type="text" name="password" minlength="8" placeholder="Vacía = enlace de activación">
+<small style="color:#6b7280;font-size:0.8rem;">Recomendado: déjala vacía y el proveedor creará su propia contraseña. Si escribes una: mín. 8, mayúscula, minúscula, número y especial.</small>
 </div>
 </div>
 <div class="form-group">
 <label>Nombre de la empresa *</label>
 <input type="text" name="nombre_empresa" required placeholder="Nombre legal de la empresa">
+</div>
+<div class="form-group">
+<label>Tipo de persona</label>
+<select name="tipo_proveedor">
+<option value="">— El proveedor lo elegirá después —</option>
+<option value="juridica">🏢 Persona Jurídica</option>
+<option value="natural">🧍 Persona Natural</option>
+</select>
 </div>
 <h4 style="margin:1.5rem 0 0.8rem 0;color:#1e40af;">🏢 Datos de la empresa (Obligatorios)</h4>
 <div class="grid-2">
@@ -311,6 +319,7 @@ return fetch(url, { ...options, credentials: 'include' });
 // 📋 VARIABLES GLOBALES
 // ==========================================
 let requeridos = [];
+let requeridosDefault = []; // 🆕 lista base (jurídica) para restaurar al cerrar modales
 let moduloActual = 'registrados';
 let proveedorActualId = null;
 let proveedorActualNombre = '';
@@ -364,6 +373,14 @@ return String(text)
 .replace(/</g, '&lt;')
 .replace(/>/g, '&gt;');
 }
+
+// 🛡️ Escapa celdas CSV y neutraliza inyección de fórmulas (= + - @) para Excel.
+function celdaCSV(c) {
+let s = String(c ?? '');
+if (/^[=+\-@]/.test(s)) s = "'" + s;
+return `"${s.replace(/"/g, '""')}"`;
+}
+
 // 🛡️ A1: abre el visor leyendo los datos desde data-attributes (evita inyectar el nombre en onclick)
 function verDocumentoBtn(btn) {
 verDocumento(btn.dataset.url, btn.dataset.nombre || 'Documento');
@@ -528,6 +545,7 @@ document.getElementById('userEmail').textContent = me.usuario.email;
 const reqResp = await fetchAPI('/api/proveedor/requerimientos');
 if (reqResp.ok) {
 requeridos = await reqResp.json();
+requeridosDefault = requeridos.slice(); // 🆕
 console.log('✅ Requerimientos cargados:', requeridos.length);
 } else {
 console.error('❌ Error al cargar requerimientos');
@@ -684,12 +702,16 @@ ${modulo === 'registrados' ? `
 `;
 contenedor.innerHTML = html;
 cargarProveedoresPorModulo(modulo, 1);
-
 const buscador = document.getElementById('buscador');
 if (buscador) {
+// ⚡ OPT (#5): debounce 300ms — consulta al hacer pausa, no en cada tecla
+let debounceBusqueda = null;
 buscador.addEventListener('input', function() {
+clearTimeout(debounceBusqueda);
+debounceBusqueda = setTimeout(() => {
 paginaActual = 1;
 cargarProveedoresPorModulo(moduloActual, 1);
+}, 300);
 });
 const randomName = 'search_' + Math.random().toString(36).substring(2, 10);
 buscador.setAttribute('name', randomName);
@@ -920,7 +942,19 @@ return;
 proveedorActualId = id;
 proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
 historicosCache = data.documentos_historicos || [];
-
+// 🆕 Cargar los requerimientos según el tipo de persona de ESTE proveedor
+try {
+const tipoProv = data.proveedor.tipo_proveedor;
+if (tipoProv === 'natural' || tipoProv === 'juridica') {
+const rr = await fetchAPI(`/api/proveedor/requerimientos?tipo=${tipoProv}`);
+if (rr.ok) {
+const listaTipo = await rr.json();
+if (listaTipo.length) requeridos = listaTipo;
+}
+} else {
+requeridos = requeridosDefault.slice(); // 🆕 tipo sin definir → lista estándar
+}
+} catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
 document.getElementById('modalTitulo').textContent = proveedorActualNombre;
 const contenedorDinamico = document.getElementById('modalContenidoDinamico');
 const subTabsContainer = document.getElementById('subTabsContainer');
@@ -1024,8 +1058,12 @@ ${d.fecha_archivado ? `<br><small style="color:#6b7280;">📦 Archivado: ${forma
 ${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">📅 Vencimiento: ${formatearFecha(d.fecha_vencimiento)}</small> <span class="badge badge-${ev.clase}" style="font-size:0.7rem;">${ev.icono} ${ev.texto}</span>` : ''}
 </div>
 <div class="doc-row-actions">
+${(d.no_aplica === 1 || d.archivo === 'no_aplica')
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
 <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
+`}
 </div>
 </div>
 `;
@@ -1046,9 +1084,9 @@ return '<div class="alert alert-error">Error: No se pudo cargar la información 
 }
 const map = {};
 documentos.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
-
 let html = `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
+<strong>Tipo de persona:</strong> ${proveedor.tipo_proveedor === 'natural' ? '🧍 Persona Natural' : proveedor.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : '<span style="color:#dc2626;">⚠️ Sin definir</span>'}<br>
 <strong>Email:</strong> ${escapeHtml(proveedor.email || '')}<br>
 <strong>NIT/RUT:</strong> ${escapeHtml(proveedor.rfc || '—')}<br>
 <strong>Representante:</strong> ${escapeHtml(proveedor.representante || '—')}<br>
@@ -1063,36 +1101,36 @@ let html = `
 </div>
 <div class="doc-grid">
 `;
-
 requeridos.forEach((req, idx) => {
 const sub = map[req.tipo] || [];
 const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
 const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
 const tieneArchivos = sub.length > 0;
-const puedeSubir = req.cantidadMin === 1
-? (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica))
-: true;
-
+// 🆕 Cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
+const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
+const puedeSubir = permiteMultiples
+? true
+: (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica));
 html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
 <div style="margin-bottom:0.5rem;">
 <h4>${idx+1}. ${req.nombre}</h4>
 <small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
 ${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
+${noAplica ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;background:#fef3c7;color:#92400e;">No aplica</span>' : ''}
 </div>`;
-
+// ---- DOCUMENTOS SUBIDOS ----
 if (!sub.length) {
 html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
 } else {
 sub.forEach(d => {
-const nombreEscapado = escapeHtml(d.nombre_original || '');
 const verificado = d.verificado === 1;
 const aprobado = d.estado === 'aprobado';
 const rechazado = d.estado === 'rechazado';
-const checkDeshabilitado = rechazado || aprobado;
-
+const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica');
+const checkDeshabilitado = rechazado || aprobado || esNoAplica;
 html += `<div class="doc-row">
 <div style="flex:1;min-width:180px;">
-<small>📎 ${d.no_aplica === 1 && d.verificado === 1 ?
+<small>📎 ${esNoAplica && verificado ?
 `<span class="badge badge-aprobado">NO APLICA</span>` :
 `<span class="badge badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span>`
 }</small>
@@ -1105,7 +1143,6 @@ ${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimient
 </span>
 ` : ''}
 <br>`;
-
 if (modo === 'verificacion') {
 html += `
 <label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:${checkDeshabilitado ? 'not-allowed' : 'pointer'};margin-top:0.2rem;">
@@ -1113,18 +1150,15 @@ html += `
 ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 <span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
 </label>
-${!aprobado ? `<button class="btn btn-sm btn-danger" style="margin-left:0.3rem;" onclick="rechazar(${d.id})">✗ Rechazar</button>` : ''}
 ${rechazado ? '<small style="color:#dc2626;display:block;">⚠️ Documento rechazado - Debe corregirse</small>' : ''}
 `;
 } else if (modo === 'aprobacion') {
-if (verificado && !aprobado) {
-html += `
-<span style="color:#059669;font-size:0.85rem;">✅ Verificado</span>
-<button class="btn btn-sm" style="background:#059669;margin-left:0.3rem;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
-<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
-`;
+if (esNoAplica) {
+html += `<span style="color:#92400e;font-size:0.85rem;">📋 No aplica</span>`;
 } else if (aprobado) {
 html += `<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
+} else if (verificado) {
+html += `<span style="color:#059669;font-size:0.85rem;">✅ Verificado</span>`;
 } else {
 html += `<span style="color:#dc2626;font-size:0.85rem;">❌ No verificado</span>`;
 }
@@ -1133,25 +1167,35 @@ if (aprobado) html += `<span style="color:#059669;font-size:0.85rem;">✅ Aproba
 else if (rechazado) html += `<span style="color:#dc2626;font-size:0.85rem;">❌ Rechazado</span>`;
 else html += `<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>`;
 }
-
 html += `
 </div>
-<div class="doc-row-actions">
+<div class="doc-row-actions" style="margin-left:auto;justify-content:flex-end;align-items:center;">
+${esNoAplica
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
-${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumentoAdmin(${d.id}, ${proveedor.id})">🗑️</button>` : ''}
+`}
+${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>` : ''}
+${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumentoAdmin(${d.id}, ${proveedor.id})">🗑️ Eliminar</button>` : ''}
+${modo === 'aprobacion' && verificado && !aprobado ? `
+<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
+<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
+` : ''}
 </div>
 </div>`;
 });
 }
-
+// ---- NO APLICA (solo verificación, documentos opcionales) ----
 if (modo === 'verificacion' && req.opcional) {
 const noAplicaChecked = sub.some(d => d.no_aplica === 1);
-const checkboxDisabled = tieneArchivos && !noAplicaChecked;
+// 🆕 FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
+const tieneArchivosReales = sub.some(d => d.archivo && d.archivo !== 'no_aplica');
+const checkboxDisabled = tieneArchivosReales && !noAplicaChecked;
 const docId = sub.length > 0 ? sub[0].id : '';
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
-<label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
-<input type="checkbox" class="checkbox-no-aplica-admin"
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;width:100%;box-sizing:border-box;">
+<label style="display:flex;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
+<input type="checkbox" class="checkbox-no-aplica-admin" style="flex-shrink:0;width:auto;margin-top:0.15rem;"
 data-docid="${docId}" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}"
 ${noAplicaChecked ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
 <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Este documento no aplica para este proveedor</span>
@@ -1166,16 +1210,17 @@ ${noAplicaChecked
 </small>
 </div>`;
 }
-
+// ---- EXPERIENCIA + SUBIDA ADMIN (solo verificación) ----
 if (modo === 'verificacion') {
 if (req.tipo === 'experiencia') {
+const maxExp = req.cantidadMax || 3;
 const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
 const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
-const maxAlcanzado = subidosValidos >= 3;
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
+const maxAlcanzado = subidosValidos >= maxExp;
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;width:100%;box-sizing:border-box;">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
 <span style="font-size:0.85rem;color:#065f46;">
-📄 Certificados subidos: <strong>${subidosValidos}/3</strong>
+📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
@@ -1187,7 +1232,7 @@ ${(!maxAlcanzado || subidosRechazados > 0) && puedeSubir ? `
 </form>
 ` : `
 <span style="color:#6b7280;font-size:0.9rem;">
-${maxAlcanzado && subidosRechazados === 0 ? '✅ Máximo de 3 certificados alcanzado' : 'No disponible'}
+${maxAlcanzado && subidosRechazados === 0 ? `✅ Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}
 </span>
 `}
 </div>
@@ -1195,13 +1240,13 @@ ${maxAlcanzado && subidosRechazados === 0 ? '✅ Máximo de 3 certificados alcan
 }
 if (req.tipo !== 'experiencia' && puedeSubir && !noAplica && mostrarSubida) {
 const label = sub.length === 0 ? '📤 Admin subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
-html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;">
+html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;width:100%;box-sizing:border-box;">
 <span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
 <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
 </form>`;
 } else if (req.tipo !== 'experiencia' && noAplica) {
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;width:100%;box-sizing:border-box;">
 <small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
 </div>`;
 }
@@ -1212,8 +1257,81 @@ html += '</div>';
 return html;
 }
 
+// 🆕 Bloque para definir tipo de persona cuando no está definido
+function renderDefinirTipoPersona(proveedor) {
+return `
+<div class="alert alert-warning" style="margin-bottom:1rem;background:#fef3c7;border-left:5px solid #f59e0b;padding:1.2rem;">
+<strong style="color:#92400e;">⚠️ Tipo de persona sin definir</strong>
+<p style="color:#78350f;margin:0.4rem 0 0 0;">
+Este proveedor aún no ha elegido si es <strong>Persona Natural</strong> o <strong>Persona Jurídica</strong>.
+La lista de documentos requeridos depende de esta definición. Puedes definirla tú como administrador (el proveedor también puede hacerlo en su pestaña "Mis datos").
+</p>
+</div>
+<div class="card" style="background:#f0f9ff;padding:1.5rem;margin-bottom:1rem;border:2px solid #bae6fd;">
+<h4 style="margin-bottom:0.8rem;">🧾 Definir tipo de persona</h4>
+<div style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+<input type="radio" name="tipoPersonaDefinicion" value="juridica"> 🏢 Persona Jurídica
+</label>
+<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+<input type="radio" name="tipoPersonaDefinicion" value="natural"> 🧍 Persona Natural
+</label>
+</div>
+<button class="btn" onclick="guardarTipoPersona(${proveedor.id})" style="background:#2563eb;">💾 Guardar tipo y cargar documentos</button>
+</div>
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>ℹ️ Mientras tanto:</strong> La lista de documentos que se muestra abajo corresponde a la lista estándar (Persona Jurídica). Una vez definido el tipo, se recargará con los documentos correctos.
+</div>
+`;
+}
+async function guardarTipoPersona(proveedorId) {
+const seleccion = document.querySelector('input[name="tipoPersonaDefinicion"]:checked');
+if (!seleccion) {
+mostrarAlerta('⚠️ Debes seleccionar un tipo de persona', 'warning');
+return;
+}
+const tipo = seleccion.value;
+try {
+mostrarAlerta('⏳ Guardando tipo de persona...', 'info');
+const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ tipo_proveedor: tipo })
+});
+const data = await res.json();
+if (res.ok) {
+mostrarAlerta('✅ Tipo de persona definido. Recargando documentos...', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else if (data.requiere_confirmacion) {
+if (confirm(`⚠️ ${data.error}\n\n¿Forzar el cambio de tipo? Esto podría afectar los documentos ya cargados.`)) {
+const res2 = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ tipo_proveedor: tipo, forzar: true })
+});
+if (res2.ok) {
+mostrarAlerta('✅ Tipo de persona forzado. Recargando...', 'success');
+await recargarVistaProveedor();
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} else { mostrarAlerta('❌ Error al forzar el cambio'); }
+}
+} else {
+mostrarAlerta('❌ ' + (data.error || 'Error al guardar el tipo'));
+}
+} catch (err) {
+console.error('Error guardando tipo:', err);
+mostrarAlerta('❌ Error de conexión');
+}
+}
+
 function renderVerificacionCompleta(proveedor, documentos) {
-let html = `
+let html = '';
+// 🆕 Si no hay tipo de persona definido, mostrar bloque de definición primero
+if (!proveedor.tipo_proveedor) {
+html += renderDefinirTipoPersona(proveedor);
+}
+html += `
 <div class="alert alert-info" style="margin-bottom:1rem;">
 <strong>✅ Módulo de Verificación:</strong> Marca el checkbox para verificar cada documento.
 Puedes rechazar un documento si está mal. También puedes marcar "No aplica" para documentos opcionales.
@@ -1247,10 +1365,10 @@ ${proveedor.evaluacion_inicial ? `
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
 <a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
-${proveedor.evaluacion_estado === 'pendiente' ? `
+${(proveedor.evaluacion_estado === 'pendiente' || proveedor.evaluacion_estado === 'rechazado') ? `
 ${todosAprobados ? `
 <button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstadoEvaluacion(${proveedor.id},'aprobado')">✅ Aprobar evaluación</button>
-<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">❌ Rechazar evaluación</button>
+${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">❌ Rechazar evaluación</button>` : ''}
 <button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">🗑️ Eliminar</button>
 ` : `
 <button class="btn btn-sm" style="background:#9ca3af;cursor:not-allowed;" disabled>⚠️ Primero aprueba todos los documentos</button>
@@ -1329,8 +1447,12 @@ ${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimient
 ${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>'}
 </div>
 <div class="doc-row-actions">
+${(d.no_aplica === 1 || d.archivo === 'no_aplica')
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
 <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
+`}
 </div>
 </div>`;
 });
@@ -1389,8 +1511,13 @@ html += `
 </div>
 </div>
 <div class="form-group">
-<label for="tipoProveedor">🏷️ Tipo de proveedor</label>
-<input type="text" id="tipoProveedor" value="${escapeHtml(proveedor.tipo_proveedor || '')}" placeholder="Ej: Persona Natural, Persona Jurídica, etc.">
+<label for="tipoProveedor">🏷️ Tipo de persona</label>
+<select id="tipoProveedor" style="width:100%;padding:0.65rem 0.8rem;border:1px solid #d1d5db;border-radius:6px;">
+<option value="">— Sin definir —</option>
+<option value="juridica" ${proveedor.tipo_proveedor === 'juridica' ? 'selected' : ''}>🏢 Persona Jurídica</option>
+<option value="natural" ${proveedor.tipo_proveedor === 'natural' ? 'selected' : ''}>🧍 Persona Natural</option>
+</select>
+<small style="color:#6b7280;font-size:0.8rem;">Define la documentación requerida del proveedor. Normalmente lo selecciona el propio proveedor en "Mis datos".</small>
 </div>
 <button type="submit" class="btn" style="background:#059669;">💾 Guardar gestión</button>
 </form>
@@ -1407,15 +1534,23 @@ if (!p) {
 document.getElementById('modalContenidoDocs').innerHTML = '<div class="alert alert-error">Error: No se pudo cargar la información del proveedor.</div>';
 return;
 }
-const soloLectura = p.etapa === 'registrado' || p.etapa === 'rechazado';
+// 🆕 FIX PUNTO 2: los proveedores RECHAZADOS/VENCIDOS ya NO son solo lectura.
+// El administrador puede subir documentos en su nombre para iniciar la actualización.
+// Solo los REGISTRADOS permanecen en modo solo lectura.
+const soloLectura = p.etapa === 'registrado';
 const esRechazado = p.etapa === 'rechazado';
 const esVencimiento = p.notas_gestion && String(p.notas_gestion).toLowerCase().includes('vencimiento');
 const numHistoricos = (historicos || []).length;
 
 const map = {};
 docs.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
-
-let html = `
+let html = '';
+// 🆕 FIX PUNTO 2: si el proveedor vencido/rechazado aún no define su tipo de persona,
+// mostrar el bloque de definición (reutiliza renderDefinirTipoPersona y guardarTipoPersona).
+if (!p.tipo_proveedor) {
+html += renderDefinirTipoPersona(p);
+}
+html += `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
 <strong>Email:</strong> ${escapeHtml(p.email || '')}<br>
 <strong>NIT/RUT:</strong> ${escapeHtml(p.rfc || '—')}<br>
@@ -1423,6 +1558,7 @@ let html = `
 <strong>Teléfono:</strong> ${escapeHtml(p.telefono || '—')}<br>
 <strong>Dirección:</strong> ${escapeHtml(p.direccion || '—')}
 ${p.numero_registro ? `<br><strong>Fecha Movimiento:</strong> ${escapeHtml(p.numero_registro)}` : ''}
+<br><strong>Tipo de persona:</strong> ${p.tipo_proveedor === 'natural' ? '🧍 Persona Natural' : p.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : '⚠️ Sin definir'}
 ${p.tipo_gestion ? `<br><strong>Tipo gestión:</strong> ${p.tipo_gestion === 'inscripcion' ? '📝 Inscripción' : '🔄 Actualización'}` : ''}
 ${p.tipo_proveedor ? `<br><strong>Tipo de proveedor:</strong> ${escapeHtml(p.tipo_proveedor)}` : ''}
 ${p.notas_gestion ? `<br><strong>Nota:</strong> ${escapeHtml(p.notas_gestion)}` : ''}
@@ -1434,8 +1570,8 @@ ${esRechazado ? `
 <p style="color:#991b1b;font-weight:600;margin-bottom:0.5rem;">⚠️ Este proveedor fue rechazado${esVencimiento ? ' por vencimiento de documentos' : ''}.</p>
 <p style="color:#7f1d1d;margin-bottom:0;">
 ${esVencimiento
-? 'Todos sus documentos fueron movidos a histórico (ver pestaña 📦 Históricos). El proveedor puede subir nuevos documentos para reiniciar el proceso automáticamente.'
-: 'Sus documentos quedaron rechazados. El proveedor puede subir documentos corregidos para reiniciar el proceso automáticamente.'}
+? 'Todos sus documentos fueron movidos a histórico (ver pestaña 📦 Históricos). Como administrador ya puedes subir documentos en nombre del proveedor para iniciar la actualización. El proveedor deberá seleccionar su tipo de persona y completar su documentación en el portal.'
+: 'Sus documentos quedaron rechazados. Como administrador puedes subir documentos corregidos en nombre del proveedor si es necesario; el proveedor debe eliminar los rechazados activos antes de volver a cargar.'}
 </p>
 </div>
 ` : ''}
@@ -1446,8 +1582,11 @@ ${soloLectura && !esRechazado ? `
 <strong style="color:#1e40af;">🔄 Actualización anual disponible</strong>
 <p style="margin:0.3rem 0 0 0;color:#1e40af;font-size:0.9rem;">Puedes solicitar al proveedor que actualice sus documentos para el nuevo período. Sus documentos actuales se archivarán en el histórico.</p>
 </div>
-<button class="btn" style="background:#2563eb;color:white;white-space:nowrap;" onclick="mostrarModalSolicitarActualizacion(${p.id}, '${(p.razon_social || p.nombre_empresa || 'Proveedor').replace(/'/g, "\\'")}')">
-🔄 Solicitar actualización
+<button class="btn" style="background:#2563eb;color:white;white-space:nowrap;"
+  data-id="${p.id}"
+  data-nombre="${escapeAttr(p.razon_social || p.nombre_empresa || 'Proveedor')}"
+  onclick="abrirSolicitudActualizacion(this)">
+  🔄 Solicitar actualización
 </button>
 </div>
 </div>
@@ -1477,9 +1616,11 @@ const sub = map[req.tipo] || [];
 const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
 const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
 const tieneArchivos = sub.length > 0;
-const puedeSubir = !soloLectura && (req.cantidadMin === 1
-? (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica))
-: true);
+// 🆕 Cupo múltiple (experiencia): permite agregar hasta cantidadMax
+const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
+const puedeSubir = !soloLectura && (permiteMultiples
+? true
+: (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica)));
 
 html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
 <div style="margin-bottom:0.5rem;">
@@ -1495,7 +1636,8 @@ sub.forEach(d => {
 const nombreEscapado = escapeHtml(d.nombre_original || '');
 const verificado = d.verificado === 1;
 const mostrarCheck = !soloLectura && d.estado !== 'aprobado';
-const checkDeshabilitado = d.estado === 'rechazado' || soloLectura;
+const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica'); // 🆕 sin archivo físico
+const checkDeshabilitado = d.estado === 'rechazado' || soloLectura || esNoAplica;
 
 html += `<div class="doc-row">
 <div style="flex:1;min-width:180px;">
@@ -1517,8 +1659,12 @@ ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 ` : ''}
 </div>
 <div class="doc-row-actions">
+${esNoAplica
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
+`}
 ${!soloLectura ? `
 <button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
 <button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
@@ -1529,7 +1675,9 @@ ${!soloLectura ? `
 }
 
 if (!soloLectura && req.opcional) {
-const checkboxDisabled = tieneArchivos && !noAplica;
+// 🆕 FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
+const tieneArchivosReales = sub.some(d => d.archivo && d.archivo !== 'no_aplica');
+const checkboxDisabled = tieneArchivosReales && !noAplica;
 html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
 <label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
 <input type="checkbox" class="checkbox-no-aplica-admin"
@@ -1546,12 +1694,13 @@ ${noAplica ? '✅ Documento marcado como "No aplica". La carga de archivos está
 }
 
 if (!soloLectura && req.tipo === 'experiencia') {
+const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
 const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
-const maxAlcanzado = subidosValidos >= 3;
+const maxAlcanzado = subidosValidos >= maxExp;
 html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
 <span style="font-size:0.85rem;color:#065f46;">
-📄 Certificados subidos: <strong>${subidosValidos}/3</strong>
+📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
 ${!maxAlcanzado && puedeSubir ? `
@@ -1561,7 +1710,7 @@ ${!maxAlcanzado && puedeSubir ? `
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">📤 Subir PDF</button>
 </form>
 ` : `
-<span style="color:#6b7280;font-size:0.9rem;">${maxAlcanzado ? '✅ Máximo de 3 certificados alcanzado' : 'No disponible'}</span>
+<span style="color:#6b7280;font-size:0.9rem;">${maxAlcanzado ? `✅ Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}</span>
 `}
 </div>
 </div>`;
@@ -1959,8 +2108,12 @@ ${d.fecha_vencimiento ? `<span style="color:${vencimientoColor};font-size:0.8rem
 </span>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+${(d.no_aplica === 1 || d.archivo === 'no_aplica')
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
+`}
 </div>
 ${d.fecha_vencimiento ? `<small style="color:#6b7280;">Vence: ${formatearFecha(d.fecha_vencimiento)}</small>` : ''}
 </div>
@@ -2054,7 +2207,7 @@ c.razon_social || '', c.email || '', c.numero_registro || '',
 c.fecha_inicio || '', c.fecha_fin || '', c.estado || '',
 c.total_documentos || 0, c.documentos_aprobados || 0
 ]);
-const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))].join('\n');
+const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.map(celdaCSV).join(';'))].join('\n');
 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 const urlBlob = window.URL.createObjectURL(blob);
 const a = document.createElement('a');
@@ -2103,6 +2256,7 @@ throw new Error(err.error || 'Error al cargar configuración');
 const config = await response.json();
 configuracionActual = config;
 renderizarFormularioConfiguracion(config);
+cargarBackups();
 } catch (err) {
 console.error('❌ Error cargando configuración:', err);
 const cont = document.getElementById('configuracionContenido');
@@ -2190,6 +2344,18 @@ Esto asignará la misma fecha y hora a todos los documentos aprobados.
 </small>
 </div>
 </div>
+<div style="background:#f0f9ff;padding:1.5rem;border-radius:8px;margin-top:1.5rem;border:2px solid #0284c7;">
+<h4 style="color:#075985;margin-bottom:0.5rem;">💾 Backups de BD y documentos</h4>
+<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
+Copia automática cada 12 h (2 AM / 2 PM): base de datos completa + mirror de PDFs cifrados y plantillas.
+Crea, verifica, descarga (copia externa) o restaura sin usar consola.
+</p>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+<button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">➕ Crear backup ahora</button>
+<button class="btn btn-secondary" onclick="cargarBackups()">🔄 Actualizar lista</button>
+</div>
+<div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div>
+</div>
 `;
 }
 async function forzarVencimientosAhora() {
@@ -2251,6 +2417,72 @@ else { mostrarAlerta(`❌ ${data.error || 'Error al recalcular'}`, 'error'); }
 console.error('❌ Error recalculando:', err);
 mostrarAlerta('❌ Error de conexión', 'error');
 } finally { btn.disabled = false; btn.textContent = textoOriginal; }
+}
+
+// ==========================================
+// 💾 BACKUPS (UI en Configuración)
+// ==========================================
+async function cargarBackups() {
+const cont = document.getElementById('listaBackups');
+if (!cont) return;
+try {
+const res = await fetchAPI('/api/admin/backups');
+const data = await res.json();
+const backups = data.backups || [];
+if (!backups.length) { cont.innerHTML = '<p style="color:#6b7280;">Aún no hay backups en el volumen.</p>'; return; }
+cont.innerHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+<thead><tr style="background:#e0f2fe;border-bottom:2px solid #7dd3fc;">
+<th style="padding:0.6rem;text-align:left;">Archivo</th>
+<th style="padding:0.6rem;text-align:center;">Tamaño</th>
+<th style="padding:0.6rem;text-align:center;">Acciones</th>
+</tr></thead><tbody>` +
+backups.map(b => `
+<tr style="border-bottom:1px solid #e5e7eb;">
+<td style="padding:0.6rem;"><strong>${escapeHtml(b.nombre)}</strong></td>
+<td style="padding:0.6rem;text-align:center;">${(b.bytes / 1024 / 1024).toFixed(2)} MB</td>
+<td style="padding:0.6rem;text-align:center;white-space:nowrap;">
+<button class="btn btn-sm btn-secondary" onclick="verificarBackup('${escapeAttr(b.nombre)}')">🔍 Verificar</button>
+<a class="btn btn-sm btn-success" href="/api/admin/backups/${encodeURIComponent(b.nombre)}">⬇️ Descargar</a>
+<button class="btn btn-sm btn-warning" onclick="restaurarBackup('${escapeAttr(b.nombre)}')">♻️ Restaurar</button>
+</td>
+</tr>`).join('') + `</tbody></table></div>`;
+} catch (err) {
+console.error('Error cargando backups:', err);
+cont.innerHTML = '<p style="color:#dc2626;">Error al cargar la lista de backups.</p>';
+}
+}
+async function crearBackupAhora() {
+if (!confirm('¿Crear un backup manual de la BD y los archivos ahora?')) return;
+mostrarAlerta('⏳ Creando backup…', 'info');
+try {
+const res = await fetchAPI('/api/admin/backups/crear', { method: 'POST' });
+const r = await res.json();
+if (res.ok) { mostrarAlerta('✅ ' + (r.mensaje || 'Backup creado'), 'success'); await cargarBackups(); }
+else mostrarAlerta('❌ ' + (r.error || 'Error al crear el backup'), 'error');
+} catch (err) { mostrarAlerta('❌ Error de conexión', 'error'); }
+}
+async function verificarBackup(nombre) {
+mostrarAlerta('⏳ Verificando integridad de ' + nombre + '…', 'info');
+try {
+const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/verificar');
+const r = await res.json();
+if (res.ok && r.integro) {
+mostrarAlerta(`✅ ${nombre} ÍNTEGRO · usuarios: ${r.conteos.usuarios ?? '-'} · proveedores: ${r.conteos.proveedores ?? '-'} · documentos: ${r.conteos.documentos ?? '-'}`, 'success');
+} else {
+mostrarAlerta('❌ ' + (r.mensaje || 'Backup dañado'), 'error');
+}
+} catch (err) { mostrarAlerta('❌ Error al verificar: ' + err.message, 'error'); }
+}
+async function restaurarBackup(nombre) {
+if (!confirm(`⚠️ ¿Restaurar "${nombre}"?\nLos datos ACTUALES se reemplazarán por los del backup.\nSe creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.`)) return;
+if (!confirm('ÚLTIMA ADVERTENCIA: el servicio se reiniciará tras restaurar. ¿Continuar?')) return;
+mostrarAlerta('⏳ Restaurando… el servicio se reiniciará en unos segundos.', 'info');
+try {
+const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/restaurar', { method: 'POST' });
+const r = await res.json();
+if (res.ok) { mostrarAlerta('✅ ' + (r.mensaje || 'Restauración completada.'), 'success'); setTimeout(() => location.reload(), 8000); }
+else mostrarAlerta('❌ ' + (r.error || 'Error al restaurar'), 'error');
+} catch (err) { setTimeout(() => location.reload(), 8000); }
 }
 
 // ==========================================
@@ -2539,6 +2771,15 @@ cerrarModal();
 return;
 }
 historicosCache = data.documentos_historicos || [];
+// 🆕 Mantener los requerimientos del tipo de persona del proveedor
+try {
+const tipoProv = data.proveedor.tipo_proveedor === 'natural' ? 'natural' : 'juridica';
+const rr = await fetchAPI(`/api/proveedor/requerimientos?tipo=${tipoProv}`);
+if (rr.ok) {
+const listaTipo = await rr.json();
+if (listaTipo.length) requeridos = listaTipo;
+}
+} catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
 renderHistoricosProveedor(data.proveedor, historicosCache);
 
 document.getElementById('modalTitulo').textContent = proveedorActualNombre;
@@ -2653,7 +2894,7 @@ datos_actualizados: '✏️', recordatorio_enviado: '📨', nota_agregada: '📝
 documento_no_aplica: '📋', documento_requiere_carga: '📄', gestion_actualizada: '📋',
 cambio_etapa: '🔄', evaluacion_subida: '📄', evaluacion_estado_cambiado: '📋',
 solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰', vencimiento_forzado: '⚡',
-reinicio_automatico: '♻️'
+reinicio_automatico: '♻️',tipo_persona_definido: '🧾'
 };
 const clases = {
 documento_subido: 'subida', documento_reemplazado: 'subida',
@@ -2664,7 +2905,7 @@ registro: 'registro', documento_no_aplica: 'aprobado', documento_requiere_carga:
 gestion_actualizada: 'datos', cambio_etapa: 'datos',
 evaluacion_subida: 'subida', evaluacion_estado_cambiado: 'datos',
 solicitud_actualizacion: 'recordatorio', vencimiento_automatico: 'rechazado',
-vencimiento_forzado: 'rechazado', reinicio_automatico: 'subida'
+vencimiento_forzado: 'rechazado', reinicio_automatico: 'subida',tipo_persona_definido: 'datos'
 };
 return `
 <div class="historial-item">
@@ -2763,6 +3004,7 @@ alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</
 }
 function cerrarModal() {
 document.getElementById('modal').classList.remove('active');
+requeridos = requeridosDefault.slice(); // 🆕 restaurar lista base
 proveedorActualId = null;
 proveedorActualNombre = '';
 historicosCache = [];
@@ -2815,23 +3057,68 @@ mostrarAlerta('❌ Error de conexión al reiniciar el proceso');
 }
 }
 
+// 🛡️ A1: abre el modal de actualización leyendo los datos desde data-attributes
+// (evita inyectar el nombre del proveedor dentro del onclick → previene XSS).
+function abrirSolicitudActualizacion(btn) {
+  mostrarModalSolicitarActualizacion(parseInt(btn.dataset.id, 10), btn.dataset.nombre);
+}
+
 // ==========================================
-// 🔄 SOLICITAR ACTUALIZACIÓN ANUAL
+// 🔄 SOLICITAR ACTUALIZACIÓN ANUAL (modal solo con mensaje)
 // ==========================================
-async function mostrarModalSolicitarActualizacion(proveedorId, nombreProveedor) {
-const mensaje = prompt(`🔄 Solicitar actualización de documentos a:\n\n${nombreProveedor}\n\nEscribe un mensaje para el proveedor (opcional):`, '');
-if (mensaje === null) return;
-if (!confirm(`⚠️ CONFIRMAR SOLICITUD DE ACTUALIZACIÓN\n\nEsto hará que:\n• Los documentos actuales se archiven en el histórico\n• El proveedor vuelva a la etapa de Verificación\n• Se le envíe un correo y un recordatorio\n\n¿Continuar?`)) return;
+function mostrarModalSolicitarActualizacion(proveedorId, nombreProveedor) {
+const previo = document.getElementById('modalSolicitarActualizacion');
+if (previo) previo.remove();
+const overlay = document.createElement('div');
+overlay.className = 'modal-overlay active';
+overlay.id = 'modalSolicitarActualizacion';
+overlay.style.zIndex = '9500';
+overlay.innerHTML = `
+<div class="modal" style="max-width:540px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h3 style="margin:0;">🔄 Solicitar actualización de documentos</h3>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModalSolicitarActualizacion()">✕ Cerrar</button>
+</div>
+<p style="color:#374151;margin-bottom:0.8rem;">
+Vas a solicitar la actualización anual a <strong>${escapeHtml(nombreProveedor)}</strong>.
+</p>
+<div class="alert alert-info" style="margin-bottom:1rem;">
+<strong>Esto hará que:</strong><br>
+• Los documentos actuales se archiven en el histórico<br>
+• El proveedor vuelva a la etapa de Verificación<br>
+• Se le envíe un correo y un recordatorio<br>
+• <strong>El proveedor deberá definir su tipo de persona (Natural/Jurídica) al ingresar al portal</strong>
+</div>
+<div class="form-group">
+<label>📝 Mensaje para el proveedor (opcional)</label>
+<textarea id="mensajeActualizacion" rows="3" placeholder="Ej: Por favor actualiza tus documentos para el nuevo período..."></textarea>
+</div>
+<div style="display:flex;gap:0.5rem;margin-top:1rem;">
+<button class="btn btn-secondary" onclick="cerrarModalSolicitarActualizacion()" style="flex:1;">Cancelar</button>
+<button class="btn" onclick="confirmarSolicitarActualizacion(${proveedorId})" style="flex:1;background:#2563eb;">🔄 Confirmar solicitud</button>
+</div>
+</div>
+`;
+document.body.appendChild(overlay);
+overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrarModalSolicitarActualizacion(); });
+}
+function cerrarModalSolicitarActualizacion() {
+const modal = document.getElementById('modalSolicitarActualizacion');
+if (modal) modal.remove();
+}
+async function confirmarSolicitarActualizacion(proveedorId) {
+const mensaje = document.getElementById('mensajeActualizacion')?.value?.trim() || '';
 try {
 mostrarAlerta('⏳ Enviando solicitud de actualización...', 'info');
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/solicitar-actualizacion`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ mensaje: mensaje.trim() })
+body: JSON.stringify({ mensaje })
 });
 const data = await res.json();
 if (res.ok) {
 mostrarAlerta('✅ ' + data.mensaje, 'success', 6000);
+cerrarModalSolicitarActualizacion();
 cerrarModal();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 await actualizarEstadisticasGlobales();
@@ -2870,7 +3157,7 @@ estadoLegible(p),
 p.fecha_aprobacion ? formatearFecha(p.fecha_aprobacion) : 'Pendiente',
 p.numero_registro || '', p.tipo_gestion || '', p.tipo_proveedor || '', p.notas_gestion || ''
 ]);
-const csv = '\uFEFF' + [headers.join(';'), ...filas.map(f => f.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
+const csv = '\uFEFF' + [headers.join(';'), ...filas.map(f => f.map(celdaCSV).join(';'))].join('\n');
 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 descargarBlob(blob, `proveedores_${fechaArchivo()}.csv`);
 mostrarAlerta(`👌 CSV exportado (${proveedores.length} proveedores)`, 'success');

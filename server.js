@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const cron = require('node-cron');
 const archiver = require('archiver');
+const compression = require('compression');
 const crypto = require('crypto');
 
 if (typeof archiver !== 'function') {
@@ -22,28 +23,27 @@ if (typeof archiver !== 'function') {
   process.exit(1);
 }
 
-const { db, DOCUMENTOS_REQUERIDOS } = require('./database');
+const { db, DOCUMENTOS_REQUERIDOS, requerimientosPara, configDocumento, limpiarLogsAntiguos } = require('./database');
 const {
   cifrarArchivo,
   descifrarArchivo,
   calcularHash,
   verificarHash,
   validarPassword,
-  generarClaveMaestra,
   validarClaveMaestra,
   obtenerConfiguracionSeguridad,
-  verificarSistemaCifrado
+  verificarSistemaCifrado,
+  generarPasswordAleatoria
 } = require('./security');
 
 const {
   enviarEmail,
-  emailProveedorSubioDocumento,
   emailDocumentoRechazado,
   emailNuevaNota,
   emailProveedorAprobado,
   emailProveedorActualizacionAprobada,
   emailBienvenidaProveedor,
-  emailRecordatorio,
+  emailBienvenidaConActivacion,
   emailProveedorCompletoDocumentos,
   emailRecordatorioDocumentosFaltantes,
   emailEvaluacionRechazada,
@@ -66,6 +66,15 @@ app.set('trust proxy', 1);
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const SESSION_SECRET = process.env.SESSION_SECRET;
+// 🔗 URL base normalizada (a prueba de errores en .env), igual que en email.js.
+// Previene enlaces rotos tipo "Cannot GET /;/proveedor.html".
+const APP_URL_NORMALIZADO = (process.env.APP_URL || `http://localhost:${PORT}`)
+.trim()
+.replace(/[;,\s]+$/g, '')
+.replace(/\/+$/g, '');
+// 🛡️ Validación básica de formato de email (local@dominio.tld).
+// Evita que basura llegue a la BD y llamadas inútiles a Brevo.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 if (!validarClaveMaestra(ENCRYPTION_KEY)) {
   console.error('❌ ENCRYPTION_KEY no es válida (mínimo 32 caracteres)');
@@ -101,13 +110,16 @@ const DUMMY_BCRYPT_HASH = '$2a$12$WApznUPhDubN0oeveSXoqOe6eHZMVj7S5rJtgvQXlhQl1J
 // ==========================================
 // 2. SEGURIDAD Y MIDDLEWARES
 // ==========================================
+// ⚡ OPT RENDIMIENTO (#4): comprime HTML/JSON/JS/CSS (~70% menos transferencia).
+// PDF/ZIP ya están comprimidos: el filtro por defecto los deja pasar sin tocarlos.
+app.use(compression());
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       scriptSrcAttr: ["'self'", "'unsafe-inline'"],
-      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:"],
       frameSrc: ["'self'", "blob:"],
@@ -118,8 +130,10 @@ app.use(helmet({
       formAction: ["'self'"]
     }
   },
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+// 🛡️ HSTS: fuerza HTTPS por 1 año en el navegador (anti downgrade/SSL-stripping)
+hsts: { maxAge: 31536000, includeSubDomains: true },
+crossOriginEmbedderPolicy: false,
+crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 
 const limiterLogin = rateLimit({
@@ -130,27 +144,16 @@ const limiterLogin = rateLimit({
     minutos_restantes: 15
   },
   skipSuccessfulRequests: true,
-skip: (req) => {
-////////////////////
-// Solo se salta el límite si ya hay una sesión activa (usuario logueado).
-// Así los intentos contra el admin SÍ cuentan y se limitan por IP (20/15 min),
-// cerrando el bypass que permitía fuerza bruta a velocidad de red contra el admin.
-if (req.session && req.session.usuario) return true;
-return false;
-},
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    res.status(429).json({
-      error: 'Demasiados intentos. Espera 15 minutos.',
-      minutos_restantes: 15
-    });
+    res.status(429).json({ error: 'Demasiados intentos. Espera 15 minutos.', minutos_restantes: 15 });
   }
 });
 
 const limiterGeneral = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 500,
+  max: 300,
   message: { error: 'Demasiadas peticiones. Espera un momento.' },
   skipSuccessfulRequests: false
 });
@@ -161,13 +164,37 @@ const limiterUpload = rateLimit({
   message: { error: 'Demasiadas subidas. Espera 5 minutos.' }
 });
 
+const limiterRecuperar = rateLimit({
+windowMs: 15 * 60 * 1000,
+max: 5,
+standardHeaders: true,
+legacyHeaders: false,
+handler: (req, res) => {
+res.status(429).json({ error: 'Demasiadas solicitudes de recuperación. Espera 15 minutos.' });
+}
+});
+
 app.use('/api/login', limiterLogin);
 app.use('/api/registro', limiterLogin);
-app.use('/api/recuperar-password', limiterLogin);
+app.use('/api/recuperar-password', limiterRecuperar);
 app.use('/api/', limiterGeneral);
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// 🛡️ Endurecimiento: nunca filtrar detalles internos (SQL, stack, rutas, paths)
+// en respuestas 500. Envolvemos res.json: si el status es 500+ y hay `error`,
+// se loguea el detalle real en consola y al cliente va un mensaje genérico.
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    if (res.statusCode >= 500 && body && typeof body === 'object' && body.error) {
+      console.error(`🛡️ [500 sanitizado] ${req.method} ${req.originalUrl} → ${body.error}`);
+      body = { ...body, error: 'Error interno del servidor. Intenta nuevamente.' };
+    }
+    return originalJson(body);
+  };
+  next();
+});
 
 const FileStore = require('session-file-store');
 const FileStoreInstance = FileStore(session);
@@ -276,6 +303,7 @@ secure: process.env.NODE_ENV === 'production'
 });
 
 app.use(sessionMiddleware);
+app.use('/api/', requierePasswordCambiada);
 
 const sharedsession = require('express-socket.io-session');
 
@@ -355,34 +383,14 @@ app.use((err, req, res, next) => {
 });
 
 app.use('/plantillas', express.static(plantillasDir));
+// ⚡ OPT: caché larga para fuentes e imágenes (no cambian entre versiones)
+app.use('/fonts', express.static(path.join(__dirname, 'public', 'fonts'), { maxAge: '30d', immutable: true }));
+app.use('/img', express.static(path.join(__dirname, 'public', 'img'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==========================================
-// 3. FUNCIONES HELPER
+// 3. FUNCIONES HELPER AYUDAS
 // ==========================================
-function validarLimiteDocumentos(proveedorId, tipo, cantidadMax = null) {
-  if (!cantidadMax) return { valido: true };
-
-  const count = db.prepare(`
-    SELECT COUNT(*) as total
-    FROM documentos
-    WHERE proveedor_id = ?
-      AND tipo = ?
-      AND estado != 'rechazado'
-      AND no_aplica = 0
-      AND es_historico = 0
-  `).get(proveedorId, tipo).total;
-
-  if (count >= cantidadMax) {
-    return {
-      valido: false,
-      mensaje: `Ya has subido el máximo de ${cantidadMax} documentos de este tipo.`
-    };
-  }
-
-  return { valido: true };
-}
-
 function obtenerIP(req) {
   return req.ip || req.connection.remoteAddress || 'unknown';
 }
@@ -447,10 +455,26 @@ return String(text)
 .replace(/"/g, '&quot;')
 .replace(/'/g, '&#39;');
 }
-// 🏷️ Nombre legible del formato a partir del tipo (para descargas)
+
+// 🛡️ Escapa celdas CSV y neutraliza inyección de fórmulas: todo valor que
+// empiece por =, +, - o @ se prefija con ' para que Excel/LibreOffice no lo
+// ejecute como fórmula al abrir el archivo exportado.
+function csvEscapar(valor) {
+let s = String(valor ?? '');
+if (/^[=+\-@]/.test(s)) s = "'" + s;
+return '"' + s.replace(/"/g, '""') + '"';
+}
+
+// 🏷️ Busca la configuración de un tipo en cualquier lista (jurídica o natural),
+//    para cubrir tipos exclusivos de persona natural (ej. 'competencias').
+function configDocGlobal(tipo) {
+  return DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo)
+    || requerimientosPara('natural').find(d => d.tipo === tipo)
+    || null;
+}
 function nombreFormatoServer(tipo) {
-const c = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo);
-return c ? c.nombre : null;
+  const c = configDocGlobal(tipo);
+  return c ? c.nombre : null;
 }
 
 // 🏷️ Estado legible para exportaciones (diferencia las etapas reales)
@@ -468,16 +492,11 @@ return 'Pendiente';
 
 function formatearFechaExcel(fecha) {
   if (!fecha) return '';
-
-  const d = new Date(fecha.replace(' ', 'T'));
+  // 🕐 FIX TZ: la BD guarda hora civil de Bogotá; forzamos -05:00 para no desplazar 5h.
+  const d = new Date(String(fecha).replace(' ', 'T') + '-05:00');
   return d.toLocaleString('es-CO', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'America/Bogota'
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Bogota'
   });
 }
 
@@ -487,29 +506,25 @@ function fechaArchivo() {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
-function obtenerFechaVencimiento() {
+
+// 🕐 FIX TZ: devuelve la fecha fija de vencimiento como STRING CIVIL de Bogotá,
+// sin pasar por Date/toISOString (que desplazan 5h en servidores UTC como Railway).
+function obtenerFechaVencimientoStr() {
   try {
     const config = db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get('fecha_vencimiento_fija');
-
-    if (config) {
-      const fecha = new Date(config.valor.replace(' ', 'T'));
-      if (!isNaN(fecha)) {
-        return fecha;
+    if (config && config.valor) {
+      const m = String(config.valor).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)/);
+      if (m) {
+        const hhmmss = m[2].length === 5 ? m[2] + ':00' : m[2];
+        return `${m[1]} ${hhmmss}`;
       }
     }
-
-    const fecha = new Date();
-    fecha.setFullYear(fecha.getFullYear() + 1);
-    fecha.setHours(23, 59, 59, 0);
-    return fecha;
   } catch (err) {
-    console.error('Error obteniendo fecha de vencimiento:', err.message);
-
-    const fecha = new Date();
-    fecha.setFullYear(fecha.getFullYear() + 1);
-    fecha.setHours(23, 59, 59, 0);
-    return fecha;
+    console.error('Error obteniendo fecha de vencimiento (str):', err.message);
   }
+  // Fallback: 31 de diciembre del próximo año
+  const anio = new Date().getFullYear() + 1;
+  return `${anio}-12-31 23:59:59`;
 }
 
 // ==========================================
@@ -593,7 +608,7 @@ function cerrarCicloAnterior(proveedorId) {
       db.prepare(`
         UPDATE ciclos_actualizacion
         SET estado = 'cerrado',
-            fecha_fin = datetime('now', 'localtime')
+            fecha_fin = datetime('now', '-05:00')
         WHERE id = ?
       `).run(cicloActivo.id);
 
@@ -685,7 +700,7 @@ function moverDocumentoAHistorico(doc) {
         db.prepare(`
           UPDATE documentos
           SET es_historico = 1,
-              fecha_archivado = datetime('now', 'localtime'),
+              fecha_archivado = datetime('now', '-05:00'),
               estado = 'rechazado',
               comentario = 'Documento movido a histórico por vencimiento',
               ciclo = ?
@@ -731,7 +746,7 @@ function moverDocumentoAHistorico(doc) {
         UPDATE documentos
         SET archivo = ?,
             es_historico = 1,
-            fecha_archivado = datetime('now', 'localtime'),
+            fecha_archivado = datetime('now', '-05:00'),
             estado = 'rechazado',
             comentario = 'Documento movido a histórico por vencimiento',
             ciclo = ?
@@ -742,32 +757,6 @@ function moverDocumentoAHistorico(doc) {
     return true;
   } catch (err) {
     console.error(`❌ Error moviendo documento ${doc.id} a histórico:`, err.message);
-    return false;
-  }
-}
-
-function todosDocumentosVencidos(proveedorId) {
-  try {
-    const countActivos = db.prepare(`
-      SELECT COUNT(*) as total
-      FROM documentos
-      WHERE proveedor_id = ?
-        AND es_historico = 0
-    `).get(proveedorId).total;
-
-    if (countActivos === 0) return false;
-
-    const countVencidos = db.prepare(`
-      SELECT COUNT(*) as total
-      FROM documentos
-      WHERE proveedor_id = ?
-      AND es_historico = 0
-      AND fecha_vencimiento <= datetime('now', '-5 hours')
-    `).get(proveedorId).total;
-
-    return countVencidos === countActivos;
-  } catch (err) {
-    console.error(`Error verificando vencimientos para proveedor ${proveedorId}:`, err.message);
     return false;
   }
 }
@@ -801,7 +790,7 @@ function notificarVencimientoProveedor(proveedorId) {
       return;
     }
 
-    const mensaje = `⚠️ Tus documentos han vencido. Por favor, contacta al administrador para iniciar un nuevo proceso de actualización y poder continuar como proveedor activo.`;
+    const mensaje = `⚠️ Tus documentos han vencido. Ingresa al portal, selecciona tu tipo de persona (Natural o Jurídica) en Mis datos y sube la documentación actualizada para continuar como proveedor activo.`;
 
     db.prepare(`
       INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje)
@@ -829,11 +818,11 @@ function notificarVencimientoProveedor(proveedorId) {
         <p>Hola <strong>${nombreProveedorEscapado}</strong>,</p>
           <p>Te informamos que <strong>todos tus documentos han vencido</strong> y tu perfil como proveedor ya no está vigente.</p>
           <div style="background: #fee2e2; padding: 15px; border-left: 4px solid #dc2626; margin: 15px 0; border-radius: 4px;">
-            <p style="margin: 0;">Para continuar como proveedor activo, debes contactar al administrador y solicitar un nuevo proceso de actualización.</p>
+            <p style="margin: 0;">Para continuar como proveedor activo, ingresa al portal, selecciona tu tipo de persona (Natural o Jurídica) en Mis datos y sube la documentación actualizada.</p>
           </div>
           <p>Ingresa al portal para más información.</p>
           <div style="text-align: center; margin-top: 20px;">
-            <a href="${process.env.APP_URL || 'http://localhost:3000/'}/proveedor.html"
+            <a href="${APP_URL_NORMALIZADO}/proveedor.html"
                style="background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
               Ir al Portal
             </a>
@@ -935,19 +924,21 @@ async function procesarVencimientos() {
               console.warn(`⚠️ No se pudo mover la evaluación del proveedor ${proveedorId}.`);
             }
           }
+         
+        db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente', evaluacion_fecha = NULL WHERE id = ?`).run(proveedorId);
 
-          db.prepare(`
-            UPDATE proveedores
-            SET etapa = 'rechazado',
-                estado_general = 'rechazado',
-                notas_gestion = 'Rechazado por vencimiento de documentos'
-            WHERE id = ?
-          `).run(proveedorId);
-
-          registrarHistorial(
-            proveedorId,
-            { id: 1, email: 'Sistema' },
-            'vencimiento_automatico',
+        db.prepare(`
+         UPDATE proveedores
+         SET etapa = 'rechazado',
+             estado_general = 'rechazado',
+             notas_gestion = 'Rechazado por vencimiento de documentos',
+             tipo_proveedor = NULL
+         WHERE id = ?
+       `).run(proveedorId);
+       registrarHistorial(
+         proveedorId,
+         { id: 1, email: 'Sistema' },
+         'vencimiento_automatico',
             `Proveedor rechazado automáticamente por vencimiento de todos los documentos.`,
             null,
             null,
@@ -1040,18 +1031,20 @@ async function forzarVencimientos() {
           }
         }
 
-        db.prepare(`
-          UPDATE proveedores
-          SET etapa = 'rechazado',
-              estado_general = 'rechazado',
-              notas_gestion = 'Rechazado por vencimiento de documentos'
-          WHERE id = ?
-        `).run(proveedorId);
+     db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente', evaluacion_fecha = NULL WHERE id = ?`).run(proveedorId);
 
-        registrarHistorial(
-          proveedorId,
-          { id: 1, email: 'Sistema' },
-          'vencimiento_forzado',
+      db.prepare(`
+       UPDATE proveedores
+       SET etapa = 'rechazado',
+           estado_general = 'rechazado',
+           notas_gestion = 'Rechazado por vencimiento de documentos',
+           tipo_proveedor = NULL
+       WHERE id = ?
+     `).run(proveedorId);
+     registrarHistorial(
+       proveedorId,
+       { id: 1, email: 'Sistema' },
+       'vencimiento_forzado',
           `Proveedor rechazado por vencimiento forzado de todos los documentos.`,
           null,
           null,
@@ -1082,8 +1075,8 @@ async function enviarRecordatoriosFaltantes() {
 
   try {
     const proveedores = db.prepare(`
-      SELECT p.id, p.razon_social, u.email, u.nombre_empresa
-      FROM proveedores p
+SELECT p.id, p.razon_social, p.tipo_proveedor, u.email, u.nombre_empresa
+FROM proveedores p
       JOIN usuarios u ON p.usuario_id = u.id
       WHERE p.etapa NOT IN ('registrado', 'rechazado')
         AND (p.ultimo_recordatorio_envio IS NULL OR p.ultimo_recordatorio_envio < datetime('now', '-7 days'))
@@ -1106,7 +1099,7 @@ async function enviarRecordatoriosFaltantes() {
 
       const faltantes = [];
 
-      for (const req of DOCUMENTOS_REQUERIDOS) {
+      for (const req of requerimientosPara(prov.tipo_proveedor)) {
         const docsTipo = docs.filter(d => d.tipo === req.tipo);
         const noAplica = docsTipo.some(d => d.no_aplica === 1);
 
@@ -1132,7 +1125,7 @@ async function enviarRecordatoriosFaltantes() {
         .then(result => {
           if (result.ok) {
             console.log(`✅ Recordatorio enviado a ${prov.email}`);
-            db.prepare(`UPDATE proveedores SET ultimo_recordatorio_envio = datetime('now', 'localtime') WHERE id = ?`).run(prov.id);
+            db.prepare(`UPDATE proveedores SET ultimo_recordatorio_envio = datetime('now', '-05:00') WHERE id = ?`).run(prov.id);
             enviados++;
           } else {
             console.error(`❌ Error enviando recordatorio a ${prov.email}: ${result.error}`);
@@ -1173,6 +1166,17 @@ const uploadPlantilla = multer({
   }
 });
 
+// 🛡️ Valida los "magic bytes" del PDF (%PDF-) además de la extensión.
+// fileFilter solo ve el nombre del archivo; aquí ya tenemos el buffer real.
+function validarPDFMagico(req, res, next) {
+  if (!req.file || !req.file.buffer) return next(); // sin archivo → lo maneja el endpoint
+  const buf = req.file.buffer;
+  if (buf.length < 5 || buf.slice(0, 5).toString('latin1') !== '%PDF-') {
+    return res.status(400).json({ error: 'El archivo no es un PDF válido (cabecera incorrecta)' });
+  }
+  next();
+}
+
 // ==========================================
 // 🔐 VALIDACIÓN DE ETAPA PARA SUBIDA DE DOCUMENTOS
 // ==========================================
@@ -1187,6 +1191,76 @@ function validarEtapaParaSubida(proveedor) {
     };
     return { valido: false, mensaje: mensajes[etapa] || 'No puedes subir documentos en la etapa actual.' };
   }
+  return { valido: true };
+}
+
+// ==========================================
+// 🚫 BLOQUEO POR DOCUMENTOS RECHAZADOS ACTIVOS
+// ==========================================
+
+/**
+ * Obtiene los documentos activos rechazados de un proveedor.
+ * Solo considera documentos que no sean "No aplica".
+ */
+function obtenerRechazadosActivos(proveedorId) {
+  return db.prepare(`
+    SELECT id, tipo
+    FROM documentos
+    WHERE proveedor_id = ?
+      AND es_historico = 0
+      AND estado = 'rechazado'
+      AND no_aplica = 0
+  `).all(proveedorId);
+}
+
+/**
+ * Valida si el proveedor puede subir o modificar documentos.
+ *
+ * Reglas:
+ * - Si el proveedor está en etapa "rechazado", no puede subir nada hasta eliminar todos los rechazados.
+ * - Si todos sus documentos activos están rechazados, tampoco puede subir nada.
+ * - Si solo hay un documento rechazado, no puede subir uno nuevo del mismo tipo hasta eliminarlo.
+ * - Sí puede subir documentos de otros tipos si el rechazo es individual y no total.
+ */
+function validarCargaConRechazados(proveedor, tipo = null) {
+  const activos = db.prepare(`
+    SELECT tipo, estado, no_aplica
+    FROM documentos
+    WHERE proveedor_id = ?
+      AND es_historico = 0
+  `).all(proveedor.id);
+
+  const rechazados = activos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+
+  if (rechazados.length === 0) {
+    return { valido: true };
+  }
+
+  const todosActivosRechazados =
+    activos.length > 0 &&
+    activos.every(d => d.estado === 'rechazado');
+
+  if (proveedor.etapa === 'rechazado' || todosActivosRechazados) {
+    return {
+      valido: false,
+      mensaje: 'El proceso está rechazado. Debes eliminar todos los documentos rechazados antes de subir nueva documentación.'
+    };
+  }
+
+  if (tipo) {
+    const rechazadoDelTipo = rechazados.some(d => d.tipo === tipo);
+
+    if (rechazadoDelTipo) {
+      const cfg = configDocumento(tipo, proveedor.tipo_proveedor);
+      const nombreDocumento = cfg ? cfg.nombre : tipo;
+
+      return {
+        valido: false,
+        mensaje: `Debes eliminar el documento rechazado "${nombreDocumento}" antes de subir uno nuevo.`
+      };
+    }
+  }
+
   return { valido: true };
 }
 
@@ -1224,6 +1298,31 @@ function requiereHabeasData(req, res, next) {
   next();
 }
 
+// 🛡️ Si un proveedor aún debe cambiar su contraseña, bloquea escrituras hasta que lo haga.
+function requierePasswordCambiada(req, res, next) {
+  const u = req.session.usuario;
+  if (!u || u.rol !== 'proveedor') return next();   // sin sesión o admin → no aplica
+  if (req.method === 'GET') return next();          // lecturas siempre permitidas
+  // ⚠️ FIX DEADLOCK: usamos originalUrl (ruta completa). Con app.use('/api/', ...),
+  // req.path llega RELATIVO y la whitelist nunca coincidía: el middleware bloqueaba
+  // incluso /api/cambiar-password y el usuario no podía salir del bloqueo.
+  const ruta = (req.originalUrl || req.url).split('?')[0];
+  const whitelist = [
+    '/api/cambiar-password',          // ← la vía de salida del bloqueo
+    '/api/logout',
+    '/api/me',
+    '/api/proveedor/habeas-data/aceptar',
+    '/api/recuperar-password',        // permite recuperar clave aun con el flag activo
+    '/api/restablecer-password'
+  ];
+  if (whitelist.some(p => ruta === p || ruta.startsWith(p + '/'))) return next();
+  const row = db.prepare('SELECT debe_cambiar_password FROM usuarios WHERE id = ?').get(u.id);
+  if (row && row.debe_cambiar_password === 1) {
+    return res.status(403).json({ error: 'Debes cambiar tu contraseña antes de continuar.', requiere_cambio: true });
+  }
+  next();
+}
+
 // ==========================================
 // 6. ENDPOINTS DE AUTENTICACIÓN
 // ==========================================
@@ -1241,7 +1340,7 @@ app.post('/api/proveedor/habeas-data/aceptar', requiereLogin, (req, res) => {
 
   db.prepare(`
     INSERT INTO habeas_data_consent (usuario_id, aceptado, fecha_aceptacion, ip_origen, user_agent, version)
-    VALUES (?, 1, datetime('now', 'localtime'), ?, ?, '1.0')
+    VALUES (?, 1, datetime('now', '-05:00'), ?, ?, '1.0')
   `).run(usuarioId, ip, userAgent);
 
   console.log(`📋 Habeas Data aceptado por usuario ${usuarioId} (${req.session.usuario.email})`);
@@ -1274,6 +1373,11 @@ if (!_tsNum || _elapsed < 3000) {
 registrarLogSeguridad(null, email || 'bot', 'registro_bot_too_fast', false, `elapsed=${_elapsed}ms`, req);
 return res.status(429).json({ error: 'Formulario enviado demasiado rápido. Espera unos segundos e inténtalo de nuevo.' });
 }
+// 🛡️ Formato de email válido después del anti-bot (no revela honeypot)
+// y antes de tocar la BD.
+if (!EMAIL_REGEX.test(String(email).trim())) {
+return res.status(400).json({ error: 'Formato de email inválido' });
+}
 const validacion = validarPassword(password);
   if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
 
@@ -1302,7 +1406,7 @@ const validacion = validarPassword(password);
 
     db.prepare(`
       INSERT INTO habeas_data_consent (usuario_id, aceptado, fecha_aceptacion, ip_origen, user_agent, version)
-      VALUES (?, 1, datetime('now', 'localtime'), ?, ?, '1.0')
+      VALUES (?, 1, datetime('now', '-05:00'), ?, ?, '1.0')
     `).run(usuarioId, ip, userAgent);
 
     console.log(`✅ Habeas data registrado para usuario ${usuarioId} (${email})`);
@@ -1366,22 +1470,14 @@ app.get('/api/admin/habeas-data', requiereAdmin, (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
-
-  const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email);
-  if (!usuario) {
-    // 🛡️ M2 (Fase 3): anti-enumeración por timing.
-    // Ejecutamos un bcrypt.compareSync dummy para que el tiempo de respuesta
-    // sea indistinguible del caso "email existe + contraseña incorrecta" (~200-400 ms).
-    // Sin esto, un atacante puede medir el tiempo y descubrir qué emails están registrados.
-    bcrypt.compareSync(password, DUMMY_BCRYPT_HASH);
-    registrarLogSeguridad(null, email, 'login', false, 'Email no encontrado', req);
-    return res.status(401).json({ error: 'Credenciales inválidas' });
-  }
-
+const { email, password } = req.body;
+const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email);
+if (!usuario) {
+bcrypt.compareSync(password, DUMMY_BCRYPT_HASH);
+registrarLogSeguridad(null, email, 'login', false, 'Email no encontrado', req);
+return res.status(401).json({ error: 'Credenciales inválidas' });
+}
 if (usuario.bloqueado_hasta) {
-// 🛡️ El admin NUNCA queda bloqueado. Si por algún residuo de código anterior
-// tuviera un bloqueo grabado, lo limpiamos aquí y continuamos (no devolvemos 423).
 if (usuario.rol === 'admin') {
 db.prepare('UPDATE usuarios SET bloqueado_hasta = NULL, intentos_fallidos = 0 WHERE id = ?').run(usuario.id);
 } else {
@@ -1394,10 +1490,7 @@ db.prepare('UPDATE usuarios SET bloqueado_hasta = NULL, intentos_fallidos = 0 WH
 }
 }
 }
-
 if (!bcrypt.compareSync(password, usuario.password)) {
-// 🛡️ El admin NO se bloquea por intentos fallidos (anti-DoS de bloqueo distribuido).
-// Queda protegido por el rate-limit por IP (20/15 min) + bcrypt cost 12.
 if (usuario.rol === 'admin') {
 registrarLogSeguridad(usuario.id, email, 'login_fallido_admin', false, 'Contraseña incorrecta (admin, sin bloqueo de cuenta)', req);
 return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -1411,22 +1504,25 @@ return res.status(423).json({ error: 'Cuenta bloqueada por 15 minutos.' });
 db.prepare('UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?').run(intentos, usuario.id);
 return res.status(401).json({ error: `Credenciales inválidas. Intento ${intentos}/5` });
 }
-
-  db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?').run(usuario.id);
-
-  req.session.usuario = {
-    id: usuario.id,
-    email: usuario.email,
-    rol: usuario.rol
-  };
-
-  registrarLogSeguridad(usuario.id, email, 'login_exitoso', true, null, req);
-
-  res.json({
-    ok: true,
-    rol: usuario.rol,
-    debe_cambiar_password: usuario.debe_cambiar_password === 1
-  });
+db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?').run(usuario.id);
+// 🛡️ OWASP: nuevo ID de sesión al autenticar (previene session fixation)
+req.session.regenerate((err) => {
+if (err) {
+console.error('Error regenerando sesión:', err);
+return res.status(500).json({ error: 'Error interno de sesión' });
+}
+req.session.usuario = {
+id: usuario.id,
+email: usuario.email,
+rol: usuario.rol
+};
+registrarLogSeguridad(usuario.id, email, 'login_exitoso', true, null, req);
+res.json({
+ok: true,
+rol: usuario.rol,
+debe_cambiar_password: usuario.debe_cambiar_password === 1
+});
+});
 });
 
 app.post('/api/cambiar-password', requiereLogin, (req, res) => {
@@ -1438,10 +1534,14 @@ app.post('/api/cambiar-password', requiereLogin, (req, res) => {
     return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
   }
 
-  const validacion = validarPassword(password_nueva);
-  if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
-
-  const hash = bcrypt.hashSync(password_nueva, 12);
+const validacion = validarPassword(password_nueva);
+if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
+// 🛡️ OPT (#6): la nueva contraseña no puede ser igual a la actual.
+// Se compara contra el hash almacenado (bcrypt), no contra texto plano.
+if (bcrypt.compareSync(password_nueva, usuario.password)) {
+return res.status(400).json({ error: 'La nueva contraseña debe ser diferente a la actual' });
+}
+const hash = bcrypt.hashSync(password_nueva, 12);
 
   db.prepare('UPDATE usuarios SET password = ?, debe_cambiar_password = 0 WHERE id = ?').run(hash, usuario.id);
 
@@ -1471,13 +1571,16 @@ app.get('/api/me', (req, res) => {
 });
 
 app.post('/api/recuperar-password', async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email es requerido' });
-  }
-
-  try {
+const { email } = req.body;
+if (!email) {
+return res.status(400).json({ error: 'Email es requerido' });
+}
+// 🛡️ Formato inválido → 400 antes de la BD y antes de Brevo.
+// No revela si el email existe (anti-enumeración intacta).
+if (!EMAIL_REGEX.test(String(email).trim())) {
+return res.status(400).json({ error: 'Formato de email inválido' });
+}
+try {
     const usuario = db.prepare('SELECT id, email, rol FROM usuarios WHERE email = ?').get(email);
 
     if (!usuario) {
@@ -1493,17 +1596,14 @@ app.post('/api/recuperar-password', async (req, res) => {
         // Si alguien accede a la BD, no puede usar los tokens de recuperación.
         // El token plaintext solo se usa para construir el enlace del correo.
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        const expiracion = new Date(Date.now() + 3600000).toISOString();
+        // 🕐 Formato 'YYYY-MM-DD HH:MM:SS' (UTC) para comparar bien contra datetime('now')
+  const expiracion = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').substring(0, 19);
         db.prepare(`
           INSERT INTO password_resets (usuario_id, token, expiracion)
           VALUES (?, ?, ?)
         `).run(usuario.id, tokenHash, expiracion);
 
-    const sistemaUrl = (process.env.APP_URL || `http://localhost:${PORT}`)
-  .trim()
-  .replace(/[;,\s]+$/g, '')
-  .replace(/\/+$/g, '');
-const enlaceRecuperacion = `${sistemaUrl}/restablecer-password.html?token=${token}`;
+  const enlaceRecuperacion = `${APP_URL_NORMALIZADO}/restablecer-password.html?token=${token}`;
 
     const htmlEmail = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -1581,8 +1681,8 @@ app.post('/api/restablecer-password', async (req, res) => {
       WHERE id = ?
     `).run(hash, resetToken.usuario_id);
 
-    db.prepare(`UPDATE password_resets SET usado = 1 WHERE id = ?`).run(resetToken.id);
-    db.prepare(`DELETE FROM password_resets WHERE usuario_id = ? AND usado = 1`).run(resetToken.usuario_id);
+    // 🛡️ Invalida el token usado y cualquier otro pendiente del usuario
+    db.prepare(`DELETE FROM password_resets WHERE usuario_id = ?`).run(resetToken.usuario_id);
 
     console.log(`✅ Contraseña restablecida para usuario ID: ${resetToken.usuario_id}`);
 
@@ -1634,114 +1734,133 @@ app.use('/api/proveedor/recordatorio', requiereHabeasData);
 app.use('/api/proveedor/nota', requiereHabeasData);
 
 app.get('/api/proveedor/info', requiereLogin, (req, res) => {
-  const proveedor = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+const proveedor = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+if (!proveedor) {
+return res.status(404).json({ error: 'Proveedor no encontrado' });
+}
+const docs = db.prepare(`
+SELECT tipo, estado, verificado, no_aplica
+FROM documentos
+WHERE proveedor_id = ?
+AND es_historico = 0
+`).all(proveedor.id);
 
-  if (!proveedor) {
-    return res.status(404).json({ error: 'Proveedor no encontrado' });
-  }
+// 🆕 Requerimientos según el tipo de persona del proveedor
+const REQS = requerimientosPara(proveedor.tipo_proveedor);
+let tiposSubidos = 0;
+REQS.forEach(reqDoc => {
+const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
+const subidos = docsTipo.filter(d =>
+d.estado === 'pendiente' ||
+d.estado === 'aprobado' ||
+d.estado === 'rechazado'
+).length;
+const noAplica = docsTipo.some(d => d.no_aplica === 1);
+if (reqDoc.opcional && noAplica) {
+tiposSubidos++;
+} else if (subidos >= reqDoc.cantidadMin) {
+tiposSubidos++;
+}
+});
+const todos_subidos = (tiposSubidos === REQS.length);
 
-  const docs = db.prepare(`
-    SELECT tipo, estado, verificado, no_aplica
-    FROM documentos
-    WHERE proveedor_id = ?
-      AND es_historico = 0
-  `).all(proveedor.id);
+let tiposVerificados = 0;
+REQS.forEach(reqDoc => {
+const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
+const verificadosTipo = docsTipo.filter(d => d.verificado === 1).length;
+const noAplica = docsTipo.some(d => d.no_aplica === 1);
+if (reqDoc.opcional && noAplica) {
+tiposVerificados++;
+} else if (verificadosTipo >= reqDoc.cantidadMin) {
+tiposVerificados++;
+}
+});
+const todos_verificados = (tiposVerificados === REQS.length);  // 👈 AQUÍ estaba el error
 
-  let tiposSubidos = 0;
-
-  DOCUMENTOS_REQUERIDOS.forEach(reqDoc => {
-    const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
-
-    const subidos = docsTipo.filter(d =>
-      d.estado === 'pendiente' ||
-      d.estado === 'aprobado' ||
-      d.estado === 'rechazado'
-    ).length;
-
-    const noAplica = docsTipo.some(d => d.no_aplica === 1);
-
-    if (reqDoc.opcional && noAplica) {
-      tiposSubidos++;
-    } else if (subidos >= reqDoc.cantidadMin) {
-      tiposSubidos++;
-    }
-  });
-
-  const todos_subidos = (tiposSubidos === DOCUMENTOS_REQUERIDOS.length);
-
-  let tiposVerificados = 0;
-
-  DOCUMENTOS_REQUERIDOS.forEach(reqDoc => {
-    const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
-    const verificadosTipo = docsTipo.filter(d => d.verificado === 1).length;
-    const noAplica = docsTipo.some(d => d.no_aplica === 1);
-
-    if (reqDoc.opcional && noAplica) {
-      tiposVerificados++;
-    } else if (verificadosTipo >= reqDoc.cantidadMin) {
-      tiposVerificados++;
-    }
-  });
-
-  const todos_verificados = (tiposVerificados === DOCUMENTOS_REQUERIDOS.length);
-
-  res.json({
-    ...proveedor,
-    todos_subidos,
-    todos_verificados
-  });
+res.json({
+...proveedor,
+todos_subidos,
+todos_verificados
+});
 });
 
 app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
-  const { razon_social, rfc, representante, telefono, direccion } = req.body;
+const { razon_social, rfc, representante, telefono, direccion, tipo_persona } = req.body;
 
-  if (!razon_social || !rfc || !representante || !telefono || !direccion ||
-      !razon_social.trim() || !rfc.trim() || !representante.trim() || !telefono.trim() || !direccion.trim()) {
-    return res.status(400).json({ error: 'Todos los datos de la empresa son obligatorios para desbloquear el portal.' });
-  }
+if (!razon_social || !rfc || !representante || !telefono || !direccion ||
+!razon_social.trim() || !rfc.trim() || !representante.trim() || !telefono.trim() || !direccion.trim()) {
+return res.status(400).json({ error: 'Todos los datos de la empresa son obligatorios para desbloquear el portal.' });
+}
 
-  const prov = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+// 🆕 Validar tipo de persona (opcional en el payload, pero validado si viene)
+let tipoPersona = null;
+if (tipo_persona) {
+if (!['natural', 'juridica'].includes(tipo_persona)) {
+return res.status(400).json({ error: 'El tipo de persona debe ser "natural" o "juridica"' });
+}
+tipoPersona = tipo_persona;
+}
 
-  db.prepare(`
-    UPDATE proveedores
-    SET razon_social = ?,
-        rfc = ?,
-        representante = ?,
-        telefono = ?,
-        direccion = ?
-    WHERE usuario_id = ?
-  `).run(
-    razon_social.trim(),
-    rfc.trim(),
-    representante.trim(),
-    telefono.trim(),
-    direccion.trim(),
-    req.session.usuario.id
-  );
+const prov = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
 
-  registrarHistorial(
-    prov.id,
-    req.session.usuario,
-    'datos_actualizados',
-    `Datos de empresa completados. Razón social: ${razon_social}`,
-    null,
-    null,
-    req
-  );
+// 🆕 Bloquear cambio de tipo si ya tiene documentos activos
+if (tipoPersona && prov.tipo_proveedor && tipoPersona !== prov.tipo_proveedor) {
+const activos = db.prepare(`
+SELECT COUNT(*) as t FROM documentos WHERE proveedor_id = ? AND es_historico = 0
+`).get(prov.id).t;
+if (activos > 0) {
+return res.status(400).json({
+error: 'No puedes cambiar el tipo de persona porque ya tienes documentos subidos. Contacta al administrador.'
+});
+}
+}
 
-  res.json({ ok: true, perfil_completo: true });
+db.prepare(`
+UPDATE proveedores
+SET razon_social = ?,
+rfc = ?,
+representante = ?,
+telefono = ?,
+direccion = ?,
+tipo_proveedor = COALESCE(?, tipo_proveedor)
+WHERE usuario_id = ?
+`).run(
+razon_social.trim(),
+rfc.trim(),
+representante.trim(),
+telefono.trim(),
+direccion.trim(),
+tipoPersona,
+req.session.usuario.id
+);
+
+registrarHistorial(
+prov.id,
+req.session.usuario,
+'datos_actualizados',
+`Datos de empresa completados. Razón social: ${razon_social}. Tipo de persona: ${tipoPersona || prov.tipo_proveedor || 'sin definir'}`,
+null,
+null,
+req
+);
+
+res.json({ ok: true, perfil_completo: true });
 });
 
 app.post('/api/proveedor/documento', requiereLogin, (req, res, next) => {
   if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
-    const proveedor = db.prepare('SELECT id, etapa FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+    const proveedor = db.prepare('SELECT id, etapa, tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
     if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
     const validacionEtapa = validarEtapaParaSubida(proveedor);
     if (!validacionEtapa.valido) return res.status(403).json({ error: validacionEtapa.mensaje });
     const { tipo, no_aplica } = req.body;
-    const config = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo);
+    const config = configDocumento(tipo, proveedor.tipo_proveedor);
     if (!config) return res.status(400).json({ error: 'Tipo inválido' });
-
+     // 🚫 NUEVO: bloquear si hay documentos rechazados que primero deben eliminarse
+  const validacionRechazados = validarCargaConRechazados(proveedor, tipo);
+  if (!validacionRechazados.valido) {
+    return res.status(409).json({ error: validacionRechazados.mensaje });
+    }
     let docId = null;
 
     if (no_aplica === true || no_aplica === 'true') {
@@ -1832,74 +1951,93 @@ app.post('/api/proveedor/documento', requiereLogin, (req, res, next) => {
       return res.json({ ok: true, mensaje: 'Documento marcado como No Aplica' });
     }
 
-    if (no_aplica === false || no_aplica === 'false') {
-      if (!config.opcional) {
-        return res.status(400).json({ error: 'Este documento no tiene opción "No aplica"' });
-      }
+ if (no_aplica === false || no_aplica === 'false') {
+   if (!config.opcional) {
+     return res.status(400).json({ error: 'Este documento no tiene opción "No aplica"' });
+   }
 
-      const existente = db.prepare(`
-        SELECT id
-        FROM documentos
-        WHERE proveedor_id = ?
-          AND tipo = ?
-          AND es_historico = 0
-      `).get(proveedor.id, tipo);
+   const existente = db.prepare(`
+     SELECT id, archivo
+     FROM documentos
+     WHERE proveedor_id = ?
+       AND tipo = ?
+       AND es_historico = 0
+   `).get(proveedor.id, tipo);
 
-      if (existente) {
-        db.prepare(`
-          UPDATE documentos
-          SET no_aplica = 0,
-              estado = 'pendiente',
-              comentario = NULL,
-              verificado = 0
-          WHERE id = ?
-        `).run(existente.id);
+   if (existente) {
+     const esMarcadorSinArchivo = !existente.archivo || existente.archivo === 'no_aplica';
 
-        docId = existente.id;
+     if (esMarcadorSinArchivo) {
+       db.prepare('DELETE FROM documentos WHERE id = ?').run(existente.id);
 
-        registrarHistorial(
-          proveedor.id,
-          req.session.usuario,
-          'documento_requiere_carga',
-          `Documento "${config.nombre}" ahora requiere carga (desmarcó No aplica)`,
-          tipo,
-          existente.id,
-          req
-        );
+       registrarHistorial(
+         proveedor.id,
+         req.session.usuario,
+         'documento_requiere_carga',
+         `Documento "${config.nombre}" desmarcó No aplica y se eliminó el marcador sin archivo`,
+         tipo,
+         existente.id,
+         req
+       );
+     } else {
+       db.prepare(`
+         UPDATE documentos
+         SET no_aplica = 0,
+             estado = 'pendiente',
+             comentario = NULL,
+             verificado = 0
+         WHERE id = ?
+       `).run(existente.id);
 
-        actualizarEstadoProveedor(proveedor.id);
+       docId = existente.id;
 
-        const provActual = db.prepare('SELECT numero_registro FROM proveedores WHERE id = ?').get(proveedor.id);
-        if (provActual?.numero_registro && docId) {
-          db.prepare(`
-            UPDATE documentos
-            SET ciclo = ?
-            WHERE id = ?
-              AND (ciclo IS NULL OR ciclo = '')
-          `).run(provActual.numero_registro, docId);
-        }
+       registrarHistorial(
+         proveedor.id,
+         req.session.usuario,
+         'documento_requiere_carga',
+         `Documento "${config.nombre}" ahora requiere carga (desmarcó No aplica)`,
+         tipo,
+         existente.id,
+         req
+       );
 
-        return res.json({ ok: true, mensaje: 'Documento ahora requiere carga' });
-      }
+       const provActual = db.prepare('SELECT numero_registro FROM proveedores WHERE id = ?').get(proveedor.id);
+       if (provActual?.numero_registro && docId) {
+         db.prepare(`
+           UPDATE documentos
+           SET ciclo = ?
+           WHERE id = ?
+             AND (ciclo IS NULL OR ciclo = '')
+         `).run(provActual.numero_registro, docId);
+       }
+     }
 
-      return res.status(400).json({ error: 'No existe documento activo para desmarcar' });
-    }
+     actualizarEstadoProveedor(proveedor.id);
+
+     return res.json({ ok: true, mensaje: 'Documento ahora requiere carga' });
+   }
+
+   return res.status(400).json({ error: 'No existe documento activo para desmarcar' });
+ }
 
     return res.status(400).json({ error: 'Se requiere archivo o marcar no_aplica' });
   }
 
   next();
-}, uploadDoc.single('archivo'), (req, res) => {
-const proveedor = db.prepare('SELECT id, etapa FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+}, uploadDoc.single('archivo'), validarPDFMagico, (req, res) => {
+const proveedor = db.prepare('SELECT id, etapa, tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
 if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
 const validacionEtapa = validarEtapaParaSubida(proveedor);
 if (!validacionEtapa.valido) return res.status(403).json({ error: validacionEtapa.mensaje });
 if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
 
   const { tipo } = req.body;
-  const config = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo);
+  const config = configDocumento(tipo, proveedor.tipo_proveedor);
   if (!config) return res.status(400).json({ error: 'Tipo inválido' });
-
+  const validacionRechazados = validarCargaConRechazados(proveedor, tipo);
+  if (!validacionRechazados.valido) {
+  return res.status(409).json({ error: validacionRechazados.mensaje });
+}
   try {
     const hashOriginal = calcularHash(req.file.buffer);
     const bufferCifrado = cifrarArchivo(req.file.buffer, ENCRYPTION_KEY);
@@ -1935,11 +2073,12 @@ if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
             AND es_historico = 0
         `).get(proveedor.id).total;
 
-        if (count >= 3) {
-          return res.status(400).json({
-            error: 'Ya has subido el máximo de 3 certificados de experiencia comercial.'
-          });
-        }
+const maxExperiencia = config.cantidadMax || 3;
+if (count >= maxExperiencia) {
+return res.status(400).json({
+error: `Ya has subido el máximo de ${maxExperiencia} certificados de experiencia comercial.`
+});
+}
       }
 
       fs.writeFileSync(rutaArchivo, bufferCifrado);
@@ -1961,7 +2100,7 @@ if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
               comentario = NULL,
               no_aplica = 0,
               verificado = 0,
-              subido_en = datetime('now', 'localtime')
+              subido_en = datetime('now', '-05:00')
           WHERE id = ?
         `).run(rutaRelativa, req.file.originalname, hashOriginal, rechazado.id);
 
@@ -2009,7 +2148,7 @@ if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
                 comentario = NULL,
                 no_aplica = 0,
                 verificado = 0,
-                subido_en = datetime('now', 'localtime')
+                subido_en = datetime('now', '-05:00')
             WHERE id = ?
           `).run(rutaRelativa, req.file.originalname, hashOriginal, existente.id);
 
@@ -2078,14 +2217,8 @@ if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
 });
 
 app.post('/api/proveedor/documento/:id/no-aplica', requiereLogin, (req, res) => {
-  const proveedor = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
-
-  const doc = db.prepare(`
-    SELECT *
-    FROM documentos
-    WHERE id = ?
-      AND proveedor_id = ?
-  `).get(req.params.id, proveedor.id);
+  const proveedor = db.prepare('SELECT id, tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+  const doc = db.prepare(`SELECT * FROM documentos WHERE id = ? AND proveedor_id = ?`).get(req.params.id, proveedor.id);
 
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
 
@@ -2095,61 +2228,76 @@ app.post('/api/proveedor/documento/:id/no-aplica', requiereLogin, (req, res) => 
     });
   }
 
-  const config = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === doc.tipo);
+  // 🚫 NUEVO: si está rechazado, debe eliminarse
+  if (doc.estado === 'rechazado') {
+    return res.status(409).json({
+      error: 'Este documento está rechazado. Debes eliminarlo antes de continuar.'
+    });
+  }
+
+  const validacionRechazados = validarCargaConRechazados(proveedor, doc.tipo);
+  if (!validacionRechazados.valido) {
+    return res.status(409).json({ error: validacionRechazados.mensaje });
+  }
+
+  const config = configDocumento(doc.tipo, proveedor.tipo_proveedor);
 
   if (!config || !config.opcional) {
     return res.status(400).json({ error: 'Este documento no tiene opción "No aplica"' });
   }
 
-  const { no_aplica } = req.body;
+const { no_aplica } = req.body;
 
-  if (no_aplica) {
-    db.prepare(`
-      UPDATE documentos
-      SET no_aplica = 1,
-          estado = 'pendiente',
-          comentario = 'No aplica - Marcado por el proveedor',
-          verificado = 1
-      WHERE id = ?
-    `).run(doc.id);
+if (no_aplica) {
+db.prepare(`UPDATE documentos SET no_aplica = 1, estado = 'pendiente', comentario = 'No aplica - Marcado por el proveedor', verificado = 1 WHERE id = ?`).run(doc.id);
 
-    registrarHistorial(
-      proveedor.id,
-      req.session.usuario,
-      'documento_no_aplica',
-      `Documento "${config.nombre}" marcado como NO APLICA`,
-      doc.tipo,
-      doc.id,
-      req
-    );
-  } else {
-    db.prepare(`
-      UPDATE documentos
-      SET no_aplica = 0,
-          estado = 'pendiente',
-          comentario = NULL,
-          verificado = 0
-      WHERE id = ?
-    `).run(doc.id);
+registrarHistorial(
+  proveedor.id,
+  req.session.usuario,
+  'documento_no_aplica',
+  `Documento "${config.nombre}" marcado como NO APLICA`,
+  doc.tipo,
+  doc.id,
+  req
+);
+} else {
+const esMarcadorSinArchivo = !doc.archivo || doc.archivo === 'no_aplica';
 
-    registrarHistorial(
-      proveedor.id,
-      req.session.usuario,
-      'documento_requiere_carga',
-      `Documento "${config.nombre}" ahora requiere carga`,
-      doc.tipo,
-      doc.id,
-      req
-    );
-  }
+if (esMarcadorSinArchivo) {
+  db.prepare('DELETE FROM documentos WHERE id = ?').run(doc.id);
 
-  actualizarEstadoProveedor(proveedor.id);
+  registrarHistorial(
+    proveedor.id,
+    req.session.usuario,
+    'documento_requiere_carga',
+    `Documento "${config.nombre}" desmarcó No aplica y se eliminó el marcador sin archivo`,
+    doc.tipo,
+    doc.id,
+    req
+  );
+} else {
+  db.prepare(`UPDATE documentos SET no_aplica = 0, estado = 'pendiente', comentario = NULL, verificado = 0 WHERE id = ?`).run(doc.id);
 
-  res.json({ ok: true });
+  registrarHistorial(
+    proveedor.id,
+    req.session.usuario,
+    'documento_requiere_carga',
+    `Documento "${config.nombre}" ahora requiere carga`,
+    doc.tipo,
+    doc.id,
+    req
+  );
+}
+}
+
+actualizarEstadoProveedor(proveedor.id);
+
+res.json({ ok: true });
+
 });
 
 app.delete('/api/proveedor/documento/:id', requiereLogin, (req, res) => {
-  const proveedor = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+  const proveedor = db.prepare('SELECT id, tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
 
   const doc = db.prepare(`
     SELECT *
@@ -2207,17 +2355,28 @@ app.get('/api/proveedor/documentos', requiereLogin, (req, res) => {
 });
 
 app.get('/api/proveedor/requerimientos', requiereLogin, (req, res) => {
-  const requeridos = DOCUMENTOS_REQUERIDOS.map(r => {
-    let plantilla = null;
+let tipo = 'juridica';
 
-    if (r.esPlantilla) {
-      plantilla = db.prepare('SELECT archivo, nombre_original FROM plantillas WHERE tipo = ?').get(r.tipo);
-    }
+if (req.session.usuario.rol === 'admin') {
+// 🆕 El admin puede pedir la lista de un tipo concreto (?tipo=natural|juridica)
+if (['natural', 'juridica'].includes(req.query.tipo)) tipo = req.query.tipo;
+} else {
+// 🆕 El proveedor solo ve su lista si ya eligió su tipo de persona
+const p = db.prepare('SELECT tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+if (!p || !['natural', 'juridica'].includes(p.tipo_proveedor)) {
+return res.json([]); // Aún no selecciona tipo → sin documentos hasta que lo haga
+}
+tipo = p.tipo_proveedor;
+}
 
-    return { ...r, plantilla };
-  });
-
-  res.json(requeridos);
+const requeridos = requerimientosPara(tipo).map(r => {
+let plantilla = null;
+if (r.esPlantilla) {
+plantilla = db.prepare('SELECT archivo, nombre_original FROM plantillas WHERE tipo = ?').get(r.tipo);
+}
+return { ...r, plantilla };
+});
+res.json(requeridos);
 });
 
 app.get('/api/proveedor/plantilla/:tipo', requiereLogin, (req, res) => {
@@ -2512,59 +2671,65 @@ app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
 
     const total = db.prepare(countQuery).get(...params).total;
 
-    const query = `
+const query = `
       SELECT
-        p.*,
-        u.email,
-        u.nombre_empresa,
-        p.etapa,
-        p.evaluacion_inicial,
-        p.evaluacion_estado,
-        p.evaluacion_fecha,
-        p.numero_registro,
-        p.tipo_gestion,
-        p.notas_gestion,
-        p.fecha_gestion
-      FROM proveedores p
-      JOIN usuarios u ON p.usuario_id = u.id
-      ${whereClause}
-      ORDER BY p.id DESC
-      LIMIT ? OFFSET ?
-    `;
+      p.*,
+      u.email,
+      u.nombre_empresa,
+      p.etapa,
+      p.evaluacion_inicial,
+      p.evaluacion_estado,
+      p.evaluacion_fecha,
+      p.numero_registro,
+      p.tipo_gestion,
+      p.notas_gestion,
+      p.fecha_gestion,
+  (SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
+  (SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
+  FROM proveedores p
+  JOIN usuarios u ON p.usuario_id = u.id
+  ${whereClause}
+  ORDER BY p.id DESC
+  LIMIT ? OFFSET ?
+`;
 
-    const proveedores = db.prepare(query).all(...params, limit, offset);
-
-    proveedores.forEach(p => {
-      const docs = db.prepare(`
-        SELECT tipo, estado, verificado, no_aplica
-        FROM documentos
-        WHERE proveedor_id = ?
-          AND es_historico = 0
-      `).all(p.id);
-
-      const agrupado = {};
-
-      docs.forEach(d => {
-        if (!agrupado[d.tipo]) agrupado[d.tipo] = [];
-        agrupado[d.tipo].push(d.estado);
-      });
-
-      let aprobados = 0;
-
-      DOCUMENTOS_REQUERIDOS.forEach(reqDoc => {
-        const estados = agrupado[reqDoc.tipo] || [];
-        if (estados.filter(e => e === 'aprobado').length >= reqDoc.cantidadMin) {
-          aprobados++;
-        }
-      });
-
+const proveedores = db.prepare(query).all(...params, limit, offset);
+// ⚡ OPT: una sola consulta para todos los documentos de la página (elimina N consultas)
+const proveedorIds = proveedores.map(p => p.id);
+let docsPorProveedor = {};
+if (proveedorIds.length > 0) {
+const placeholders = proveedorIds.map(() => '?').join(',');
+const allDocs = db.prepare(`
+SELECT proveedor_id, tipo, estado, verificado, no_aplica
+FROM documentos
+WHERE proveedor_id IN (${placeholders})
+AND es_historico = 0
+`).all(...proveedorIds);
+allDocs.forEach(d => {
+if (!docsPorProveedor[d.proveedor_id]) docsPorProveedor[d.proveedor_id] = [];
+docsPorProveedor[d.proveedor_id].push(d);
+});
+}
+proveedores.forEach(p => {
+const docs = docsPorProveedor[p.id] || [];
+const agrupado = {};
+docs.forEach(d => {
+if (!agrupado[d.tipo]) agrupado[d.tipo] = [];
+agrupado[d.tipo].push(d.estado);
+});
+const REQS = requerimientosPara(p.tipo_proveedor);
+let aprobados = 0;
+REQS.forEach(reqDoc => {
+const estados = agrupado[reqDoc.tipo] || [];
+if (estados.filter(e => e === 'aprobado').length >= reqDoc.cantidadMin) {
+aprobados++;
+}
+});
 p.aprobados = aprobados;
-p.total = DOCUMENTOS_REQUERIDOS.length;
-// 🏷️ Conteo de tipos VERIFICADOS (o no-aplica) para el medidor de la pestaña Verificación.
-// Espeja la lógica de "todos_verificados" de /api/proveedor/info y de actualizarEstadoProveedor:
-// un tipo cuenta si es opcional con no_aplica=1, o si tiene >= cantidadMin docs con verificado=1.
+p.total = REQS.length;
+// 🏷️ Conteo de tipos VERIFICADOS (o no-aplica)
 let verificados = 0;
-DOCUMENTOS_REQUERIDOS.forEach(reqDoc => {
+REQS.forEach(reqDoc => {
 const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
 const verificadosTipo = docsTipo.filter(d => d.verificado === 1).length;
 const noAplica = docsTipo.some(d => d.no_aplica === 1);
@@ -2575,22 +2740,15 @@ verificados++;
 }
 });
 p.verificados = verificados;
-
-      const recs = db.prepare('SELECT COUNT(*) as n FROM recordatorios WHERE proveedor_id = ? AND leido = 0').get(p.id);
-      p.recordatorios_pendientes = recs.n;
-
-      const notasCount = db.prepare('SELECT COUNT(*) as n FROM notas_proveedor WHERE proveedor_id = ?').get(p.id);
-      p.notas_count = notasCount.n;
-
-      if (p.estado_general === 'aprobado') {
-        p.fecha_aprobacion = p.fecha_aprobacion || null;
-      } else {
-        p.fecha_aprobacion = null;
-      }
-
-      p.todos_subidos = p.todos_subidos === 1;
-      p.todos_verificados = p.todos_verificados === 1;
-    });
+// ⚡ OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries
+if (p.estado_general === 'aprobado') {
+p.fecha_aprobacion = p.fecha_aprobacion || null;
+} else {
+p.fecha_aprobacion = null;
+}
+p.todos_subidos = p.todos_subidos === 1;
+p.todos_verificados = p.todos_verificados === 1;
+});
 
     const totalPages = Math.ceil(total / limit);
 
@@ -2824,7 +2982,7 @@ for (const doc of documentos) {
           bufferDescifrado = bufferCifrado;
         }
 
-        const configDoc = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === doc.tipo);
+        const configDoc = configDocGlobal(doc.tipo);
         let nombreBase = configDoc ? configDoc.nombre : doc.tipo;
 
         nombreBase = nombreBase.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_]/g, '').trim();
@@ -2924,7 +3082,7 @@ app.put('/api/admin/configuracion', requiereAdmin, (req, res) => {
     db.prepare(`
       UPDATE configuracion
       SET valor = ?,
-      actualizado_en = datetime('now', 'localtime')
+      actualizado_en = datetime('now', '-05:00')
       WHERE clave = 'fecha_vencimiento_fija'
     `).run(fechaStr);
 
@@ -2950,9 +3108,9 @@ app.put('/api/admin/configuracion', requiereAdmin, (req, res) => {
 
 app.post('/api/admin/recalcular-vencimientos', requiereAdmin, async (req, res) => {
   try {
-    const fechaVencimientoObj = obtenerFechaVencimiento();
-    const fechaStr = fechaVencimientoObj.toISOString().replace('T', ' ').slice(0, 19);
-
+    
+    const fechaStr = obtenerFechaVencimientoStr();
+    
     const docs = db.prepare(`
       SELECT id
       FROM documentos
@@ -3042,46 +3200,52 @@ app.get('/api/admin/proveedores/export', requiereAdmin, (req, res) => {
     const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     const query = `
-      SELECT p.*, u.email, u.nombre_empresa
+      SELECT p.*, u.email, u.nombre_empresa,
+      (SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
+      (SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
       FROM proveedores p
       JOIN usuarios u ON p.usuario_id = u.id
       ${whereClause}
       ORDER BY p.id DESC
     `;
 
-    const proveedores = db.prepare(query).all(...params);
-
-    proveedores.forEach(p => {
-      const docs = db.prepare(`
-        SELECT tipo, estado, verificado, no_aplica
-        FROM documentos
-        WHERE proveedor_id = ?
-          AND es_historico = 0
-      `).all(p.id);
-
-      const agrupado = {};
-
-      docs.forEach(d => {
-        if (!agrupado[d.tipo]) agrupado[d.tipo] = [];
-        agrupado[d.tipo].push(d.estado);
-      });
-
-      let aprobados = 0;
-
-      DOCUMENTOS_REQUERIDOS.forEach(reqDoc => {
-        const estados = agrupado[reqDoc.tipo] || [];
-        if (estados.filter(e => e === 'aprobado').length >= reqDoc.cantidadMin) {
-          aprobados++;
-        }
-      });
-
+const proveedores = db.prepare(query).all(...params);
+// ⚡ OPT: una sola consulta para todos los documentos del export (elimina N consultas)
+const proveedorIds = proveedores.map(p => p.id);
+let docsPorProveedor = {};
+if (proveedorIds.length > 0) {
+const placeholders = proveedorIds.map(() => '?').join(',');
+const allDocs = db.prepare(`
+SELECT proveedor_id, tipo, estado, verificado, no_aplica
+FROM documentos
+WHERE proveedor_id IN (${placeholders})
+AND es_historico = 0
+`).all(...proveedorIds);
+allDocs.forEach(d => {
+if (!docsPorProveedor[d.proveedor_id]) docsPorProveedor[d.proveedor_id] = [];
+docsPorProveedor[d.proveedor_id].push(d);
+});
+}
+proveedores.forEach(p => {
+const docs = docsPorProveedor[p.id] || [];
+const agrupado = {};
+docs.forEach(d => {
+if (!agrupado[d.tipo]) agrupado[d.tipo] = [];
+agrupado[d.tipo].push(d.estado);
+});
+const REQS = requerimientosPara(p.tipo_proveedor);
+let aprobados = 0;
+REQS.forEach(reqDoc => {
+const estados = agrupado[reqDoc.tipo] || [];
+if (estados.filter(e => e === 'aprobado').length >= reqDoc.cantidadMin) {
+aprobados++;
+}
+});
 p.aprobados = aprobados;
-p.total = DOCUMENTOS_REQUERIDOS.length;
-// 🏷️ Conteo de tipos VERIFICADOS (o no-aplica) para el medidor de la pestaña Verificación.
-// Espeja la lógica de "todos_verificados" de /api/proveedor/info y de actualizarEstadoProveedor:
-// un tipo cuenta si es opcional con no_aplica=1, o si tiene >= cantidadMin docs con verificado=1.
+p.total = REQS.length;
+// 🏷️ Conteo de tipos VERIFICADOS (o no-aplica)
 let verificados = 0;
-DOCUMENTOS_REQUERIDOS.forEach(reqDoc => {
+REQS.forEach(reqDoc => {
 const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
 const verificadosTipo = docsTipo.filter(d => d.verificado === 1).length;
 const noAplica = docsTipo.some(d => d.no_aplica === 1);
@@ -3092,22 +3256,15 @@ verificados++;
 }
 });
 p.verificados = verificados;
-
-      const recs = db.prepare('SELECT COUNT(*) as n FROM recordatorios WHERE proveedor_id = ? AND leido = 0').get(p.id);
-      p.recordatorios_pendientes = recs.n;
-
-      const notasCount = db.prepare('SELECT COUNT(*) as n FROM notas_proveedor WHERE proveedor_id = ?').get(p.id);
-      p.notas_count = notasCount.n;
-
-      if (p.estado_general === 'aprobado') {
-        p.fecha_aprobacion = p.fecha_aprobacion || null;
-      } else {
-        p.fecha_aprobacion = null;
-      }
-
-      p.todos_subidos = p.todos_subidos === 1;
-      p.todos_verificados = p.todos_verificados === 1;
-    });
+// ⚡ OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries de la query principal
+if (p.estado_general === 'aprobado') {
+p.fecha_aprobacion = p.fecha_aprobacion || null;
+} else {
+p.fecha_aprobacion = null;
+}
+p.todos_subidos = p.todos_subidos === 1;
+p.todos_verificados = p.todos_verificados === 1;
+});
 
     res.json({ data: proveedores });
   } catch (err) {
@@ -3184,8 +3341,17 @@ app.get('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
 });
 
 app.post('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
-  const { numero_registro, tipo_gestion, notas_gestion, tipo_proveedor } = req.body;
-  const proveedorId = req.params.id;
+const { numero_registro, tipo_gestion, notas_gestion, tipo_proveedor } = req.body;
+const proveedorId = req.params.id;
+// 🛡️ Validar longitud de numero_registro (texto libre)
+if (numero_registro && String(numero_registro).length > 100) {
+return res.status(400).json({ error: 'La fecha de movimiento no puede exceder 100 caracteres.' });
+}
+// 🆕 El tipo de proveedor ahora es un valor controlado
+let tipoProveedorValido = (tipo_proveedor || '').trim();
+if (tipoProveedorValido && !['natural', 'juridica'].includes(tipoProveedorValido)) {
+tipoProveedorValido = null; // texto libre no reconocido → no sobreescribir
+}
 
   if (!['inscripcion', 'actualizacion'].includes(tipo_gestion)) {
     return res.status(400).json({ error: 'Tipo de gestión inválido. Debe ser "inscripcion" o "actualizacion".' });
@@ -3202,21 +3368,21 @@ app.post('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
       return res.status(404).json({ error: 'Proveedor no encontrado' });
     }
 
-    db.prepare(`
-      UPDATE proveedores
-      SET numero_registro = ?,
-          tipo_gestion = ?,
-          notas_gestion = ?,
-          fecha_gestion = datetime('now', 'localtime'),
-          tipo_proveedor = ?
-      WHERE id = ?
-    `).run(
-      numero_registro || null,
-      tipo_gestion,
-      notas_gestion || null,
-      tipo_proveedor || null,
-      proveedorId
-    );
+db.prepare(`
+UPDATE proveedores
+SET numero_registro = ?,
+tipo_gestion = ?,
+notas_gestion = ?,
+fecha_gestion = datetime('now', '-05:00'),
+tipo_proveedor = COALESCE(NULLIF(?, ''), tipo_proveedor)
+WHERE id = ?
+`).run(
+numero_registro || null,
+tipo_gestion,
+notas_gestion || null,
+tipoProveedorValido || '',
+proveedorId
+);
 
     const detalle = `Gestión: ${tipo_gestion} - N° ${numero_registro || 'sin número'} - Notas: ${notas_gestion || ''}`;
 
@@ -3309,7 +3475,7 @@ app.get('/api/admin/proveedor/:id/evaluacion/download', requiereAdmin, (req, res
   }
 });
 
-app.post('/api/admin/proveedor/:id/evaluacion', requiereAdmin, uploadDoc.single('archivo'), (req, res) => {
+app.post('/api/admin/proveedor/:id/evaluacion', requiereAdmin, uploadDoc.single('archivo'), validarPDFMagico, (req, res) => {
   const proveedorId = parseInt(req.params.id);
 
   if (!req.file) {
@@ -3354,7 +3520,7 @@ app.post('/api/admin/proveedor/:id/evaluacion', requiereAdmin, uploadDoc.single(
     db.prepare(`
       UPDATE proveedores
       SET evaluacion_inicial = ?,
-          evaluacion_fecha = datetime('now', 'localtime'),
+          evaluacion_fecha = datetime('now', '-05:00'),
           evaluacion_estado = 'pendiente'
       WHERE id = ?
     `).run(rutaRelativa, proveedorId);
@@ -3417,8 +3583,8 @@ app.delete('/api/admin/proveedor/:id/evaluacion', requiereAdmin, (req, res) => {
       return res.status(404).json({ error: 'No hay evaluación inicial para eliminar' });
     }
 
-    if (proveedor.evaluacion_estado !== 'pendiente') {
-      return res.status(400).json({ error: 'No puedes eliminar una evaluación que ya ha sido aprobada o rechazada.' });
+    if (proveedor.evaluacion_estado === 'aprobado') {
+    return res.status(400).json({ error: 'No puedes eliminar una evaluación aprobada.' });
     }
 
     const rutaArchivo = path.join(uploadsDir, proveedor.evaluacion_inicial);
@@ -3516,21 +3682,26 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
       if (esActualizacion) {
         console.log(`🔄 Proveedor ${proveedorId} en ACTUALIZACIÓN: volviendo a verificación sin bloquear.`);
 
-        db.prepare(`
-          UPDATE documentos
-          SET estado = 'rechazado',
-              verificado = 0,
-              comentario = 'Rechazado automáticamente por evaluación inicial rechazada en proceso de actualización'
-          WHERE proveedor_id = ?
-            AND es_historico = 0
-        `).run(proveedorId);
+             db.prepare(`
+       UPDATE documentos
+       SET estado = 'rechazado',
+           verificado = 0,
+           no_aplica = 0,
+           fecha_vencimiento = NULL,
+           comentario = 'Rechazado por evaluación inicial en proceso de actualización. Debes eliminar este documento antes de subir uno nuevo.'
+       WHERE proveedor_id = ?
+         AND es_historico = 0
+     `).run(proveedorId);
 
-        db.prepare(`
-          UPDATE proveedores
-          SET etapa = 'verificacion',
-              evaluacion_estado = 'rechazado'
-          WHERE id = ?
-        `).run(proveedorId);
+             db.prepare(`
+       UPDATE proveedores
+       SET etapa = 'verificacion',
+           evaluacion_estado = 'rechazado',
+           estado_general = 'rechazado',
+           todos_subidos = 0,
+           todos_verificados = 0
+       WHERE id = ?
+     `).run(proveedorId);
 
         db.prepare(`
           UPDATE proveedores
@@ -3578,7 +3749,7 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
               </div>
                 <p>Debes corregir los documentos rechazados y volver a subirlos para continuar con el proceso.</p>
                 <div style="text-align: center; margin-top: 20px;">
-                  <a href="${process.env.APP_URL || 'http://localhost:3000/'}/proveedor.html"
+                  <a href="${APP_URL_NORMALIZADO}/proveedor.html"
                     style="background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                     Ir al Portal
                     </a>
@@ -3605,23 +3776,26 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
       } else {
         console.log(`❌ Proveedor ${proveedorId} en INSCRIPCIÓN: pasando a RECHAZADO.`);
 
-        db.prepare(`
-          UPDATE documentos
-          SET estado = 'rechazado',
-              verificado = 0,
-              comentario = 'Rechazado automáticamente por evaluación inicial rechazada'
-          WHERE proveedor_id = ?
-            AND es_historico = 0
-        `).run(proveedorId);
+             db.prepare(`
+       UPDATE documentos
+       SET estado = 'rechazado',
+           verificado = 0,
+           no_aplica = 0,
+           fecha_vencimiento = NULL,
+           comentario = 'Rechazado por evaluación inicial. Debes eliminar este documento antes de subir uno nuevo.'
+       WHERE proveedor_id = ?
+         AND es_historico = 0
+     `).run(proveedorId);
 
-        db.prepare(`
-          UPDATE proveedores
-          SET etapa = 'rechazado',
-              estado_general = 'rechazado'
-          WHERE id = ?
-        `).run(proveedorId);
-
-        db.prepare(`UPDATE proveedores SET evaluacion_estado = 'rechazado' WHERE id = ?`).run(proveedorId);
+     db.prepare(`
+       UPDATE proveedores
+       SET etapa = 'rechazado',
+           estado_general = 'rechazado',
+           evaluacion_estado = 'rechazado',
+           todos_subidos = 0,
+           todos_verificados = 0
+       WHERE id = ?
+     `).run(proveedorId);
 
         db.prepare(`
           UPDATE proveedores
@@ -3745,12 +3919,12 @@ app.get('/api/admin/proveedor/:id', requiereAdmin, (req, res) => {
     ORDER BY ciclo DESC, tipo, id
   `).all(p.id);
 
-  res.json({
-    proveedor: p,
-    documentos: docs,
-    documentos_historicos,
-    requeridos: DOCUMENTOS_REQUERIDOS
-  });
+ res.json({
+proveedor: p,
+documentos: docs,
+documentos_historicos,
+requeridos: requerimientosPara(p.tipo_proveedor)
+});
 });
 
 app.post('/api/admin/documento/:id/estado', requiereAdmin, (req, res) => {
@@ -3778,39 +3952,38 @@ app.post('/api/admin/documento/:id/estado', requiereAdmin, (req, res) => {
     });
   }
 
-  const verificadoFinal = estado === 'rechazado' ? 0 : doc.verificado;
-  const noAplicaFinal = estado === 'rechazado' ? 0 : doc.no_aplica;
+const verificadoFinal = estado === 'rechazado' ? 0 : doc.verificado;
+const noAplicaFinal = estado === 'rechazado' ? 0 : doc.no_aplica;
+let fechaVencimiento = null;
+let ciclo = doc.ciclo || null;
 
-  let fechaVencimiento = null;
-  let ciclo = doc.ciclo || null;
+let comentarioFinal = comentario || null;
+
+if (estado === 'rechazado') {
+  const motivo = (comentario || '').trim();
+
+  comentarioFinal = motivo
+    ? `${motivo} — Debes eliminar este documento antes de subir uno nuevo.`
+    : 'Documento rechazado. Debes eliminar este documento antes de subir uno nuevo.';
+}
 
   if (estado === 'aprobado') {
     const proveedor = db.prepare('SELECT numero_registro FROM proveedores WHERE id = ?').get(doc.proveedor_id);
 
     ciclo = proveedor?.numero_registro || doc.ciclo || obtenerCicloActivo(doc.proveedor_id)?.numero_registro || null;
 
-    const fechaVencimientoObj = obtenerFechaVencimiento();
-    fechaVencimiento = fechaVencimientoObj.toISOString().replace('T', ' ').slice(0, 19);
+    fechaVencimiento = obtenerFechaVencimientoStr();
   }
 
-  db.prepare(`
-    UPDATE documentos
-    SET estado = ?,
-        comentario = ?,
-        verificado = ?,
-        no_aplica = ?,
-        fecha_vencimiento = ?,
-        ciclo = ?
-    WHERE id = ?
-  `).run(
-    estado,
-    comentario || null,
-    verificadoFinal,
-    noAplicaFinal,
-    fechaVencimiento,
-    ciclo,
-    req.params.id
-  );
+db.prepare(`UPDATE documentos SET estado = ?, comentario = ?, verificado = ?, no_aplica = ?, fecha_vencimiento = ?, ciclo = ? WHERE id = ?`).run(
+estado,
+comentarioFinal,
+verificadoFinal,
+noAplicaFinal,
+fechaVencimiento,
+ciclo,
+req.params.id
+);
 
   actualizarEstadoProveedor(doc.proveedor_id);
 
@@ -3818,7 +3991,7 @@ app.post('/api/admin/documento/:id/estado', requiereAdmin, (req, res) => {
 
   if (estado === 'rechazado') {
     if (prov) {
-      if (prov.etapa !== 'verificacion') {
+      if (prov.etapa !== 'verificacion' && prov.etapa !== 'rechazado') {
         db.prepare(`UPDATE proveedores SET etapa = 'verificacion' WHERE id = ?`).run(doc.proveedor_id);
 
         console.log(`🔄 Proveedor ${doc.proveedor_id} vuelve a etapa VERIFICACION (documento rechazado)`);
@@ -3881,26 +4054,24 @@ app.post('/api/admin/documento/:id/estado', requiereAdmin, (req, res) => {
     }
   }
 
-  if (estado === 'rechazado') {
-    const proveedorUsuario = db.prepare(`
-      SELECT u.email, u.nombre_empresa, p.razon_social
-      FROM usuarios u
-      JOIN proveedores p ON u.id = p.usuario_id
-      WHERE p.id = ?
-    `).get(doc.proveedor_id);
-
-    if (proveedorUsuario) {
-      const nombreProveedor = proveedorUsuario.razon_social || proveedorUsuario.nombre_empresa || 'Proveedor';
-      const config = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === doc.tipo);
-      const nombreDoc = config ? config.nombre : doc.tipo;
-
-      enviarEmail(
-        proveedorUsuario.email,
-        `❌ Documento rechazado: ${nombreDoc}`,
-        emailDocumentoRechazado(nombreProveedor, nombreDoc, comentario)
-      ).catch(err => console.error('Error enviando notificación de rechazo:', err));
+if (estado === 'rechazado') {
+  const proveedorUsuario = db.prepare(`
+  SELECT u.email, u.nombre_empresa, p.razon_social, p.tipo_proveedor
+  FROM usuarios u
+  JOIN proveedores p ON u.id = p.usuario_id
+  WHERE p.id = ?
+  `).get(doc.proveedor_id);
+  if (proveedorUsuario) {
+const nombreProveedor = proveedorUsuario.razon_social || proveedorUsuario.nombre_empresa || 'Proveedor';
+const config = configDocumento(doc.tipo, proveedorUsuario.tipo_proveedor);
+        const nombreDoc = config ? config.nombre : doc.tipo;
+        enviarEmail(
+            proveedorUsuario.email,
+            `❌ Documento rechazado: ${nombreDoc}`,
+            emailDocumentoRechazado(nombreProveedor, nombreDoc, comentarioFinal)
+        ).catch(err => console.error('Error enviando notificación de rechazo:', err));
     }
-  }
+}
 
   if (estado === 'aprobado') {
     console.log(`✅ Documento aprobado individualmente (no se envía email): ${doc.nombre_original}`);
@@ -3935,54 +4106,52 @@ app.post('/api/admin/proveedor/:id/recordatorio', requiereAdmin, (req, res) => {
   const prov = db.prepare('SELECT id FROM proveedores WHERE id = ?').get(req.params.id);
   if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-  const mensajeEscapado = escapeHtml(mensaje.trim());
-
-  db.prepare(`
-    INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje)
-    VALUES (?, ?, ?, ?)
-  `).run(prov.id, req.session.usuario.id, req.session.usuario.email, mensajeEscapado);
-
-  registrarHistorial(
-    prov.id,
-    req.session.usuario,
-    'recordatorio_enviado',
-    `Recordatorio enviado: ${mensajeEscapado}`,
-    null,
-    null,
-    req
-  );
-
-  emitirProveedor(prov.id, 'nuevo_recordatorio', { mensaje: mensajeEscapado });
+// 🛡️ N2: se guarda CRUDO; el frontend pinta con textContent (seguro).
+const mensajeCrudo = mensaje.trim();
+db.prepare(`
+INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje)
+VALUES (?, ?, ?, ?)
+`).run(prov.id, req.session.usuario.id, req.session.usuario.email, mensajeCrudo);
+registrarHistorial(
+  prov.id,
+  req.session.usuario,
+  'recordatorio_enviado',
+  `Recordatorio enviado: ${mensajeCrudo}`,
+  null,
+  null,
+  req
+);
+emitirProveedor(prov.id, 'nuevo_recordatorio', { mensaje: mensajeCrudo });
 
   res.json({ ok: true });
 });
 
 app.post('/api/admin/limpiar-sesiones', requiereAdmin, (req, res) => {
-  try {
-    limpiarSesionesCorruptas();
-
-    const archivos = fs.readdirSync(sessionsDir);
-    let eliminados = 0;
-
-    archivos.forEach(archivo => {
-      if (archivo.endsWith('.json')) {
-        try {
-          fs.unlinkSync(path.join(sessionsDir, archivo));
-          eliminados++;
-        } catch (e) {
-          console.error(`Error eliminando ${archivo}:`, e.message);
-        }
-      }
-    });
-
-    res.json({
-      ok: true,
-      mensaje: `✅ ${eliminados} sesiones eliminadas`,
-      sesionesActivas: archivos.length - eliminados
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Error limpiando sesiones: ' + err.message });
-  }
+try {
+limpiarSesionesCorruptas();
+const archivos = fs.readdirSync(sessionsDir);
+let eliminados = 0;
+// 🛡️ OPT (#7): conservar la sesión del admin que ejecuta la limpieza
+const sesionActual = req.sessionID;
+archivos.forEach(archivo => {
+if (archivo.endsWith('.json')) {
+if (sesionActual && archivo.includes(sesionActual)) return; // no cerrar tu propia sesión
+try {
+fs.unlinkSync(path.join(sessionsDir, archivo));
+eliminados++;
+} catch (e) {
+console.error(`Error eliminando ${archivo}:`, e.message);
+}
+}
+});
+res.json({
+ok: true,
+mensaje: `✅ ${eliminados} sesiones eliminadas (tu sesión activa se conservó)`,
+sesionesActivas: archivos.length - eliminados
+});
+} catch (err) {
+res.status(500).json({ error: 'Error limpiando sesiones: ' + err.message });
+}
 });
 
 app.post('/api/admin/limpiar-rate-limits', requiereAdmin, (req, res) => {
@@ -3995,19 +4164,98 @@ app.post('/api/admin/limpiar-rate-limits', requiereAdmin, (req, res) => {
   res.json({ ok: true, mensaje: 'Rate limits reseteados' });
 });
 
-app.post('/api/admin/proveedor/:id/documento', requiereAdmin, limiterUpload, uploadDoc.single('archivo'), (req, res) => {
-  const proveedorId = parseInt(req.params.id);
+// ==========================================
+// 💾 GESTIÓN DE BACKUPS (solo admin)
+// ==========================================
+const BACKUP_REGEX = /^proveedores_\d{4}-\d{2}-\d{2}(_\d{4})?\.db$/;
+function nombreBackupValido(n) { const x = path.basename(String(n || '')); return BACKUP_REGEX.test(x) ? x : null; }
+app.get('/api/admin/backups', requiereAdmin, (req, res) => {
+const dir = path.join(dataDir, 'backups');
+if (!fs.existsSync(dir)) return res.json({ backups: [] });
+const backups = fs.readdirSync(dir)
+.filter(f => BACKUP_REGEX.test(f))
+.map(f => { const st = fs.statSync(path.join(dir, f)); return { nombre: f, bytes: st.size, fecha: st.mtime.toISOString() }; })
+.sort((a, b) => b.nombre.localeCompare(a.nombre));
+res.json({ backups });
+});
+app.post('/api/admin/backups/crear', requiereAdmin, async (req, res) => {
+try {
+const dir = path.join(dataDir, 'backups');
+if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+const d = new Date();
+const stamp = d.toISOString().slice(0, 10) + '_' + d.toISOString().slice(11, 16).replace(':', '');
+const destino = path.join(dir, `proveedores_${stamp}.db`);
+await db.backup(destino);
+respaldarArchivosNuevos();
+registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'backup_manual', true, path.basename(destino), req);
+res.json({ ok: true, mensaje: 'Backup creado correctamente', nombre: path.basename(destino) });
+} catch (e) {
+console.error('❌ Error creando backup:', e.message);
+res.status(500).json({ error: 'Error al crear el backup' });
+}
+});
+app.get('/api/admin/backups/:nombre', requiereAdmin, (req, res) => {
+const n = nombreBackupValido(req.params.nombre);
+if (!n) return res.status(400).json({ error: 'Nombre de backup inválido' });
+const ruta = path.join(dataDir, 'backups', n);
+if (!fs.existsSync(ruta)) return res.status(404).json({ error: 'Backup no encontrado' });
+res.setHeader('Content-Disposition', `attachment; filename="${n}"`);
+res.setHeader('Content-Type', 'application/octet-stream');
+fs.createReadStream(ruta).pipe(res);
+});
+app.get('/api/admin/backups/:nombre/verificar', requiereAdmin, (req, res) => {
+const n = nombreBackupValido(req.params.nombre);
+if (!n) return res.status(400).json({ error: 'Nombre de backup inválido' });
+const ruta = path.join(dataDir, 'backups', n);
+if (!fs.existsSync(ruta)) return res.status(404).json({ error: 'Backup no encontrado' });
+let b = null;
+try {
+const Database = require('better-sqlite3');
+b = new Database(ruta, { readonly: true, fileMustExist: true });
+const check = b.pragma('integrity_check', { simple: true });
+const conteos = {};
+for (const t of ['usuarios', 'proveedores', 'documentos']) {
+try { conteos[t] = b.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n; } catch (e) { conteos[t] = null; }
+}
+b.close();
+res.json({ integro: check === 'ok', checks: check, conteos });
+} catch (e) {
+try { if (b) b.close(); } catch (_) {}
+res.json({ integro: false, mensaje: 'Backup dañado o ilegible: ' + e.message });
+}
+});
+app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
+const n = nombreBackupValido(req.params.nombre);
+if (!n) return res.status(400).json({ error: 'Nombre de backup inválido' });
+const ruta = path.join(dataDir, 'backups', n);
+if (!fs.existsSync(ruta)) return res.status(404).json({ error: 'Backup no encontrado' });
+registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'backup_restaurado', true, n, req);
+// 1) Snapshot de seguridad del estado actual (nunca pierdes lo de hoy)
+const safety = path.join(dataDir, 'backups', `pre_restore_${Date.now()}.db`);
+db.backup(safety).then(() => {
+// 2) Cerrar BD y reemplazar archivos (incluye WAL/SHM para evitar corrupción)
+try { db.close(); } catch (e) {}
+fs.rmSync(path.join(dataDir, 'proveedores.db'), { force: true });
+fs.rmSync(path.join(dataDir, 'proveedores.db-wal'), { force: true });
+fs.rmSync(path.join(dataDir, 'proveedores.db-shm'), { force: true });
+fs.copyFileSync(ruta, path.join(dataDir, 'proveedores.db'));
+res.json({ ok: true, mensaje: 'Restauración completada. Reiniciando el servicio…' });
+// 3) Railway reinicia solo al salir el proceso
+setTimeout(() => process.exit(0), 800);
+}).catch(e => {
+if (!res.headersSent) res.status(500).json({ error: 'Error al restaurar: ' + e.message });
+});
+});
 
-  if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
-
-  const { tipo } = req.body;
-  if (!tipo) return res.status(400).json({ error: 'Tipo de documento requerido' });
-
-  const config = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo);
-  if (!config) return res.status(400).json({ error: 'Tipo de documento inválido' });
-
-  const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(proveedorId);
-  if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
+app.post('/api/admin/proveedor/:id/documento', requiereAdmin, limiterUpload, uploadDoc.single('archivo'), validarPDFMagico, (req, res) => {
+const proveedorId = parseInt(req.params.id);
+if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
+const { tipo } = req.body;
+if (!tipo) return res.status(400).json({ error: 'Tipo de documento requerido' });
+const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(proveedorId);
+if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
+const config = configDocumento(tipo, proveedor.tipo_proveedor);
+if (!config) return res.status(400).json({ error: 'Tipo de documento inválido' });
 
   try {
     const hashOriginal = calcularHash(req.file.buffer);
@@ -4044,11 +4292,12 @@ app.post('/api/admin/proveedor/:id/documento', requiereAdmin, limiterUpload, upl
             AND es_historico = 0
         `).get(proveedorId).total;
 
-        if (count >= 3) {
-          return res.status(400).json({
-            error: 'Este proveedor ya tiene el máximo de 3 certificados de experiencia comercial.'
-          });
-        }
+const maxExperiencia = config.cantidadMax || 3;
+if (count >= maxExperiencia) {
+return res.status(400).json({
+error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de experiencia comercial.`
+});
+}
       }
 
       fs.writeFileSync(rutaArchivo, bufferCifrado);
@@ -4070,7 +4319,7 @@ app.post('/api/admin/proveedor/:id/documento', requiereAdmin, limiterUpload, upl
               comentario = NULL,
               no_aplica = 0,
               verificado = 0,
-              subido_en = datetime('now', 'localtime')
+              subido_en = datetime('now', '-05:00')
           WHERE id = ?
         `).run(rutaRelativa, req.file.originalname, hashOriginal, rechazado.id);
 
@@ -4112,7 +4361,7 @@ app.post('/api/admin/proveedor/:id/documento', requiereAdmin, limiterUpload, upl
                 comentario = NULL,
                 no_aplica = 0,
                 verificado = 0,
-                subido_en = datetime('now', 'localtime')
+                subido_en = datetime('now', '-05:00')
             WHERE id = ?
           `).run(rutaRelativa, req.file.originalname, hashOriginal, existente.id);
 
@@ -4298,7 +4547,7 @@ app.get('/api/admin/proveedor/:id/documentos/zip', requiereAdmin, async (req, re
           continue;
         }
 
-        const configDoc = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === doc.tipo);
+        const configDoc = configDocGlobal(doc.tipo);
         let nombreBase = configDoc ? configDoc.nombre : doc.tipo;
 
         nombreBase = nombreBase.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_]/g, '').trim();
@@ -4350,23 +4599,24 @@ app.post('/api/admin/proveedor/:id/nota', requiereAdmin, (req, res) => {
   const prov = db.prepare('SELECT id FROM proveedores WHERE id = ?').get(req.params.id);
   if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-  const tituloEscapado = escapeHtml((titulo || 'Nota').trim());
-  const notaEscapada = escapeHtml(nota.trim());
-
-  db.prepare(`
-    INSERT INTO notas_proveedor (proveedor_id, admin_id, admin_nombre, titulo, nota)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(prov.id, req.session.usuario.id, req.session.usuario.email, tituloEscapado, notaEscapada);
-
-  registrarHistorial(
-    prov.id,
-    req.session.usuario,
-    'nota_agregada',
-    `Nota agregada: ${tituloEscapado} - ${notaEscapada.substring(0, 100)}`,
-    null,
-    null,
-    req
-  );
+// 🛡️ N2: se guarda CRUDO. El frontend pinta con textContent (seguro ante XSS)
+// y así se evita la doble codificación (&amp; visible). registrarHistorial
+// ya escapa internamente el detalle, por eso recibe el texto crudo.
+const tituloCrudo = (titulo || 'Nota').trim();
+const notaCruda = nota.trim();
+db.prepare(`
+INSERT INTO notas_proveedor (proveedor_id, admin_id, admin_nombre, titulo, nota)
+VALUES (?, ?, ?, ?, ?)
+`).run(prov.id, req.session.usuario.id, req.session.usuario.email, tituloCrudo, notaCruda);
+registrarHistorial(
+  prov.id,
+  req.session.usuario,
+  'nota_agregada',
+  `Nota agregada: ${tituloCrudo} - ${notaCruda.substring(0, 100)}`,
+  null,
+  null,
+  req
+);
 
   const proveedorUsuario = db.prepare(`
     SELECT u.email, u.nombre_empresa, p.razon_social
@@ -4385,7 +4635,7 @@ app.post('/api/admin/proveedor/:id/nota', requiereAdmin, (req, res) => {
     ).catch(err => console.error('Error enviando notificación:', err));
   }
 
-  emitirProveedor(prov.id, 'nueva_nota', { titulo: tituloEscapado, nota: notaEscapada });
+  emitirProveedor(prov.id, 'nueva_nota', { titulo: tituloCrudo, nota: notaCruda });
 
   res.json({ ok: true });
 });
@@ -4398,19 +4648,13 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
   const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(proveedorId);
   if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-  const config = DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo);
+  const config = configDocumento(tipo, proveedor.tipo_proveedor);
   if (!config) return res.status(400).json({ error: 'Tipo de documento inválido' });
 
   let documentoId = docId;
 
   if (docId === 0 || !docId) {
-    const existente = db.prepare(`
-      SELECT id
-      FROM documentos
-      WHERE proveedor_id = ?
-        AND tipo = ?
-        AND es_historico = 0
-    `).get(proveedorId, tipo);
+ const existente = db.prepare(`SELECT id, archivo FROM documentos WHERE proveedor_id = ? AND tipo = ? AND es_historico = 0`).get(proveedorId, tipo);
 
     if (existente) {
       documentoId = existente.id;
@@ -4424,16 +4668,20 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
               verificado = 1
           WHERE id = ?
         `).run(existente.id);
-      } else {
-        db.prepare(`
-          UPDATE documentos
-          SET no_aplica = 0,
-              estado = 'pendiente',
-              comentario = NULL,
-              verificado = 0
-          WHERE id = ?
-        `).run(existente.id);
-      }
+         } else {
+     if (!existente.archivo || existente.archivo === 'no_aplica') {
+       db.prepare('DELETE FROM documentos WHERE id = ?').run(existente.id);
+     } else {
+       db.prepare(`
+         UPDATE documentos
+         SET no_aplica = 0,
+             estado = 'pendiente',
+             comentario = NULL,
+             verificado = 0
+         WHERE id = ?
+       `).run(existente.id);
+     }
+   }
 
       registrarHistorial(
         proveedorId,
@@ -4482,25 +4730,29 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
       });
     }
 
-    if (no_aplica) {
-      db.prepare(`
-        UPDATE documentos
-        SET no_aplica = 1,
-            estado = 'pendiente',
-            comentario = 'No aplica - Marcado por admin',
-            verificado = 1
-        WHERE id = ?
-      `).run(doc.id);
-    } else {
-      db.prepare(`
-        UPDATE documentos
-        SET no_aplica = 0,
-            estado = 'pendiente',
-            comentario = NULL,
-            verificado = 0
-        WHERE id = ?
-      `).run(doc.id);
-    }
+     if (no_aplica) {
+   db.prepare(`
+     UPDATE documentos
+     SET no_aplica = 1,
+         estado = 'pendiente',
+         comentario = 'No aplica - Marcado por admin',
+         verificado = 1
+     WHERE id = ?
+   `).run(doc.id);
+ } else {
+   if (!doc.archivo || doc.archivo === 'no_aplica') {
+     db.prepare('DELETE FROM documentos WHERE id = ?').run(doc.id);
+   } else {
+     db.prepare(`
+       UPDATE documentos
+       SET no_aplica = 0,
+           estado = 'pendiente',
+           comentario = NULL,
+           verificado = 0
+       WHERE id = ?
+     `).run(doc.id);
+   }
+ }
 
     registrarHistorial(
       proveedorId,
@@ -4547,37 +4799,47 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
 });
 
 app.post('/api/admin/proveedor', requiereAdmin, async (req, res) => {
-  const { email, password, nombre_empresa, razon_social, rfc, representante, telefono, direccion } = req.body;
-
-  if (!email || !password || !nombre_empresa) {
-    return res.status(400).json({ error: 'Email, contraseña y nombre de empresa son obligatorios' });
-  }
-
-  const validacion = validarPassword(password);
-  if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
-
-  try {
-    const existente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
-    if (existente) return res.status(400).json({ error: 'El email ya está registrado' });
-
-    const hash = bcrypt.hashSync(password, 12);
+const { email, password, nombre_empresa, razon_social, rfc, representante, telefono, direccion, tipo_proveedor } = req.body;
+if (!email || !nombre_empresa) {
+return res.status(400).json({ error: 'Email y nombre de empresa son obligatorios' });
+}
+// 🛡️ Validar formato de email antes de tocar BD/Brevo
+if (!EMAIL_REGEX.test(String(email).trim())) {
+return res.status(400).json({ error: 'Formato de email inválido' });
+}
+// ⚡ OPT SEGURIDAD: si no se proporciona contraseña, se genera una aleatoria
+// y se envía un enlace de activación de un solo uso (nunca se envía la contraseña por email)
+let passwordFinal = password;
+let usarActivacion = false;
+if (!password || !password.trim()) {
+passwordFinal = generarPasswordAleatoria(16);
+usarActivacion = true;
+} else {
+const validacion = validarPassword(password);
+if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
+}
+try {
+const existente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
+if (existente) return res.status(400).json({ error: 'El email ya está registrado' });
+const hash = bcrypt.hashSync(passwordFinal, 12);
 
     const result = db.prepare(`
       INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password)
       VALUES (?, ?, 'proveedor', ?, 1)
     `).run(email, hash, nombre_empresa);
 
-    const provResult = db.prepare(`
-      INSERT INTO proveedores (usuario_id, razon_social, rfc, representante, telefono, direccion)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      result.lastInsertRowid,
-      razon_social || nombre_empresa,
-      rfc || '',
-      representante || '',
-      telefono || '',
-      direccion || ''
-    );
+const provResult = db.prepare(`
+INSERT INTO proveedores (usuario_id, razon_social, rfc, representante, telefono, direccion, tipo_proveedor)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+`).run(
+result.lastInsertRowid,
+razon_social || nombre_empresa,
+rfc || '',
+representante || '',
+telefono || '',
+direccion || '',
+['natural', 'juridica'].includes(tipo_proveedor) ? tipo_proveedor : null
+);
 
     registrarHistorial(
       provResult.lastInsertRowid,
@@ -4589,26 +4851,46 @@ app.post('/api/admin/proveedor', requiereAdmin, async (req, res) => {
       req
     );
 
-    registrarLogSeguridad(result.lastInsertRowid, email, 'proveedor_creado_admin', true, nombre_empresa, req);
-
-    try {
-      const htmlCredenciales = emailBienvenidaProveedor(email, password, nombre_empresa);
-
-      await enviarEmail(
-        email,
-        `🏢 Bienvenido - Credenciales de acceso al Portal de Proveedores`,
-        htmlCredenciales
-      );
-    } catch (emailErr) {
-      console.error('Error enviando email de bienvenida:', emailErr.message);
-    }
+registrarLogSeguridad(result.lastInsertRowid, email, 'proveedor_creado_admin', true, nombre_empresa, req);
+// ⚡ OPT SEGURIDAD: si no se escribió contraseña, generamos un token de activación
+// de un solo uso (7 días) y enviamos el enlace a restablecer-password.html.
+// Si el admin escribió contraseña, se mantiene el correo clásico de credenciales.
+let enlaceActivacion = null;
+if (usarActivacion) {
+const token = crypto.randomBytes(32).toString('hex');
+const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+// Formato 'YYYY-MM-DD HH:MM:SS' (UTC) para comparar bien contra datetime('now')
+const expiracion = new Date(Date.now() + 7 * 24 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+db.prepare(`
+INSERT INTO password_resets (usuario_id, token, expiracion)
+VALUES (?, ?, ?)
+`).run(result.lastInsertRowid, tokenHash, expiracion);
+enlaceActivacion = `${APP_URL_NORMALIZADO}/restablecer-password.html?token=${token}`;
+}
+try {
+if (usarActivacion) {
+await enviarEmail(
+email,
+`🏢 Bienvenido - Activa tu cuenta en el Portal de Proveedores`,
+emailBienvenidaConActivacion(email, nombre_empresa, enlaceActivacion)
+);
+} else {
+await enviarEmail(
+email,
+`🏢 Bienvenido - Credenciales de acceso al Portal de Proveedores`,
+emailBienvenidaProveedor(email, passwordFinal, nombre_empresa)
+);
+}
+} catch (emailErr) {
+console.error('Error enviando email de bienvenida:', emailErr.message);
+}
 
     emitirAdmin('proveedores_actualizados');
     emitirAdmin('estadisticas_actualizadas');
 
     res.json({
       ok: true,
-      mensaje: `Proveedor "${nombre_empresa}" creado exitosamente. Se enviaron las credenciales a ${email}`,
+      mensaje: `Proveedor "${nombre_empresa}" creado exitosamente. ${usarActivacion ? `Se envió el enlace de activación a ${email}` : `Se enviaron las credenciales a ${email}`}`,
       proveedorId: provResult.lastInsertRowid
     });
   } catch (err) {
@@ -4717,20 +4999,20 @@ app.get('/api/admin/habeas-data/export', requiereAdmin, (req, res) => {
       'Creado En'
     ];
 
-    const rows = registros.map(r => {
-      return [
-        r.id,
-        `"${r.email || ''}"`,
-        `"${r.nombre_empresa || ''}"`,
-        `"${r.razon_social || ''}"`,
-        r.aceptado === 1 ? 'Sí' : 'No',
-        `"${r.fecha_aceptacion || ''}"`,
-        `"${r.ip_origen || ''}"`,
-        `"${(r.user_agent || '').substring(0, 100)}"`,
-        `"${r.version || ''}"`,
-        `"${r.creado_en || ''}"`
-      ].join(',');
-    });
+const rows = registros.map(r => {
+return [
+r.id,
+csvEscapar(r.email),
+csvEscapar(r.nombre_empresa),
+csvEscapar(r.razon_social),
+r.aceptado === 1 ? 'Sí' : 'No',
+csvEscapar(r.fecha_aceptacion),
+csvEscapar(r.ip_origen),
+csvEscapar((r.user_agent || '').substring(0, 100)),
+csvEscapar(r.version),
+csvEscapar(r.creado_en)
+].join(',');
+});
 
     const csvContent = [headers.join(','), ...rows].join('\n');
     const BOM = '\uFEFF';
@@ -4851,7 +5133,7 @@ app.get('/api/admin/configuracion-seguridad', requiereAdmin, (req, res) => {
     configuracion: config,
     encripcionKeyConfigurada: !!process.env.ENCRYPTION_KEY,
     sessionSecretConfigurada: !!process.env.SESSION_SECRET,
-    smtpConfigurado: !!process.env.SMTP_HOST
+    brevoConfigurado: !!process.env.BREVO_API_KEY
   });
 });
 
@@ -4954,6 +5236,45 @@ app.post('/api/admin/documento/:id/verificar', requiereAdmin, (req, res) => {
   return res.json({ ok: true, verificado });
 });
 
+// 🆕 Definir tipo de persona desde el módulo Verificación (admin)
+app.post('/api/admin/proveedor/:id/tipo-persona', requiereAdmin, (req, res) => {
+const proveedorId = parseInt(req.params.id);
+const { tipo_proveedor, forzar } = req.body;
+
+if (!['natural', 'juridica'].includes(tipo_proveedor)) {
+return res.status(400).json({ error: 'El tipo de persona debe ser "natural" o "juridica"' });
+}
+
+const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(proveedorId);
+if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
+
+// Bloquear cambio si ya hay documentos activos (salvo que el admin fuerce)
+if (proveedor.tipo_proveedor && proveedor.tipo_proveedor !== tipo_proveedor && !forzar) {
+const activos = db.prepare(`
+SELECT COUNT(*) as t FROM documentos WHERE proveedor_id = ? AND es_historico = 0
+`).get(proveedorId).t;
+if (activos > 0) {
+return res.status(409).json({
+error: 'El proveedor ya tiene documentos activos con otro tipo de persona. Confirma para forzar el cambio.',
+requiere_confirmacion: true
+});
+}
+}
+
+db.prepare('UPDATE proveedores SET tipo_proveedor = ? WHERE id = ?').run(tipo_proveedor, proveedorId);
+registrarHistorial(
+proveedorId,
+req.session.usuario,
+'tipo_persona_definido',
+`Tipo de persona definido como ${tipo_proveedor === 'natural' ? 'Persona Natural' : 'Persona Jurídica'} por el administrador`,
+null, null, req
+);
+console.log(`🧾 Tipo de persona definido para proveedor ${proveedorId}: ${tipo_proveedor}`);
+emitirProveedor(proveedorId, 'tipo_persona_actualizado', { tipo_proveedor });
+emitirAdmin('proveedores_actualizados');
+res.json({ ok: true, tipo_proveedor });
+});
+
 // ==========================================
 // 9. SERVICIO DE ARCHIVOS
 // ==========================================
@@ -5049,17 +5370,6 @@ const usuario = req.session.usuario;
 // ==========================================
 // 10. ERROR HANDLER Y SERVIDOR
 // ==========================================
-app.use((err, req, res, next) => {
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  if (err instanceof multer.MulterError) return res.status(400).json({ error: err.message });
-  if (err) return res.status(400).json({ error: err.message });
-
-  next();
-});
-
 cron.schedule('0 8 * * *', async () => {
   console.log(`\n🕐 Ejecutando recordatorios automáticos - ${new Date().toLocaleString()}`);
   await enviarRecordatoriosFaltantes();
@@ -5076,7 +5386,58 @@ cron.schedule('0 0 * * *', async () => {
   timezone: "America/Bogota"
 });
 
+// 🧹 N1: limpieza de logs_seguridad (retención 90 días). Antes nunca se ejecutaba.
+cron.schedule('30 3 * * *', () => {
+  limpiarLogsAntiguos();
+}, {
+  timezone: "America/Bogota"
+});
+console.log('🧹 Cron de limpieza de logs configurado (3:30 AM Colombia, retención 90 días)');
+
 console.log('⏰ Cron job de vencimientos configurado para las 12:00 AM (Colombia)');
+
+// 💾 Mirror incremental de archivos físicos (PDFs cifrados y plantillas).
+// Los .enc son inmutables: copiar solo lo que falta es seguro y liviano,
+// y el mirror conserva todo lo que haya existido (incluye reemplazados/borrados).
+function respaldarArchivosNuevos() {
+try {
+let copiados = 0;
+const caminar = (origen, destino) => {
+if (!fs.existsSync(origen)) return;
+if (!fs.existsSync(destino)) fs.mkdirSync(destino, { recursive: true });
+for (const entry of fs.readdirSync(origen, { withFileTypes: true })) {
+const o = path.join(origen, entry.name);
+const d = path.join(destino, entry.name);
+if (entry.isDirectory()) caminar(o, d);
+else if (entry.isFile() && !fs.existsSync(d)) { fs.copyFileSync(o, d); copiados++; }
+}
+};
+caminar(uploadsDir, path.join(dataDir, 'backups', 'uploads_mirror'));
+caminar(plantillasDir, path.join(dataDir, 'backups', 'plantillas_mirror'));
+if (copiados > 0) console.log(`💾 Mirror: ${copiados} archivo(s) nuevo(s) respaldado(s)`);
+} catch (e) {
+console.error('❌ Error respaldando archivos:', e.message);
+}
+}
+// 💾 Backup automático cada 12 h: BD consistente + mirror de archivos.
+cron.schedule('0 2,14 * * *', async () => {
+const backupsDir = path.join(dataDir, 'backups');
+if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
+const d = new Date();
+const stamp = d.toISOString().slice(0, 10) + '_' + d.toISOString().slice(11, 16).replace(':', '');
+const destino = path.join(backupsDir, `proveedores_${stamp}.db`);
+try {
+await db.backup(destino);
+console.log(`💾 Backup generado: ${destino}`);
+respaldarArchivosNuevos();
+// Retención: 14 backups automáticos (7 días × 2 por día)
+const archivos = fs.readdirSync(backupsDir).filter(f => /^proveedores_\d{4}-\d{2}-\d{2}(_\d{4})?\.db$/.test(f)).sort();
+while (archivos.length > 14) fs.unlinkSync(path.join(backupsDir, archivos.shift()));
+} catch (e) {
+console.error('❌ Error generando backup:', e.message);
+}
+}, { timezone: 'America/Bogota' });
+console.log('💾 Cron de backup configurado (2 AM y 2 PM Colombia, 14 copias + mirror de archivos)');
 
 app.post('/api/admin/proveedor/:id/reiniciar-proceso', requiereAdmin, (req, res) => {
   const proveedorId = parseInt(req.params.id);
@@ -5149,68 +5510,37 @@ app.post('/api/admin/proveedor/:id/reiniciar-proceso', requiereAdmin, (req, res)
 app.post('/api/admin/proveedor/:id/solicitar-actualizacion', requiereAdmin, async (req, res) => {
   const proveedorId = parseInt(req.params.id);
   const { mensaje } = req.body;
-
+  
   try {
-    const proveedor = db.prepare(`
-      SELECT p.id, p.etapa, p.razon_social, p.numero_registro, p.evaluacion_inicial, u.email, u.nombre_empresa
-      FROM proveedores p
-      JOIN usuarios u ON p.usuario_id = u.id
-      WHERE p.id = ?
-    `).get(proveedorId);
-
-    if (!proveedor) {
-      return res.status(404).json({ error: 'Proveedor no encontrado' });
-    }
-
+    const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(proveedorId);
+    if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    
     if (proveedor.etapa !== 'registrado') {
       return res.status(400).json({ error: 'Solo se puede solicitar actualización a proveedores registrados' });
     }
-
-    const nombreProveedor = proveedor.razon_social || proveedor.nombre_empresa || 'Proveedor';
+    
     const añoActual = new Date().getFullYear();
-
-    const cicloPrevio = proveedor.numero_registro || obtenerCicloActivo(proveedorId)?.numero_registro || null;
-
-    if (cicloPrevio) {
-      db.prepare(`
-        UPDATE documentos
-        SET ciclo = ?
-        WHERE proveedor_id = ?
-          AND es_historico = 0
-          AND (ciclo IS NULL OR ciclo = '')
-      `).run(cicloPrevio, proveedorId);
-
-      console.log(`📌 Documentos activos asociados al ciclo previo ${cicloPrevio} antes de archivar.`);
-    }
-
-    cerrarCicloAnterior(proveedorId);
-
+    
+    // 1. Archivar TODOS los documentos activos (incluidos los "No aplica")
     const docsActivos = db.prepare(`
-      SELECT id, proveedor_id, archivo, ciclo
-      FROM documentos
-      WHERE proveedor_id = ?
-        AND es_historico = 0
+      SELECT * FROM documentos 
+      WHERE proveedor_id = ? AND es_historico = 0
     `).all(proveedorId);
-
-    for (const doc of docsActivos) {
-      moverDocumentoAHistorico(doc);
-    }
-
-    if (proveedor.evaluacion_inicial) {
-      const docEvaluacion = {
-        id: null,
-        proveedor_id: proveedorId,
-        archivo: proveedor.evaluacion_inicial,
-        ciclo: cicloPrevio || 'sin_ciclo'
-      };
-
-      const exito = moverDocumentoAHistorico(docEvaluacion);
-
-      if (exito) {
-        console.log(`📄 Evaluación inicial del proveedor ${proveedorId} movida a histórico.`);
-      }
-    }
-
+    
+    console.log(`📦 Archivando ${docsActivos.length} documentos activos del proveedor ${proveedorId}`);
+    
+for (const doc of docsActivos) {
+  db.prepare(`
+    UPDATE documentos
+    SET es_historico = 1,
+        fecha_archivado = datetime('now', '-05:00'),
+        estado = 'rechazado',
+        comentario = 'Archivado por solicitud de actualización anual'
+    WHERE id = ?
+  `).run(doc.id);
+}
+    
+    // 2. Mover proveedor a verificación (tipo_proveedor = NULL para que elija)
     db.prepare(`
       UPDATE proveedores
       SET etapa = 'verificacion',
@@ -5227,48 +5557,61 @@ app.post('/api/admin/proveedor/:id/solicitar-actualizacion', requiereAdmin, asyn
           todos_verificados = 0
       WHERE id = ?
     `).run(mensaje || `Solicitud de actualización de documentos ${añoActual}`, proveedorId);
-
-    const mensajeRecordatorio = `🔄 Se te ha solicitado actualizar tus documentos para el año ${añoActual}. Por favor, sube toda tu documentación actualizada.`;
-
-    db.prepare(`
-      INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje)
-      VALUES (?, ?, ?, ?)
-    `).run(proveedorId, req.session.usuario.id, req.session.usuario.email, mensajeRecordatorio);
-
+    
+    // 3. Registrar en historial
     registrarHistorial(
       proveedorId,
       req.session.usuario,
       'solicitud_actualizacion',
-      `Solicitud de actualización anual de documentos ${añoActual}${mensaje ? '. Mensaje: ' + mensaje : ''}`,
+      `Solicitud de actualización anual de documentos ${añoActual}. El proveedor deberá definir su tipo de persona (Natural/Jurídica) al ingresar.${mensaje ? ' Mensaje: ' + mensaje : ''}`,
       null,
       null,
       req
     );
-
-    const htmlEmail = emailSolicitudActualizacion(nombreProveedor, mensaje, añoActual);
-
-    await enviarEmail(proveedor.email, `🔄 Actualización de Documentos ${añoActual} - Portal de Proveedores`, htmlEmail)
-      .then(result => {
-        if (result.ok) {
-          console.log(`✅ Correo de solicitud de actualización enviado a ${proveedor.email}`);
-        } else {
-          console.error(`❌ Error enviando correo de actualización: ${result.error}`);
-        }
-      })
-      .catch(err => console.error('Error enviando correo de actualización:', err));
-
-    emitirProveedor(proveedorId, 'nuevo_recordatorio', { mensaje: mensajeRecordatorio });
+    
+    // 4. Enviar correo al proveedor
+const nombreProveedor = proveedor.razon_social || proveedor.nombre_empresa || 'Proveedor';
+const usuarioCorreo = db.prepare(`
+  SELECT u.email
+  FROM usuarios u
+  JOIN proveedores p ON u.id = p.usuario_id
+  WHERE p.id = ?
+`).get(proveedorId);
+try {
+await enviarEmail(
+usuarioCorreo?.email,
+`🔄 Solicitud de actualización de documentos - ${nombreProveedor}`,
+emailSolicitudActualizacion(nombreProveedor, mensaje || null, añoActual)
+);
+console.log(`📧 Correo de actualización enviado a ${usuarioCorreo?.email}`);
+    } catch (emailErr) {
+      console.error('❌ Error enviando correo de actualización:', emailErr);
+    }
+    
+    // 5. Emitir eventos Socket.IO
+    emitirProveedor(proveedorId, 'solicitud_actualizacion', { año: añoActual });
     emitirAdmin('proveedores_actualizados');
-    emitirAdmin('estadisticas_actualizadas');
-
+    
+    console.log(`✅ Solicitud de actualización enviada al proveedor ${proveedorId} (${nombreProveedor})`);
+    
     res.json({
       ok: true,
       mensaje: `✅ Solicitud de actualización enviada a ${nombreProveedor}. El proveedor ha sido movido a verificación y debe subir sus documentos actualizados.`
     });
+    
   } catch (err) {
     console.error('❌ Error solicitando actualización:', err);
-    res.status(500).json({ error: 'Error al solicitar la actualización: ' + err.message });
+    res.status(500).json({ error: 'Error interno al solicitar la actualización' });
   }
+});
+
+app.use((err, req, res, next) => {
+if (res.headersSent) {
+return next(err);
+}
+if (err instanceof multer.MulterError) return res.status(400).json({ error: err.message });
+if (err) return res.status(400).json({ error: err.message });
+next();
 });
 
 function recuperarDocumentosHuérfanos() {
@@ -5302,10 +5645,11 @@ function recuperarDocumentosHuérfanos() {
           let tipo = archivo.split('_')[0];
 
           const mapTipos = {
-            'camara': 'camara_comercio',
-            'cedula': 'cedula_rl',
-            'cuenta': 'cuenta_bancaria',
-            'estados': 'estados_financieros'
+          'camara': 'camara_comercio',
+          'cedula': 'cedula_rl',
+          'cuenta': 'cuenta_bancaria',
+          'estados': 'estados_financieros',
+          'carta': 'carta_ica'
           };
 
           if (mapTipos[tipo]) {
@@ -5318,7 +5662,7 @@ function recuperarDocumentosHuérfanos() {
 
           db.prepare(`
             INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, verificado, no_aplica, subido_en)
-            VALUES (?, ?, ?, ?, 'pendiente', 0, 0, datetime('now', 'localtime'))
+            VALUES (?, ?, ?, ?, 'pendiente', 0, 0, datetime('now', '-05:00'))
           `).run(proveedorId, tipo, relativa, nombreOriginal);
 
           console.log(`🔁 Recuperado automáticamente: ${archivo} para proveedor ${proveedorId}`);
@@ -5346,8 +5690,8 @@ function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOrig
 
   try {
     const proveedorInfo = db.prepare(`
-      SELECT p.id, p.razon_social, u.email, u.nombre_empresa
-      FROM proveedores p
+SELECT p.id, p.razon_social, p.tipo_proveedor, u.email, u.nombre_empresa
+FROM proveedores p
       JOIN usuarios u ON p.usuario_id = u.id
       WHERE p.id = ?
     `).get(proveedorId);
@@ -5367,7 +5711,7 @@ function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOrig
     let totalDocumentosSubidos = 0;
     let tieneRechazados = false;
 
-    for (const req of DOCUMENTOS_REQUERIDOS) {
+  for (const req of requerimientosPara(proveedorInfo.tipo_proveedor)) {
       const docsTipo = docs.filter(d => d.tipo === req.tipo);
       const noAplica = docsTipo.some(d => d.no_aplica === 1);
 
@@ -5448,58 +5792,83 @@ function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOrig
 }
 
 function actualizarEstadoProveedor(proveedorId) {
-  console.log(`\n🔍 [actualizarEstadoProveedor] Recalculando estado y flags para proveedor ID ${proveedorId}`);
+console.log(`
+🔍 [actualizarEstadoProveedor] Recalculando estado y flags para proveedor ID ${proveedorId}`);
+const prov = db.prepare('SELECT etapa, tipo_proveedor FROM proveedores WHERE id = ?').get(proveedorId);
+const REQS = requerimientosPara(prov?.tipo_proveedor); // 🆕
 
-  const prov = db.prepare('SELECT etapa FROM proveedores WHERE id = ?').get(proveedorId);
+if (prov && prov.etapa === 'rechazado') {
+  const activos = db.prepare(`
+    SELECT id, estado, no_aplica, comentario
+    FROM documentos
+    WHERE proveedor_id = ?
+      AND es_historico = 0
+  `).all(proveedorId);
 
-  if (prov && prov.etapa === 'rechazado') {
-    const activosCount = db.prepare(`
-      SELECT COUNT(*) as total
-      FROM documentos
+  const rechazadosActivos = activos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+
+  if (activos.length === 0) {
+    console.log(`ℹ️ Proveedor ${proveedorId} en etapa 'rechazado' sin documentos activos. Habilitando verificación para nueva carga.`);
+
+    db.prepare(`
+    UPDATE proveedores
+    SET etapa = 'verificacion',
+        estado_general = 'pendiente',
+        evaluacion_inicial = NULL,
+        evaluacion_estado = 'pendiente',
+        evaluacion_fecha = NULL,
+        numero_registro = NULL,
+        tipo_gestion = NULL,
+        notas_gestion = NULL,
+        fecha_gestion = NULL,
+        todos_subidos = 0,
+        todos_verificados = 0
+    WHERE id = ?
+    `).run(proveedorId);
+
+    registrarHistorial(
+    proveedorId,
+    { id: 1, email: 'Sistema' },
+    'rechazo_limpiado',
+    'El proveedor eliminó todos los documentos rechazados y puede subir documentación nuevamente.',
+    null,
+    null,
+    null
+  );
+}
+  else if (rechazadosActivos.length > 0) {
+    db.prepare(`
+      UPDATE documentos
+      SET comentario = CASE
+            WHEN comentario IS NULL OR TRIM(comentario) = '' THEN 'Debes eliminar este documento rechazado antes de subir uno nuevo'
+            ELSE comentario
+          END
       WHERE proveedor_id = ?
         AND es_historico = 0
-    `).get(proveedorId).total;
+        AND estado = 'rechazado'
+        AND no_aplica = 0
+    `).run(proveedorId);
+  } else {
+    console.log(`ℹ️ Proveedor ${proveedorId} en etapa 'rechazado' con documentos activos pero sin rechazados activos. Normalizando etapa.`);
 
-    if (activosCount > 0) {
-      console.log(`ℹ️ Proveedor ${proveedorId} en etapa 'rechazado' con documentos activos. Reiniciando proceso automáticamente.`);
+    db.prepare(`
+      UPDATE proveedores
+      SET etapa = 'verificacion',
+          estado_general = 'pendiente'
+      WHERE id = ?
+    `).run(proveedorId);
 
-      db.prepare(`
-        UPDATE proveedores
-        SET etapa = 'verificacion',
-            estado_general = 'pendiente',
-            evaluacion_inicial = NULL,
-            evaluacion_estado = 'pendiente',
-            evaluacion_fecha = NULL,
-            numero_registro = NULL,
-            tipo_gestion = NULL,
-            notas_gestion = NULL,
-            fecha_gestion = NULL,
-            tipo_proveedor = NULL,
-            todos_subidos = 0,
-            todos_verificados = 0
-        WHERE id = ?
-      `).run(proveedorId);
-
-      db.prepare(`
-        UPDATE documentos
-        SET estado = 'pendiente',
-            verificado = 0,
-            comentario = 'Elimina el documento rechazado y sube uno nuevo (reinicio de proceso)'
-        WHERE proveedor_id = ?
-          AND es_historico = 0
-      `).run(proveedorId);
-
-      registrarHistorial(
-        proveedorId,
-        { id: 1, email: 'Sistema' },
-        'reinicio_automatico',
-        'Proceso reiniciado automáticamente al subir documentos desde rechazado.',
-        null,
-        null,
-        null
-      );
-    }
+    registrarHistorial(
+      proveedorId,
+      { id: 1, email: 'Sistema' },
+      'etapa_normalizada',
+      'El proveedor estaba en rechazado sin documentos rechazados activos; etapa normalizada a verificación.',
+      null,
+      null,
+      null
+    );
   }
+}
 
   const docs = db.prepare(`
     SELECT tipo, estado, verificado, no_aplica
@@ -5513,7 +5882,7 @@ function actualizarEstadoProveedor(proveedorId) {
   let todosSubidos = true;
   let todosVerificados = true;
 
-  for (const req of DOCUMENTOS_REQUERIDOS) {
+  for (const req of REQS) {
     const docsTipo = docs.filter(d => d.tipo === req.tipo);
 
     const aprobados = docsTipo.filter(d => d.estado === 'aprobado').length;
@@ -5553,12 +5922,16 @@ function actualizarEstadoProveedor(proveedorId) {
     }
   }
 
-  let nuevoEstado = 'pendiente';
+  if (hayRechazados) {
+  todosSubidos = false;
+  todosVerificados = false;
+  }
 
-  if (todoOk) {
-    nuevoEstado = 'aprobado';
-  } else if (hayRechazados) {
-    nuevoEstado = 'rechazado';
+  let nuevoEstado = 'pendiente';
+  if (hayRechazados) {
+  nuevoEstado = 'rechazado';
+  } else if (todoOk) {
+  nuevoEstado = 'aprobado';
   }
 
   console.log(`🏷️ Estado calculado: ${nuevoEstado}`);
@@ -5569,7 +5942,7 @@ function actualizarEstadoProveedor(proveedorId) {
     db.prepare(`
       UPDATE proveedores
       SET estado_general = ?,
-          fecha_aprobacion = datetime('now', 'localtime'),
+          fecha_aprobacion = datetime('now', '-05:00'),
           todos_subidos = ?,
           todos_verificados = ?
       WHERE id = ?
@@ -5616,6 +5989,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  db,
-  actualizarEstadoProveedor
+db,
+app,
+actualizarEstadoProveedor
 };

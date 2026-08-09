@@ -337,10 +337,13 @@ opacity: 0.9;
   background: var(--color-fondo-suave); 
 }
 
-.doc-row-actions { 
-  display: flex; 
-  gap: 0.3rem; 
-  flex-wrap: wrap; 
+.doc-row-actions {
+display: flex;
+gap: 0.3rem;
+flex-wrap: wrap;
+margin-left: auto;          /* 🆕 empuja el grupo de botones a la derecha */
+justify-content: flex-end;  /* 🆕 los alinea a la derecha aunque hagan salto de línea */
+align-items: center;        /* 🆕 centrados verticalmente con la info */
 }
 
 /* ==========================================
@@ -833,7 +836,8 @@ display: flex;
   
   .doc-row-actions {
     width: 100%;
-    justify-content: flex-start;
+    justify-content: flex-end;  /* 🆕 derecha también en móvil */
+    margin-left: 0;
   }
   
   .doc-row-actions .btn {
@@ -1462,3 +1466,37 @@ padding: 1.5rem 1rem 2rem; letter-spacing: 0.02em;
 .proveedor-row, .btn, .modal-overlay.active .modal { animation: none !important; transition: none !important; }
 body::before { background: var(--color-fondo); }
 }
+
+/* ==========================================================================
+   🆕 ALINEACIÓN GLOBAL DE BOTONES A LA DERECHA (v4.7.1)
+   Al final del archivo para ganar por cascada sin romper nada anterior.
+   ========================================================================== */
+
+/* 1) Botón de envío único al final de formularios */
+#form-datos > button.btn,              /* 💾 Guardar datos (proveedor) */
+#formGestion > button.btn,             /* 💾 Guardar gestión (admin) */
+#formEvaluacion > button.btn,          /* 📤 Subir evaluación (admin) */
+#subTabNotas .card > button.btn,       /* 💾 Guardar nota (admin) */
+#subTabRec .card > button.btn {        /* Enviar recordatorio (admin) */
+display: block;
+margin-left: auto;
+}
+
+/* 2) Botones sueltos del módulo Configuración */
+button[onclick="forzarVencimientosAhora()"] {
+display: block;
+margin-left: auto;
+}
+button[onclick="recalcularVencimientos()"] {
+margin-left: auto;
+}
+
+/* 3) Acciones de la tabla "Historial de actualizaciones" */
+#listaHistorialCiclos td:last-child {
+text-align: right;
+}
+
+/* 🆕 Blindaje: ningún elemento interno puede desbordar horizontalmente
+   las tarjetas de documento (admin y proveedor) */
+.doc-item > * { max-width: 100%; }
+.doc-row > * { max-width: 100%; }

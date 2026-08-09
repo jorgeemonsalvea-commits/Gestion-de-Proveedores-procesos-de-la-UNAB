@@ -1,38 +1,39 @@
-# Scripts de mantenimiento (NUNCA subir secretos)
-reset-admin.js
-actualizar-fechas-aprobacion.js
-fix-estado.js
-update-habeas-existing.js
-
 # Dependencias
 node_modules/
 
-# Variables de entorno (NUNCA subir secretos)
+# Variables de entorno
 .env
+.env.local
+.env.*.local
 
-# Archivos subidos por usuarios
-uploads/
-plantillas/
-
-
-# Sesiones
-sessions/
-
-# Base de datos (si se genera localmente)
+# Base de datos
 *.db
 *.db-wal
 *.db-shm
+*.db-journal
+
+# Directorios de datos (volumen Railway)
+sessions/
+uploads/
+backups/
+plantillas/
+data/
 
 # Logs
+logs/
 *.log
+npm-debug.log*
 
-# Sistema
+# Tests - solo artefactos generados
+coverage/
+.nyc_output/
+
+# OS
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
 
-# Editor
+# IDE
 .vscode/
 .idea/
+*.code-workspace
 *.swp
