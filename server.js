@@ -389,7 +389,7 @@ app.use('/img', express.static(path.join(__dirname, 'public', 'img'), { maxAge: 
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==========================================
-// 3. FUNCIONES HELPER
+// 3. FUNCIONES HELPER AYUDAS
 // ==========================================
 function obtenerIP(req) {
   return req.ip || req.connection.remoteAddress || 'unknown';
