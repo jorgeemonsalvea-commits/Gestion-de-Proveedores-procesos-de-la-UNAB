@@ -1,18 +1,18 @@
 # Dependencias
 node_modules/
 
-# Variables de entorno (NUNCA subir secretos)
+# Variables de entorno
 .env
 .env.local
 .env.*.local
 
-# Base de datos SQLite (datos reales)
+# Base de datos
 *.db
 *.db-wal
 *.db-shm
 *.db-journal
 
-# Sesiones y archivos subidos (volumen persistente, no repo)
+# Directorios de datos (volumen Railway)
 sessions/
 uploads/
 backups/
@@ -24,17 +24,16 @@ logs/
 *.log
 npm-debug.log*
 
-# Build y OS
-dist/
+# Tests - solo artefactos generados
+coverage/
+.nyc_output/
+
+# OS
 .DS_Store
 Thumbs.db
-*.swp
 
 # IDE
 .vscode/
 .idea/
 *.code-workspace
-
-# Cobertura de tests
-coverage/
-.nyc_output/
+*.swp

@@ -5989,6 +5989,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  db,
-  actualizarEstadoProveedor
+db,
+app,
+actualizarEstadoProveedor
 };
