@@ -20,7 +20,6 @@ const CONFIG = {
 // ==========================================
 // 2. FUNCIONES DE DERIVACIÓN DE CLAVES
 // ==========================================
-
 /**
  * Deriva una clave criptográfica desde una contraseña maestra y salt
  * Usa PBKDF2 con SHA-512 para resistencia a ataques de fuerza bruta

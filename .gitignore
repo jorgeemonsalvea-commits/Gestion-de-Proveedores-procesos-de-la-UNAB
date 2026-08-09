@@ -1,38 +1,40 @@
-# Scripts de mantenimiento (NUNCA subir secretos)
-reset-admin.js
-actualizar-fechas-aprobacion.js
-fix-estado.js
-update-habeas-existing.js
-
 # Dependencias
 node_modules/
 
 # Variables de entorno (NUNCA subir secretos)
 .env
+.env.local
+.env.*.local
 
-# Archivos subidos por usuarios
-uploads/
-plantillas/
-
-
-# Sesiones
-sessions/
-
-# Base de datos (si se genera localmente)
+# Base de datos SQLite (datos reales)
 *.db
 *.db-wal
 *.db-shm
+*.db-journal
+
+# Sesiones y archivos subidos (volumen persistente, no repo)
+sessions/
+uploads/
+backups/
+plantillas/
+data/
 
 # Logs
+logs/
 *.log
+npm-debug.log*
 
-# Sistema
+# Build y OS
+dist/
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
-
-# Editor
-.vscode/
-.idea/
 *.swp
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Cobertura de tests
+coverage/
+.nyc_output/

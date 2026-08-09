@@ -128,7 +128,7 @@ return `
 <p style="margin: 0;"><strong>Documento:</strong> ${doc}</p>
 </div>
 ${motivoHtml}
-<p>Por favor, ingresa al portal para subir una versión corregida.</p>
+<p>Por favor, ingresa al portal para eliminar el documento rechazado y luego subir una versión corregida.</p>
 <div style="text-align: center; margin-top: 20px;">
 <a href="${BASE_URL}/proveedor.html" style="background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
 Ir al Portal
@@ -323,6 +323,39 @@ Si no reconoces esta cuenta o tienes problemas para acceder, contacta al adminis
 </div>
 `;
 }
+
+// ==========================================
+// PLANTILLA: Bienvenida con enlace de activación (sin contraseña) — MARCA (morado)
+// ==========================================
+function emailBienvenidaConActivacion(email, nombreEmpresa, enlaceActivacion) {
+const emp = escapeHtml(nombreEmpresa);
+const eml = escapeHtml(email);
+return `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+<div style="background: linear-gradient(135deg, #8600dd 0%, #6b00b0 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
+<h1 style="margin: 0;">🏢 Bienvenido al Portal de Proveedores</h1>
+</div>
+<div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+<p>Hola <strong>${emp}</strong>,</p>
+<p>Tu cuenta ha sido creada exitosamente. Para activar tu acceso, haz clic en el siguiente enlace y crea tu contraseña:</p>
+<div style="text-align: center; margin: 30px 0;">
+<a href="${enlaceActivacion}" style="background: #8600dd; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+Activar mi cuenta
+</a>
+</div>
+<p style="word-break: break-all; background: #f3f4f6; padding: 10px; border-radius: 4px; font-size: 0.85rem;">${enlaceActivacion}</p>
+<div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 15px 0; border-radius: 4px;">
+<p style="margin: 0;"><strong>⚠️ Importante:</strong> Este enlace expira en 7 días y solo puede usarse una vez. Si no lo activas, contacta al administrador.</p>
+</div>
+<p style="color: #6b7280; font-size: 14px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+Si no reconoces esta cuenta o tienes problemas para acceder, contacta al administrador.
+</p>
+<p>Saludos,<br><strong>Equipo de Compras</strong></p>
+</div>
+</div>
+`;
+}
+
 // ==========================================
 // PLANTILLA: Recordatorio (para proveedor) — MARCA (morado)
 // ==========================================
@@ -501,6 +534,7 @@ emailProveedorAprobado,
 emailProveedorActualizacionAprobada,
 emailNuevaNota,
 emailBienvenidaProveedor,
+emailBienvenidaConActivacion,
 emailRecordatorio,
 emailProveedorCompletoDocumentos,
 emailRecordatorioDocumentosFaltantes,
