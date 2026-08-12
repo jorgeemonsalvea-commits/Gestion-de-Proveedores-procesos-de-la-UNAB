@@ -1322,7 +1322,7 @@ color: #6b7280;
 }
 
 /* ==========================================================================
-🆕 SISTEMA VISUAL UNAB v4.4  (Capa 1 — solo presentación, 0 lógica)
+🆕 SISTEMA VISUAL UNAB v4.7  (Capa 1 — solo presentación, 0 lógica)
 Va al FINAL para ganar por cascada sin borrar nada de arriba.
 ========================================================================== */
 
@@ -1500,3 +1500,81 @@ text-align: right;
    las tarjetas de documento (admin y proveedor) */
 .doc-item > * { max-width: 100%; }
 .doc-row > * { max-width: 100%; }
+
+/* ==========================================================================
+🏢 CAPA ENTERPRISE UNAB v5 — Manual de Marca (solo presentación, 0 lógica)
+Iconografía de línea + KPIs + stepper + chip de usuario + legal
+========================================================================== */
+/* ---- Iconos SVG de línea (stroke = currentColor) ---- */
+.ico { width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-3px; margin-right:.4rem; }
+.ico-lg { width:22px; height:22px; }
+.tab .ico { width:16px; height:16px; vertical-align:-2px; }
+.apps-tile-icon svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.btn .ico { margin-right:.35rem; }
+/* ---- Chip de usuario (navbar) ---- */
+.user-chip { display:inline-flex; align-items:center; gap:.55rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); padding:.3rem .8rem .3rem .35rem; border-radius:999px; }
+.user-avatar { width:30px; height:30px; border-radius:50%; background:var(--color-acento); color:#160a24; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:.78rem; letter-spacing:.02em; flex-shrink:0; }
+.user-meta { display:flex; flex-direction:column; line-height:1.15; text-align:left; }
+.user-mail { font-size:.78rem; color:#fff; font-weight:600; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.user-rol { font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--color-acento); font-weight:700; }
+/* ---- KPIs institucionales (reemplazan tarjetas con gradiente inline) ---- */
+.kpi { background:var(--color-blanco); border:1px solid var(--color-borde); border-radius:14px; padding:1rem 1.1rem; display:flex; align-items:center; gap:.9rem; box-shadow:var(--sombra-1); position:relative; overflow:hidden; transition:transform .2s ease, box-shadow .2s ease; }
+.kpi::after { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--kpi-color); }
+.kpi:hover { transform:translateY(-4px); box-shadow:var(--sombra-2); }
+.kpi--azul   { --kpi-color:#2563eb; --kpi-tint:#eff6ff; }
+.kpi--ambar  { --kpi-color:#d97706; --kpi-tint:#fffbeb; }
+.kpi--morado { --kpi-color:#8600dd; --kpi-tint:#f5f3ff; }
+.kpi--verde  { --kpi-color:#059669; --kpi-tint:#ecfdf5; }
+.kpi--rojo   { --kpi-color:#dc2626; --kpi-tint:#fef2f2; }
+.kpi-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--kpi-tint); color:var(--kpi-color); flex-shrink:0; }
+.kpi-num { font-family:var(--fuente-display); font-weight:800; font-size:2rem; line-height:1; letter-spacing:-0.03em; color:var(--color-texto); }
+.kpi-label { text-transform:uppercase; letter-spacing:.09em; font-size:.66rem; font-weight:700; color:var(--color-texto-suave); margin-bottom:.15rem; }
+/* ---- Stepper de etapas (portal proveedor) ---- */
+.stepper { display:flex; margin:1.2rem 0 .2rem; }
+.step { flex:1; text-align:center; position:relative; padding-top:1.5rem; }
+.step::before { content:""; position:absolute; top:7px; right:50%; width:100%; height:2px; background:var(--color-borde-input); }
+.step:first-child::before { display:none; }
+.step-dot { position:absolute; top:0; left:50%; transform:translateX(-50%); width:16px; height:16px; border-radius:50%; background:var(--color-borde-input); border:3px solid #fff; box-shadow:0 0 0 1px var(--color-borde); z-index:1; }
+.step-label { font-size:.68rem; font-weight:700; color:var(--color-texto-suave); text-transform:uppercase; letter-spacing:.07em; }
+.step.done::before { background:var(--color-exito); }
+.step.done .step-dot { background:var(--color-exito); }
+.step.done .step-label { color:var(--color-exito); }
+.step.current .step-dot { background:var(--color-primario); box-shadow:0 0 0 4px var(--color-primario-claro); }
+.step.current .step-label { color:var(--color-primario); }
+.step.rejected .step-dot { background:var(--color-peligro); }
+.step.rejected .step-label { color:var(--color-peligro); }
+/* ---- Tablas enterprise (zebra + header fijo) ---- */
+#listaHistorialCiclos thead th, .modal table thead th { position:sticky; top:0; z-index:1; background:#f3f4f6; }
+#listaHistorialCiclos tbody tr:nth-child(even) { background:var(--color-fondo-suave); }
+/* ---- Pie legal institucional (Manual: sección Legales) ---- */
+.unab-legal { text-align:center; font-size:.66rem; color:var(--color-texto-suave); padding:0 1rem 1.6rem; line-height:1.6; max-width:920px; margin:0 auto; }
+.unab-legal a { color:var(--color-primario); }
+@media (max-width:480px) { .user-mail { max-width:110px; } .step-label { font-size:.58rem; } }
+
+/* ==========================================================================
+🎨 KPI PASTEL (v5.1) — fondo suave por apartado, sutil y elegante
+Va al final para ganar por cascada sin tocar nada de arriba.
+========================================================================== */
+.kpi {
+background: linear-gradient(165deg, var(--kpi-tint) 0%, var(--color-blanco) 50%);
+}
+/* Bordes a juego con cada pastel (suaves, no saturados) */
+.kpi--azul   { border-color: #bfdbfe; }
+.kpi--ambar  { border-color: #fde68a; }
+.kpi--morado { border-color: #ddd6fe; }
+.kpi--verde  { border-color: #a7f3d0; }
+.kpi--rojo   { border-color: #fecaca; }
+/* El icono pasa a chip blanco para destacar sobre el pastel */
+.kpi-ico { background: var(--color-blanco); box-shadow: var(--sombra-1); }
+
+/* ==========================================================================
+🃏 TARJETAS-PESTAÑA (v5.2) — las KPI funcionan como navegación principal
+========================================================================== */
+.kpi-tab { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.kpi-tab:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-primario-claro), var(--sombra-2); }
+.kpi-tab.kpi-active {
+border-color: var(--kpi-color);
+box-shadow: 0 0 0 2px var(--kpi-color), var(--sombra-2);
+transform: translateY(-2px);
+}
+.kpi-tab.kpi-active .kpi-label { color: var(--kpi-color); }

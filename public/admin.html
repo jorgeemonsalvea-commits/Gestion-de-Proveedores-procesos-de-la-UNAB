@@ -21,11 +21,11 @@ transition: background .2s ease, border-color .2s ease, transform .15s ease;
 .apps-menu-trigger svg { display: block; }
 .apps-menu-panel {
 position: absolute; right: 0; top: calc(100% + 12px);
-min-width: 250px; padding: 16px 14px 14px;
+min-width: 340px; padding: 16px 14px 14px;
 background: linear-gradient(135deg, #160a24 0%, #2a0f47 100%);
 border: 1px solid rgba(233,164,39,.35); border-radius: 14px;
 box-shadow: 0 18px 45px rgba(0,0,0,.45);
-display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
 opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.97); transform-origin: top right;
 transition: opacity .2s ease, transform .22s cubic-bezier(.16,1,.3,1), visibility .2s;
 z-index: 1201;
@@ -65,9 +65,15 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <img src="/img/unab-logo-negativo.png" alt="UNAB" class="navbar-logo">
 <span>Panel de Administración</span>
 </h1>
-<div>
-<span id="userEmail" style="margin-right:1rem;font-size:0.9rem;"></span>
-<button onclick="logout()">Cerrar sesión</button>
+<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+<div class="user-chip">
+<span class="user-avatar" id="userAvatar">UN</span>
+<span class="user-meta">
+<span class="user-mail" id="userEmail">—</span>
+<span class="user-rol">Administrador</span>
+</span>
+</div>
+<button onclick="logout()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Salir</button>
 <div class="apps-menu-wrap">
 <button class="apps-menu-trigger" onclick="toggleAppsMenu()" aria-label="Menú de accesos" title="Configuración y Plantillas">
 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -85,12 +91,16 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="apps-menu-panel" id="appsMenuPanel">
 <div class="apps-menu-title">Accesos</div>
 <a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('configuracion');return false;">
-<span class="apps-tile-icon">⚙️</span>
+<span class="apps-tile-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
 <span class="apps-tile-label">Configuración</span>
 </a>
 <a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('plant');return false;">
-<span class="apps-tile-icon">📄</span>
+<span class="apps-tile-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
 <span class="apps-tile-label">Plantillas</span>
+</a>
+<a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('historial');return false;">
+<span class="apps-tile-icon"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg></span>
+<span class="apps-tile-label">Historial</span>
 </a>
 </div>
 </div>
@@ -100,42 +110,14 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="container">
 <div id="alerta"></div>
 
-<!-- DASHBOARD CARDS -->
-<div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem;">
-<div class="dashboard-card" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(37,99,235,0.25);">
-<div style="font-size:2rem;line-height:1;">📋</div>
-<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Registrados</div>
-<div id="card-registrados" style="font-size:2rem;font-weight:700;">0</div>
+<!-- DASHBOARD CARDS = NAVEGACIÓN PRINCIPAL (las tarjetas funcionan como pestañas) -->
+<div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.5rem;">
+<div class="kpi kpi--azul kpi-tab" data-modulo="registrados" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores registrados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="kpi-label">Registrados</div><div class="kpi-num" id="card-registrados">0</div></div></div>
+<div class="kpi kpi--ambar kpi-tab" data-modulo="verificacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Verificación de documentos"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><div class="kpi-label">Verificación</div><div class="kpi-num" id="card-verificacion">0</div></div></div>
+<div class="kpi kpi--morado kpi-tab" data-modulo="aprobacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Aprobación y evaluación"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div><div><div class="kpi-label">Aprobación</div><div class="kpi-num" id="card-aprobacion">0</div></div></div>
+<div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div></div></div>
+<div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div></div></div>
 </div>
-<div class="dashboard-card" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(245,158,11,0.25);">
-<div style="font-size:2rem;line-height:1;">✅</div>
-<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Verificación</div>
-<div id="card-verificacion" style="font-size:2rem;font-weight:700;">0</div>
-</div>
-<div class="dashboard-card" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(139,92,246,0.25);">
-<div style="font-size:2rem;line-height:1;">📋</div>
-<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Aprobación</div>
-<div id="card-aprobacion" style="font-size:2rem;font-weight:700;">0</div>
-</div>
-<div class="dashboard-card" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(5,150,105,0.25);">
-<div style="font-size:2rem;line-height:1;">📝</div>
-<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Inscripción</div>
-<div id="card-inscripcion" style="font-size:2rem;font-weight:700;">0</div>
-</div>
-<div class="dashboard-card" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:1.2rem;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(220,38,38,0.25);">
-<div style="font-size:2rem;line-height:1;">❌</div>
-<div style="font-size:0.8rem;opacity:0.8;margin-top:0.2rem;">Rechazados</div>
-<div id="card-rechazados" style="font-size:2rem;font-weight:700;">0</div>
-</div>
-</div>
-
-<!-- PESTAÑAS PRINCIPALES -->
-<div class="tabs">
-<button class="tab active" data-tab="registrados">👥 Proveedores registrados</button>
-<button class="tab" data-tab="verificacion">✅ Verificación</button>
-<button class="tab" data-tab="aprobacion">📋 Aprobación</button>
-<button class="tab" data-tab="inscripcion">📝 Inscripción y actualización</button>
-<button class="tab" data-tab="historial">📜 Historial de actualizaciones</button>
 </div>
 
 <!-- CONTENEDOR DINÁMICO -->
@@ -162,7 +144,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <button class="tab" data-stab="notas">📝 Notas</button>
 <button class="tab" data-stab="hist">📜 Historial</button>
 <button class="tab" data-stab="rec">📨 Recordatorio</button>
-<button class="tab" data-stab="eliminar" style="color:#dc2626;">🗑️ Eliminar</button>
+<button class="tab" data-stab="eliminar" style="color:#dc2626;">Eliminar</button>
 </div>
 <div id="subTabDocs"><div id="modalContenidoDocs"></div></div>
 <div id="subTabHistoricos" class="hidden"></div>
@@ -172,7 +154,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">El proveedor verá esta nota en su panel.</p>
 <div class="form-group"><label>Título</label><input type="text" id="tituloNota" placeholder="Ej: Corregir NIT..."></div>
 <div class="form-group"><label>Detalle</label><textarea id="detalleNota" rows="4" placeholder="Describe qué debe modificar..."></textarea></div>
-<button class="btn" onclick="guardarNota()">💾 Guardar nota</button>
+<button class="btn" onclick="guardarNota()"><svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar nota</button>
 </div>
 <h4 style="margin-bottom:0.8rem;">📋 Notas anteriores</h4>
 <div id="listaNotas"></div>
@@ -233,7 +215,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
 <h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-<a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;">⬇️ Descargar PDF</a>
+<a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
 <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary">🔗 Abrir en pestaña</a>
 <button class="btn btn-sm btn-danger" onclick="cerrarVisor()">✕ Cerrar</button>
 </div>
@@ -303,6 +285,10 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <strong>UNAB</strong> · Universidad Autónoma de Bucaramanga · Portal de Gestión de Proveedores<br>
 © 2026 · Conexión segura con cifrado AES-256 · Versión 4.7
 </footer>
+<div class="unab-legal">
+Universidad Autónoma de Bucaramanga · Resolución No. 10820 del 25 de mayo de 2017 — Acreditación Institucional de Alta Calidad (6 años).<br>
+Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel="noopener">www.unab.edu.co</a>
+</div>
 <!-- ========================================== -->
 <!-- SCRIPTS                                   -->
 <!-- ========================================== -->
@@ -373,6 +359,19 @@ return String(text)
 .replace(/</g, '&lt;')
 .replace(/>/g, '&gt;');
 }
+
+// 🎨 Iconografía de línea UNAB v5 — reemplaza emojis en botones de acción
+const ICONOS = {
+check: '<svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+x: '<svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+eye: '<svg class="ico" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+download: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+upload: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+trash: '<svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+zip: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+plus: '<svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+save: '<svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
+};
 
 // 🛡️ Escapa celdas CSV y neutraliza inyección de fórmulas (= + - @) para Excel.
 function celdaCSV(c) {
@@ -541,6 +540,8 @@ const me = await (await fetchAPI('/api/me')).json();
 if (!me.usuario) return window.location.href = 'index.html';
 if (me.usuario.rol !== 'admin') return window.location.href = 'proveedor.html';
 document.getElementById('userEmail').textContent = me.usuario.email;
+const av = document.getElementById('userAvatar');
+if (av) av.textContent = ((me.usuario.email || 'UN').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase()) || 'UN';
 
 const reqResp = await fetchAPI('/api/proveedor/requerimientos');
 if (reqResp.ok) {
@@ -555,6 +556,8 @@ requeridos = [];
 await cargarModulo('registrados');
 await actualizarEstadisticasGlobales();
 configurarTabs();
+const cardInicial = document.querySelector('.kpi-tab[data-modulo="registrados"]:not([data-estado])');
+if (cardInicial) cardInicial.classList.add('kpi-active');
 conectarSocket();
 
 document.addEventListener('click', function(e) {
@@ -604,6 +607,30 @@ cargarModulo(tabId);
 }
 
 // ==========================================
+// 🃏 TARJETAS-PESTAÑA (navegación principal)
+// ==========================================
+function cambiarModuloCard(el) {
+const modulo = el.dataset.modulo;
+const estado = el.dataset.estado || null;
+document.querySelectorAll('.kpi-tab').forEach(k => k.classList.remove('kpi-active'));
+el.classList.add('kpi-active');
+if (modulo === 'registrados') filtroEstadoActual = estado || 'todos';
+moduloActual = modulo;
+paginaActual = 1;
+cargarModulo(modulo);
+if (modulo === 'registrados') {
+document.querySelectorAll('.filtro-estado').forEach(btn => btn.classList.toggle('active', btn.dataset.estado === (estado || 'todos')));
+}
+}
+// Accesibilidad: Enter/Espacio activan la tarjeta enfocada
+document.addEventListener('keydown', function(e) {
+if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('kpi-tab')) {
+e.preventDefault();
+cambiarModuloCard(e.target);
+}
+});
+
+// ==========================================
 // 🧩 MENÚ DE ACCESOS (estilo portal UNAB)
 // ==========================================
 function toggleAppsMenu() {
@@ -616,8 +643,9 @@ if (p) p.classList.remove('open');
 }
 function abrirModuloDesdeApps(mod) {
 cerrarAppsMenu();
-// Desmarca las pestañas: config/plant ya no son tabs
+// Desmarca las pestañas: config/plant/historial ya no son tabs ni tarjetas
 document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+document.querySelectorAll('.kpi-tab').forEach(k => k.classList.remove('kpi-active'));
 if (mod === 'plant') { moduloActual = 'plant'; renderizarPlantillas(); return; }
 moduloActual = mod;
 paginaActual = 1;
@@ -634,7 +662,7 @@ if (modulo === 'historial') { cargarHistorial(1); return; }
 if (modulo === 'plant') { renderizarPlantillas(); return; }
 const botonesAccion = modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">➕ Crear Proveedor</button>
+<button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
 <div class="dropdown" style="position:relative;display:inline-block;">
 <button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">📄 Exportar</button>
 <div id="exportDropdown" style="display:none;position:absolute;background:white;min-width:160px;box-shadow:0px 8px 16px rgba(0,0,0,0.2);border-radius:6px;z-index:10;margin-top:4px;border:1px solid #e5e7eb;overflow:hidden;">
@@ -1061,8 +1089,8 @@ ${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">📅 Vencimiento: ${f
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
-<a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 </div>
 </div>
@@ -1096,7 +1124,7 @@ let html = `
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h4 style="margin:0;">Documentos activos</h4>
 <button class="btn btn-success" onclick="descargarZIP(${proveedor.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
-📦 Descargar activos en ZIP
+${ICONOS.zip} Descargar activos en ZIP
 </button>
 </div>
 <div class="doc-grid">
@@ -1173,14 +1201,14 @@ html += `
 ${esNoAplica
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
-<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
-${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>` : ''}
-${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumentoAdmin(${d.id}, ${proveedor.id})">🗑️ Eliminar</button>` : ''}
+${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">${ICONOS.x} Rechazar</button>` : ''}
+${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumentoAdmin(${d.id}, ${proveedor.id})"> ${ICONOS.trash} Eliminar</button>` : ''}
 ${modo === 'aprobacion' && verificado && !aprobado ? `
-<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
-<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
+<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">${ICONOS.check} Aprobar</button>
+<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">${ICONOS.x} Rechazar</button>
 ` : ''}
 </div>
 </div>`;
@@ -1239,7 +1267,7 @@ ${maxAlcanzado && subidosRechazados === 0 ? `✅ Máximo de ${maxExp} certificad
 </div>`;
 }
 if (req.tipo !== 'experiencia' && puedeSubir && !noAplica && mostrarSubida) {
-const label = sub.length === 0 ? '📤 Admin subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
+const label = sub.length === 0 ? ICONOS.upload + ' Admin subir PDF' : (req.cantidadMin > 1 ? ICONOS.plus + ` Agregar PDF (${sub.length}/${req.cantidadMin})` : ICONOS.upload + ' Reemplazar PDF');
 html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;width:100%;box-sizing:border-box;">
 <span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
 <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
@@ -1363,13 +1391,13 @@ ${proveedor.evaluacion_inicial ? `
 <p><strong>📋 Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
 <p><strong>📅 Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
 ${(proveedor.evaluacion_estado === 'pendiente' || proveedor.evaluacion_estado === 'rechazado') ? `
 ${todosAprobados ? `
 <button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstadoEvaluacion(${proveedor.id},'aprobado')">✅ Aprobar evaluación</button>
 ${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">❌ Rechazar evaluación</button>` : ''}
-<button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">🗑️ Eliminar</button>
+<button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">${ICONOS.trash} Eliminar</button>
 ` : `
 <button class="btn btn-sm" style="background:#9ca3af;cursor:not-allowed;" disabled>⚠️ Primero aprueba todos los documentos</button>
 `}
@@ -1385,7 +1413,7 @@ ${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-d
 <label>📎 Subir PDF de evaluación inicial</label>
 <input type="file" name="archivo" required accept=".pdf">
 </div>
-<button type="submit" class="btn" style="background:#8600dd;">📤 Subir evaluación</button>
+<button type="submit" class="btn" style="background:#8600dd;">${ICONOS.upload} Subir evaluación</button>
 </form>
 `}
 </div>
@@ -1450,8 +1478,8 @@ ${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
-<a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">⬇️</a>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 </div>
 </div>`;
@@ -1470,7 +1498,7 @@ ${proveedor.evaluacion_inicial ? `
 <p><strong>📋 Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
 <p><strong>📅 Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
 </div>
 </div>
@@ -1519,7 +1547,7 @@ html += `
 </select>
 <small style="color:#6b7280;font-size:0.8rem;">Define la documentación requerida del proveedor. Normalmente lo selecciona el propio proveedor en "Mis datos".</small>
 </div>
-<button type="submit" class="btn" style="background:#059669;">💾 Guardar gestión</button>
+<button type="submit" class="btn" style="background:#059669;">${ICONOS.save} Guardar gestión</button>
 </form>
 </div>
 `;
@@ -1604,7 +1632,7 @@ ${!soloLectura ? `
 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
 ${numHistoricos > 0 ? `<small style="color:#6b7280;">📦 ${numHistoricos} histórico(s) — ver pestaña "Históricos"</small>` : ''}
 <button class="btn btn-success" onclick="descargarZIP(${p.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
-📦 Descargar activos en ZIP
+${ICONOS.zip} Descargar activos en ZIP
 </button>
 </div>
 </div>
@@ -1662,12 +1690,12 @@ ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 ${esNoAplica
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
-<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️</a>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 ${!soloLectura ? `
-<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">✓ Aprobar</button>
-<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">✗ Rechazar</button>
+<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">${ICONOS.check} Aprobar</button>
+<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">${ICONOS.x} Rechazar</button>
 ` : ''}
 </div>
 </div>`;
@@ -1717,7 +1745,7 @@ ${!maxAlcanzado && puedeSubir ? `
 }
 
 if (!soloLectura && req.tipo !== 'experiencia' && puedeSubir && !noAplica) {
-const label = sub.length === 0 ? '📤 Admin subir PDF' : (req.cantidadMin > 1 ? `➕ Agregar PDF (${sub.length}/${req.cantidadMin})` : '🔄 Reemplazar PDF');
+const label = sub.length === 0 ? ICONOS.upload + ' Admin subir PDF' : (req.cantidadMin > 1 ? ICONOS.plus + ` Agregar PDF (${sub.length}/${req.cantidadMin})` : ICONOS.upload + ' Reemplazar PDF');
 html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;">
 <span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
 <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
@@ -1741,7 +1769,7 @@ ${p.evaluacion_inicial ? `
 <p><strong>📋 Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : p.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
 <p><strong>📅 Fecha:</strong> ${p.evaluacion_fecha ? formatearFecha(p.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${p.evaluacion_inicial}','Evaluación Inicial')">👁️ Ver</button>
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${p.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${p.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
 </div>
 </div>
@@ -2077,7 +2105,7 @@ docsHtml += `
 <span><strong>📄 Evaluación Inicial</strong> ${evalBadge}</span>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${evaluacion.archivo}','Evaluación Inicial')">👁️ Ver</button>
+<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${evaluacion.archivo}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
 <a href="/uploads/${evaluacion.archivo}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
 </div>
 ${evaluacion.fecha ? `<small style="color:#6b7280;">📅 Fecha: ${formatearFecha(evaluacion.fecha)}</small>` : ''}
@@ -2111,7 +2139,7 @@ ${d.fecha_vencimiento ? `<span style="color:${vencimientoColor};font-size:0.8rem
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">👁️ Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
 `}
 </div>
