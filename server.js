@@ -153,7 +153,7 @@ const limiterLogin = rateLimit({
 
 const limiterGeneral = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 300,
+  max: 500,
   message: { error: 'Demasiadas peticiones. Espera un momento.' },
   skipSuccessfulRequests: false
 });
@@ -672,7 +672,8 @@ console.error('⚠️ Error resolviendo evaluación del ciclo:', e.message);
 return null;
 }
 }
-function moverDocumentoAHistorico(doc) {
+function moverDocumentoAHistorico(doc, comentarioPersonalizado = null) {
+const comentario = comentarioPersonalizado || 'Documento movido a histórico por vencimiento';
   try {
     const proveedor = db.prepare(`
       SELECT id, razon_social, numero_registro
@@ -702,10 +703,10 @@ function moverDocumentoAHistorico(doc) {
           SET es_historico = 1,
               fecha_archivado = datetime('now', '-05:00'),
               estado = 'rechazado',
-              comentario = 'Documento movido a histórico por vencimiento',
+              comentario = ?,
               ciclo = ?
-          WHERE id = ?
-        `).run(ciclo, doc.id);
+              WHERE id = ?
+      `).run(comentario, ciclo, doc.id);
       }
 
       console.log(`📄 Documento ${doc.id} (no_aplica) marcado como histórico en ciclo ${ciclo}.`);
@@ -745,13 +746,13 @@ function moverDocumentoAHistorico(doc) {
       db.prepare(`
         UPDATE documentos
         SET archivo = ?,
-            es_historico = 1,
-            fecha_archivado = datetime('now', '-05:00'),
-            estado = 'rechazado',
-            comentario = 'Documento movido a histórico por vencimiento',
-            ciclo = ?
+          es_historico = 1,
+          fecha_archivado = datetime('now', '-05:00'),
+          estado = 'rechazado',
+          comentario = ?,
+          ciclo = ?
         WHERE id = ?
-      `).run(rutaRelativa, ciclo, doc.id);
+        `).run(rutaRelativa, comentario, ciclo, doc.id);
     }
 
     return true;
@@ -4239,7 +4240,40 @@ fs.rmSync(path.join(dataDir, 'proveedores.db'), { force: true });
 fs.rmSync(path.join(dataDir, 'proveedores.db-wal'), { force: true });
 fs.rmSync(path.join(dataDir, 'proveedores.db-shm'), { force: true });
 fs.copyFileSync(ruta, path.join(dataDir, 'proveedores.db'));
-res.json({ ok: true, mensaje: 'Restauración completada. Reiniciando el servicio…' });
+// 2.5) 🩹 Restaurar archivos físicos faltantes desde el mirror.
+// El mirror conserva todo lo que haya existido; copiamos SOLO los archivos
+// que la BD restaurada referencia y que faltan en uploads/ (preciso y seguro).
+let archivosRestaurados = 0;
+try {
+const Database = require('better-sqlite3');
+const restored = new Database(path.join(dataDir, 'proveedores.db'), { readonly: true });
+const rutas = [
+...restored.prepare(`SELECT archivo FROM documentos WHERE archivo IS NOT NULL AND archivo != 'no_aplica'`).all().map(r => r.archivo),
+...restored.prepare(`SELECT evaluacion_inicial AS archivo FROM proveedores WHERE evaluacion_inicial IS NOT NULL AND evaluacion_inicial != ''`).all().map(r => r.archivo)
+];
+const rutasPlant = restored.prepare(`SELECT archivo FROM plantillas WHERE archivo IS NOT NULL`).all().map(r => r.archivo);
+restored.close();
+const copiarSiFalta = (rel, mirror, base) => {
+const relLimpio = String(rel || '').replace(/\\/g, '/');
+if (!relLimpio || relLimpio.includes('..')) return;
+const dest = path.resolve(base, relLimpio);
+if (!dest.startsWith(path.resolve(base) + path.sep)) return; // anti path-traversal
+if (fs.existsSync(dest)) return;
+const src = path.join(mirror, relLimpio);
+if (!fs.existsSync(src)) return;
+fs.mkdirSync(path.dirname(dest), { recursive: true });
+fs.copyFileSync(src, dest);
+archivosRestaurados++;
+};
+const mUp = path.join(dataDir, 'backups', 'uploads_mirror');
+const mPl = path.join(dataDir, 'backups', 'plantillas_mirror');
+rutas.forEach(rel => copiarSiFalta(rel, mUp, uploadsDir));
+rutasPlant.forEach(rel => copiarSiFalta(rel, mPl, plantillasDir));
+if (archivosRestaurados > 0) console.log(`🩹 Restauración: ${archivosRestaurados} archivo(s) físico(s) recuperado(s) del mirror`);
+} catch (e) {
+console.error('️ Error restaurando archivos del mirror:', e.message);
+}
+res.json({ ok: true, mensaje: `Restauración completada${archivosRestaurados ? ` (${archivosRestaurados} archivo(s) recuperado(s))` : ''}. Reiniciando el servicio…` });
 // 3) Railway reinicia solo al salir el proceso
 setTimeout(() => process.exit(0), 800);
 }).catch(e => {
@@ -5519,25 +5553,31 @@ app.post('/api/admin/proveedor/:id/solicitar-actualizacion', requiereAdmin, asyn
       return res.status(400).json({ error: 'Solo se puede solicitar actualización a proveedores registrados' });
     }
     
-    const añoActual = new Date().getFullYear();
-    
-    // 1. Archivar TODOS los documentos activos (incluidos los "No aplica")
-    const docsActivos = db.prepare(`
-      SELECT * FROM documentos 
-      WHERE proveedor_id = ? AND es_historico = 0
-    `).all(proveedorId);
-    
-    console.log(`📦 Archivando ${docsActivos.length} documentos activos del proveedor ${proveedorId}`);
-    
+const añoActual = new Date().getFullYear();
+// 1. Archivar TODOS los documentos activos (incluidos los "No aplica")
+// 🩹 FIX: usa moverDocumentoAHistorico para crear la subcarpeta del ciclo
+// (uploads/<id>/<ciclo>/) y mover allí los .enc, igual que los vencimientos.
+const cicloCerrado = proveedor.numero_registro || null;
+const docsActivos = db.prepare(`
+SELECT * FROM documentos
+WHERE proveedor_id = ? AND es_historico = 0
+`).all(proveedorId);
+console.log(`📦 Archivando ${docsActivos.length} documentos activos del proveedor ${proveedorId}`);
 for (const doc of docsActivos) {
-  db.prepare(`
-    UPDATE documentos
-    SET es_historico = 1,
-        fecha_archivado = datetime('now', '-05:00'),
-        estado = 'rechazado',
-        comentario = 'Archivado por solicitud de actualización anual'
-    WHERE id = ?
-  `).run(doc.id);
+moverDocumentoAHistorico(doc, 'Archivado por solicitud de actualización anual');
+}
+// 1b. 🩹 FIX EVALUACIÓN: mover el .enc de la evaluación inicial a la subcarpeta
+// del ciclo ANTES de que el paso 2 ponga evaluacion_inicial = NULL.
+if (proveedor.evaluacion_inicial) {
+const okEval = moverDocumentoAHistorico({
+id: null,
+proveedor_id: proveedorId,
+archivo: proveedor.evaluacion_inicial,
+ciclo: cicloCerrado
+}, 'Evaluación archivada por solicitud de actualización anual');
+console.log(okEval
+? `📄 Evaluación inicial del proveedor ${proveedorId} movida al ciclo ${cicloCerrado || 'sin_ciclo'}.`
+: `⚠️ No se pudo mover la evaluación inicial del proveedor ${proveedorId}.`);
 }
     
     // 2. Mover proveedor a verificación (tipo_proveedor = NULL para que elija)
@@ -5684,6 +5724,72 @@ function recuperarDocumentosHuérfanos() {
 }
 
 recuperarDocumentosHuérfanos();
+// 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
+// evaluaciones iniciales huérfanas asignándolas a su ciclo por fecha. Idempotente.
+function reorganizarHistoricosPorCiclo() {
+try {
+// 1) Documentos históricos con ciclo pero archivo suelto
+const docs = db.prepare(`
+SELECT id, proveedor_id, archivo, ciclo
+FROM documentos
+WHERE es_historico = 1
+AND archivo IS NOT NULL AND archivo != 'no_aplica'
+AND ciclo IS NOT NULL AND ciclo != ''
+`).all();
+let movidos = 0;
+for (const doc of docs) {
+if (String(doc.archivo).startsWith(`${doc.proveedor_id}/${doc.ciclo}/`)) continue;
+const rutaActual = path.join(uploadsDir, doc.archivo);
+if (!fs.existsSync(rutaActual)) continue;
+const dirDestino = path.join(uploadsDir, String(doc.proveedor_id), String(doc.ciclo));
+if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
+let nombre = path.basename(doc.archivo);
+let rutaNueva = path.join(dirDestino, nombre);
+if (fs.existsSync(rutaNueva)) {
+const ext = path.extname(nombre);
+nombre = `${path.basename(nombre, ext)}_${Date.now()}${ext}`;
+rutaNueva = path.join(dirDestino, nombre);
+}
+fs.renameSync(rutaActual, rutaNueva);
+db.prepare(`UPDATE documentos SET archivo = ? WHERE id = ?`).run(`${doc.proveedor_id}/${doc.ciclo}/${nombre}`, doc.id);
+movidos++;
+}
+if (movidos > 0) console.log(`🗂️ ${movidos} histórico(s) reorganizados en subcarpetas de ciclo`);
+// 2) Evaluaciones huérfanas sueltas en uploads/<id>/ → al ciclo por fecha
+const provs = db.prepare(`SELECT DISTINCT proveedor_id FROM ciclos_actualizacion`).all();
+let evalsMovidas = 0;
+for (const { proveedor_id } of provs) {
+const dirProv = path.join(uploadsDir, String(proveedor_id));
+if (!fs.existsSync(dirProv)) continue;
+const sueltas = fs.readdirSync(dirProv).filter(f => f.startsWith('evaluacion_') && f.endsWith('.enc'));
+if (!sueltas.length) continue;
+const ciclos = db.prepare(`
+SELECT numero_registro, fecha_inicio, fecha_fin
+FROM ciclos_actualizacion WHERE proveedor_id = ?
+`).all(proveedor_id);
+for (const f of sueltas) {
+const mtime = fs.statSync(path.join(dirProv, f)).mtime;
+const parse = s => new Date(String(s).replace(' ', 'T') + '-05:00');
+let ciclo = ciclos.find(c => mtime >= parse(c.fecha_inicio) && (!c.fecha_fin || mtime <= parse(c.fecha_fin)));
+if (!ciclo) {
+ciclo = ciclos.map(c => ({ ...c, ini: parse(c.fecha_inicio) }))
+.filter(c => c.ini > mtime)
+.sort((a, b) => a.ini - b.ini)[0];
+}
+if (!ciclo) continue;
+const dirDestino = path.join(dirProv, String(ciclo.numero_registro));
+if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
+if (fs.existsSync(path.join(dirDestino, f))) continue;
+fs.renameSync(path.join(dirProv, f), path.join(dirDestino, f));
+evalsMovidas++;
+}
+}
+if (evalsMovidas > 0) console.log(`🗂️ ${evalsMovidas} evaluación(es) huérfana(s) asignadas a su ciclo`);
+} catch (err) {
+console.error('❌ Error reorganizando históricos:', err.message);
+}
+}
+reorganizarHistoricosPorCiclo();
 
 function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOriginal, accion) {
   console.log(`🔔 [notificarAdminDocumento] Ejecutando para proveedor ${proveedorId}, accion: ${accion}`);

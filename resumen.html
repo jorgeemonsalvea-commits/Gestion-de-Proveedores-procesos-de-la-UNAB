@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Resumen Ejecutivo — Portal de Gestión de Proveedores UNAB</title>
+<style>
+@page { size: A4; margin: 14mm 12mm 16mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Open Sans','Segoe UI',Arial,sans-serif; color:#1f1830; font-size:10.5pt; line-height:1.5; margin:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+h1,h2,h3,h4 { font-weight:800; letter-spacing:-0.015em; }
+h2 { color:#8600dd; border-bottom:2px solid #e9a427; padding-bottom:4px; font-size:13.5pt; margin:18px 0 8px; }
+table { width:100%; border-collapse:collapse; font-size:9pt; margin:6px 0 10px; }
+th { background:#160a24; color:#fff; text-align:left; padding:6px 8px; }
+td { border-bottom:1px solid #e7e2f0; padding:6px 8px; vertical-align:top; }
+tr:nth-child(even) td { background:#f6f4fb; }
+.header { background:linear-gradient(100deg,#160a24,#2a0f47); color:#fff; padding:26px 22px; border-radius:0 0 14px 14px; border-bottom:4px solid #e9a427; }
+.header .top { display:flex; justify-content:space-between; align-items:center; }
+.unab { border:2px solid #e9a427; border-radius:6px; padding:2px 8px; font-weight:800; letter-spacing:.06em; }
+.doc-tag { color:#e9a427; font-size:8pt; text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
+.header h1 { font-size:20pt; margin:14px 0 4px; line-height:1.1; }
+.header p { color:#d6cfe6; margin:0; max-width:640px; }
+.chip { display:inline-block; margin:10px 6px 0 0; padding:4px 10px; border-radius:999px; font-size:8pt; font-weight:700; }
+.chip-gold { background:#e9a427; color:#160a24; }
+.chip-line { border:1px solid rgba(233,164,39,.5); color:#fff; }
+.stack { background:#f5f3ff; border-left:4px solid #8600dd; padding:8px 12px; border-radius:8px; margin:6px 0 10px; font-size:9.5pt; }
+.grid4 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:8px 0; }
+.card { background:#fff; border:1px solid #e7e2f0; border-radius:10px; padding:10px 12px; }
+.card h4 { margin:0 0 4px; font-size:9.5pt; } .card p { margin:0; font-size:9pt; }
+.b-green{border-left:4px solid #059669}.b-green h4{color:#059669}
+.b-purple{border-left:4px solid #8600dd}.b-purple h4{color:#8600dd}
+.b-gold{border-left:4px solid #e9a427}.b-gold h4{color:#8a5a00}
+.b-red{border-left:4px solid #dc2626}.b-red h4{color:#dc2626}
+.kpis { background:#f6f4fb; border-radius:10px; padding:12px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; text-align:center; margin:8px 0; }
+.kpi b { display:block; font-size:22pt; color:#8600dd; line-height:1; }
+.kpi span { font-size:7pt; text-transform:uppercase; letter-spacing:.08em; color:#6b6478; font-weight:700; }
+.ok { color:#059669; font-weight:700; }
+.flow { display:flex; gap:6px; align-items:stretch; margin:8px 0; flex-wrap:wrap; }
+.step { flex:1; min-width:105px; background:#f5f3ff; border:1px solid #c4b5fd; border-radius:8px; padding:8px; font-size:8.5pt; text-align:center; }
+.step b { display:block; color:#8600dd; font-size:9pt; margin-bottom:3px; }
+.arrow { align-self:center; color:#8600dd; font-weight:800; }
+.legal { margin-top:20px; border-top:2px solid #e9a427; padding-top:10px; text-align:center; font-size:7.5pt; color:#6b6478; }
+.legal a { color:#8600dd; text-decoration:none; }
+/* Variantes de color para pasos de flujo (mantienen la misma forma) */
+.step-red   { background:#fef2f2 !important; border-color:#fecaca !important; }
+.step-red b { color:#dc2626 !important; }
+.step-green   { background:#f0fdf4 !important; border-color:#bbf7d0 !important; }
+.step-green b { color:#059669 !important; }
+.step-amber   { background:#fffbeb !important; border-color:#fde68a !important; }
+.step-amber b { color:#d97706 !important; }
+.flow h3, h3.flow-title { color:#8600dd; font-size:11pt; margin:14px 0 6px; }
+.flow-legend { font-size:8pt; color:#6b6478; margin:2px 0 10px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="top"><span class="unab">UNAB</span><span class="doc-tag">Documento Ejecutivo · Agosto 2026</span></div>
+  <h1>Portal de Gestión Documental de Proveedores</h1>
+  <p>Sistema enterprise para la inscripción, verificación, aprobación, actualización e historial de proveedores naturales y jurídicos de la Universidad Autónoma de Bucaramanga.</p>
+  <span class="chip chip-gold">Versión 4.8 · Producción</span>
+  <span class="chip chip-line">Cifrado AES-256-GCM</span>
+  <span class="chip chip-line">Ley 1581 de 2012</span>
+</div>
+
+<h2>1. Resumen ejecutivo</h2>
+<p>El <strong>Portal de Gestión de Proveedores</strong> es la plataforma oficial de la UNAB para administrar el ciclo de vida documental de sus proveedores: desde la inscripción inicial hasta la actualización anual, incluyendo verificación, aprobación, inscripciones, rechazos e histórico permanente. Reemplaza flujos manuales basados en correo y carpetas compartidas por un workflow trazable, cifrado de extremo a extremo y alineado con la normativa colombiana de protección de datos.</p>
+<table>
+<tr><th>Dimensión</th><th>Valor</th></tr>
+<tr><td>Usuarios</td><td>Administradores internos + proveedores externos (natural/jurídica)</td></tr>
+<tr><td>Documentos gestionados</td><td>14 tipos por proveedor (incluye plantillas institucionales firmadas)</td></tr>
+<tr><td>Cobertura regulatoria</td><td>Ley 1581 de 2012 (Habeas Data).</td></tr>
+<tr><td>Disponibilidad</td><td>24/7 con recuperación ante desastre automatizada</td></tr>
+</table>
+
+<h2>2. Arquitectura técnica</h2>
+<div class="stack"><strong style="color:#8600dd;">Stack de producción:</strong> Node.js · Express · SQLite (WAL + mmap) · Socket.IO · Brevo SMTP · Helmet · Railway (volúmenes persistentes).</div>
+<table>
+<tr><th>Capa</th><th>Componente</th><th>Función</th></tr>
+<tr><td>Presentación</td><td>HTML + CSS (Open Sans · paleta UNAB) · JS · Socket.IO cliente</td><td>Paneles admin y proveedor responsivos y on-brand</td></tr>
+<tr><td>API</td><td>Express + Helmet + rate limiting</td><td>Endpoints REST con sesión y SameSite=Lax</td></tr>
+<tr><td>Persistencia</td><td>SQLite (WAL, mmap 256 MB, foreign keys)</td><td>BD embebida con migraciones automáticas</td></tr>
+<tr><td>Almacenamiento</td><td>Volumen persistente + uploads cifrados</td><td>Archivos .enc (AES-256-GCM) + integridad SHA-256</td></tr>
+<tr><td>Comunicación</td><td>Socket.IO + Brevo</td><td>Eventos en tiempo real + correos institucionales</td></tr>
+</table>
+
+<h2>3. Seguridad y cumplimiento</h2>
+<table>
+<tr><th>Control</th><th>Implementación</th><th>Estado</th></tr>
+<tr><td>Cifrado en reposo</td><td>AES-256-GCM con IV aleatorio + PBKDF2 (100 000 iteraciones)</td><td class="ok">✓ Activo</td></tr>
+<tr><td>Hash de contraseñas</td><td>bcrypt (cost 12) + política mínima de 8 caracteres con complejidad</td><td class="ok">✓ Activo</td></tr>
+<tr><td>Protección de sesión</td><td>Cookie HttpOnly + SameSite=Lax + regeneración post-login + HSTS 1 año</td><td class="ok">✓ Activo</td></tr>
+<tr><td>Rate limiting</td><td>Login 20/15 min · Recuperación 5/15 min · Uploads 30/5 min · General 300/min</td><td class="ok">✓ Activo</td></tr>
+<tr><td>Validación de archivos</td><td>Magic bytes %PDF- + extensión + límite 15 MB + anti path-traversal</td><td class="ok">✓ Activo</td></tr>
+<tr><td>Habeas Data (Ley 1581)</td><td>Consentimiento explícito registrado con IP + user-agent + versión</td><td class="ok">✓ Activo</td></tr>
+<tr><td>Anti-enumeración</td><td>Hash bcrypt dummy + respuestas uniformes en login/recuperación</td><td class="ok">✓ Activo</td></tr>
+</table>
+
+<!-- ============ 3.1 NORMATIVA ISO APLICABLE ============ -->
+<h2>3.1 Normativa ISO aplicable</h2>
+<div class="stack"><strong style="color:#8600dd;">Normativa Aplicable</strong> — Nota importante: las ISO certifican organizaciones/procesos, no software. El portal está diseñado y alineado con estas normas, lo cual le facilita a la UNAB incluirlas dentro de sus sistemas de gestión certificados.</div>
+<table>
+<thead><tr><th style="width:22%;">Norma</th><th style="width:30%;">Ámbito</th><th>Cómo lo cumple el sistema</th></tr></thead>
+<tbody>
+<tr><td><strong>ISO/IEC 27001:2022</strong></td><td>Sistema de Gestión de Seguridad de la Información (SGSI)</td><td>Cifrado AES-256-GCM en reposo, control de acceso por roles, auditoría (logs con IP/usuario) y gestión de respaldos</td></tr>
+<tr><td><strong>ISO/IEC 27002:2022</strong></td><td>Controles de seguridad</td><td>Controles implementados: criptografía, control de acceso, protección contra abuso (rate limiting), validación de entradas (magic bytes PDF) y registro/monitoreo</td></tr>
+<tr><td><strong>ISO/IEC 27005:2022</strong></td><td>Gestión de riesgos de SI</td><td>Identificación de riesgos documentales y operativos con mitigaciones técnicas (anti path-traversal, anti-enumeración, HSTS)</td></tr>
+<tr><td><strong>ISO/IEC 27017:2015</strong></td><td>Seguridad en servicios cloud</td><td>Despliegue en nube (Railway) con volúmenes persistentes y secrets gestionados por ambiente</td></tr>
+<tr><td><strong>ISO/IEC 27018:2019</strong></td><td>Protección de datos personales (PII) en la nube</td><td>Datos personales cifrados en reposo; claves de cifrado separadas entre producción y staging</td></tr>
+<tr><td><strong>ISO/IEC 27701:2019</strong></td><td>Sistema de gestión de privacidad (PIMS)</td><td>Consentimiento Habeas Data registrado con IP + user-agent + versión; trazabilidad que soporta derechos ARCO</td></tr>
+<tr><td><strong>ISO 22301:2019</strong></td><td>Continuidad del negocio</td><td>Backups automáticos cada 12 h con retención 14, mirror de archivos, self-healing al arranque y restauración probada</td></tr>
+<tr><td><strong>ISO 15489-1:2016</strong></td><td>Gestión de documentos</td><td>Ciclo de vida documental completo: captura, verificación, aprobación, vencimiento, archivo histórico y trazabilidad</td></tr>
+<tr><td><strong>ISO 30301:2019</strong></td><td>Sistema de gestión para registros</td><td>Históricos inmutables agrupados por ciclo con número de registro y conservación</td></tr>
+<tr><td><strong>ISO 31000:2018</strong></td><td>Gestión de riesgos</td><td>Rechazos con comentario, vencimientos controlados y alertas que reducen riesgo operativo y contractual</td></tr>
+<tr><td><strong>ISO 9001:2015 (cl. 8.4)</strong></td><td>Control de proveedores externos</td><td>Núcleo del negocio: evaluación, verificación, aprobación, registro y re-evaluación anual de proveedores</td></tr>
+<tr><td><strong>ISO/IEC 25010:2023</strong></td><td>Calidad de producto (SQuaRE)</td><td>Seguridad, fiabilidad y mantenibilidad: 61 tests automatizados, cobertura medida y CI/CD</td></tr>
+<tr><td><strong>ISO/IEC/IEEE 12207:2017</strong></td><td>Procesos de ciclo de vida del software</td><td>Desarrollo, pruebas, despliegue y mantenimiento con control de versiones (Git) y pipelines (GitHub Actions)</td></tr>
+</tbody>
+</table>
+
+<!-- ============ 3.2 LEYES Y NORMATIVA DE SEGURIDAD ============ -->
+<h2>3.2 Leyes y normativa de seguridad aplicable</h2>
+<div class="stack"><strong style="color:#8600dd;">Aplicable Normativa Colombiana</strong> — El portal cumple el marco legal colombiano en protección de datos personales, documento electrónico, archivos y delitos informáticos.</div>
+<table>
+<thead><tr><th style="width:26%;">Norma</th><th style="width:30%;">Ámbito</th><th>Cumplimiento en el sistema</th></tr></thead>
+<tbody>
+<tr><td><strong>Constitución Política, Art. 15</strong></td><td>Derecho a la intimidad y habeas data</td><td>Base jurídica de todo el tratamiento de datos personales del portal</td></tr>
+<tr><td><strong>Ley 1581 de 2012</strong></td><td>Protección de datos personales</td><td>Consentimiento explícito registrado (IP + user-agent), medidas de seguridad del Art. 9 y soporte a derechos ARCO mediante trazabilidad</td></tr>
+<tr><td><strong>Decreto 1377 de 2013</strong></td><td>Reglamenta la Ley 1581</td><td>Autorización previa e informada al registrarse; política de tratamiento de datos enlazada en el portal</td></tr>
+<tr><td><strong>Ley 1273 de 2009</strong></td><td>Delitos informáticos</td><td>Prevención de acceso abusivo (autenticación, bloqueo por intentos, rate limiting) y evidencia mediante logs con IP</td></tr>
+<tr><td><strong>Ley 527 de 1999</strong></td><td>Documento y firma electrónica</td><td>Equivalencia funcional del documento electrónico: PDF cifrados con integridad SHA-256 y plantillas firmadas</td></tr>
+<tr><td><strong>Ley 594 de 2000</strong></td><td>Ley General de Archivos</td><td>Gestión documental electrónica: archivo de gestión e histórico con retención y conservación</td></tr>
+<tr><td><strong>Decreto 1080 de 2015</strong></td><td>Decreto reglamentario del sector cultura (archivos)</td><td>Organización de históricos por períodos (ciclos) y retención documental</td></tr>
+<tr><td><strong>Ley 1712 de 2014</strong></td><td>Transparencia y acceso a la información</td><td>Trazabilidad completa de actuaciones administrativas sobre proveedores (usuario, fecha, IP, comentario)</td></tr>
+<tr><td><strong>CONPES 3995 de 2020</strong></td><td>Política nacional de seguridad digital</td><td>Marco de referencia alineado: cifrado por defecto, gestión de incidentes y continuidad</td></tr>
+</tbody>
+</table>
+
+<!-- ============ 3.3 EVIDENCIA TÉCNICA DE CUMPLIMIENTO ============ -->
+<h2>3.3 Evidencia técnica de cumplimiento (Norma ↔ Sistema)</h2>
+<div class="stack"><strong style="color:#8600dd;">Trazabilidad real</strong> — Cada norma y ley de las secciones 3.1 y 3.2 no queda en una declaración de intenciones: está respaldada por una funcionalidad concreta del portal que puede verificarse en el panel, en el disco o en los registros del sistema.</div>
+<table>
+<thead><tr><th style="width:24%;">Norma / Ley</th><th style="width:28%;">Qué exige</th><th>Evidencia técnica en el portal (y dónde verla)</th></tr></thead>
+<tbody>
+<tr><td><strong>ISO/IEC 27001 · 27002</strong></td><td>Confidencialidad, control de acceso y auditoría</td><td>Documentos cifrados AES-256-GCM en reposo; sesiones regeneradas al login; roles admin/proveedor; logs de seguridad con IP y user-agent. <em>Ver: botón "Verificar integridad" por documento y logs del servidor.</em></td></tr>
+<tr><td><strong>ISO/IEC 27017 · 27018</strong></td><td>Seguridad en nube y protección de datos personales</td><td>Ambientes producción/staging separados con claves y volúmenes distintos; datos personales cifrados. <em>Ver: servicios y variables de entorno en Railway.</em></td></tr>
+<tr><td><strong>ISO 22301</strong></td><td>Continuidad del negocio y recuperación</td><td>Backup automático cada 12 h (14 copias) + mirror de archivos + self-healing al arranque + restauración con recuperación de PDFs. <em>Ver: Panel → Configuración → Backups.</em></td></tr>
+<tr><td><strong>ISO 15489 · 30301</strong></td><td>Gestión y archivo de documentos</td><td>Ciclo de vida completo: captura → verificación → aprobación → vencimiento → histórico de solo lectura agrupado por ciclo. <em>Ver: pestaña "Históricos" y módulo Historial.</em></td></tr>
+<tr><td><strong>ISO 9001 (cl. 8.4)</strong></td><td>Control de proveedores externos</td><td>Workflow por etapas con evaluación inicial, aprobación, registro y actualización anual con trazabilidad. <em>Ver: tarjetas KPI y historial por proveedor.</em></td></tr>
+<tr><td><strong>ISO/IEC 25010 · 12207</strong></td><td>Calidad del producto y ciclo de vida del software</td><td>61 pruebas automatizadas que se ejecutan en la nube (GitHub Actions) con cada cambio, en dos versiones de Node.js. <em>Ver: pestaña Actions del repositorio.</em></td></tr>
+<tr><td><strong>Ley 1581 de 2012</strong></td><td>Consentimiento informado y derechos ARCO</td><td>Habeas Data aceptado y registrado con IP, user-agent y versión; exportación CSV para auditoría. <em>Ver: Panel → Habeas Data.</em></td></tr>
+<tr><td><strong>Ley 1273 de 2009</strong></td><td>Prevención de acceso abusivo a sistemas y datos</td><td>Límites de intentos con bloqueo temporal, anti-enumeración, HSTS, honeypot y timing anti-bot en registro. <em>Ver: logs_seguridad.</em></td></tr>
+<tr><td><strong>Ley 527 de 1999</strong></td><td>Equivalencia funcional del documento electrónico</td><td>PDF con hash SHA-256 de integridad y descargas con encabezados correctos. <em>Ver: "Verificar integridad" por documento.</em></td></tr>
+<tr><td><strong>Ley 594 de 2000</strong></td><td>Archivo histórico y conservación</td><td>Archivado automático por vencimiento o actualización; archivos .enc organizados en carpetas por ciclo. <em>Ver: disco uploads/&lt;id&gt;/&lt;ciclo&gt;/.</em></td></tr>
+<tr><td><strong>Res. 12220 de 2016</strong></td><td>Leyenda legal visible en páginas web</td><td>Pie institucional con "Vigilada Mineducación" y Resolución 10820 de 2017 en ambos paneles. <em>Ver: pie de página.</em></td></tr>
+</tbody>
+</table>
+
+<h2>4. Continuidad operativa y recuperación ante desastre</h2>
+<div class="grid4">
+  <div class="card b-green"><h4>💾 Backups automáticos</h4><p>Cada <strong>12 horas</strong> (2 AM / 2 PM Colombia). Retención: <strong>14 copias</strong> + mirror incremental de archivos cifrados.</p></div>
+  <div class="card b-purple"><h4>🩹 Self-healing</h4><p>Verificación <code>integrity_check</code> al arranque. Si la BD está corrupta, <strong>restaura automáticamente</strong> el backup más reciente.</p></div>
+  <div class="card b-gold"><h4>🔄 Mirror de archivos</h4><p>Los <code>.enc</code> son inmutables: el mirror conserva <strong>todo lo que haya existido</strong>, incluidos reemplazados o borrados.</p></div>
+  <div class="card b-red"><h4>♻️ Restauración guiada</h4><p>Snapshot de seguridad previo + recuperación de archivos físicos faltantes desde el mirror. Servicio reinicia solo (Railway).</p></div>
+</div>
+
+<!-- ============ 5. CALIDAD DEL SOFTWARE ============ -->
+<h2>5. Calidad del software</h2>
+<div class="stack"><strong style="color:#8600dd;">Funcionamiento</strong> — Antes de que cualquier cambio llegue a los usuarios, el sistema se "auto-examina" con 61 verificaciones automáticas que revisan el cifrado, el ingreso, los documentos y los respaldos. Si una sola verificación falla, el cambio se bloquea y no se publica. Es como tener un inspector de calidad permanente que trabaja en cada modificación, a toda hora y sin omitir pasos.</div>
+<div class="kpis">
+  <div class="kpi"><b>61</b><span>Tests automatizados</span></div>
+  <div class="kpi"><b>7</b><span>Suites de pruebas</span></div>
+  <div class="kpi"><b>~35%</b><span>Cobertura server.js</span></div>
+  <div class="kpi"><b>77%</b><span>Cobertura criptografía</span></div>
+</div>
+<table>
+<thead><tr><th style="width:26%;">Indicador</th><th style="width:34%;">Qué significa</th><th>Por qué da confianza</th></tr></thead>
+<tbody>
+<tr><td><strong>61 tests automatizados</strong></td><td>Verificaciones que el sistema ejecuta solo, cada vez que se modifica el código</td><td>Detectan el error <em>antes</em> de que lo vea un usuario y evitan que se rompa lo que ya funcionaba</td></tr>
+<tr><td><strong>7 suites de pruebas</strong></td><td>Los tests están organizados por área: seguridad, acceso, documentos, respaldos, ciclos, configuración y gestión</td><td>Cada proceso crítico del negocio tiene su propia verificación independiente</td></tr>
+<tr><td><strong>~35% de cobertura en server.js</strong></td><td>Porción del código del servidor verificada por tests, concentrada en los flujos críticos del negocio</td><td>Es un nivel sano para un sistema de este tamaño: lo importante no es cubrir todo el código, sino <em>el código que más duele si falla</em></td></tr>
+<tr><td><strong>77% de cobertura en criptografía</strong></td><td>El módulo que protege documentos y contraseñas está verificado casi en su totalidad</td><td>La parte más sensible del sistema es, a la vez, la más probada</td></tr>
+</tbody>
+</table>
+<p style="font-size:9pt;"><strong>Suites implementadas:</strong> security (AES/SHA/contraseñas) · auth (login, anti-enumeración, rutas) · documentos (subida magic-bytes, verificación, aprobación, rechazo) · backups (crear, verificar, descargar, anti path-traversal) · ciclos (históricos, filtros, ZIP) · configuración (fecha fija, recalcular, ejecutar/forzar vencimientos) · gestión-proveedor (tipo persona, evaluación, notas, recordatorios).</p>
+<p style="font-size:9pt;"><strong>¿Dónde se ejecutan?</strong> En la nube (GitHub Actions), automáticamente con cada cambio y sobre dos versiones de Node.js. Un cambio con el check en rojo <strong>no puede publicarse</strong>: el flujo verde es el candado de calidad del portal.</p>
+
+<h2>6. Valor de negocio</h2>
+<table>
+<tr><th>Beneficio</th><th>Antes (manual)</th><th>Con el portal</th></tr>
+<tr><td>Trazabilidad</td><td>Correos y carpetas dispersas</td><td>Historial completo por proveedor con usuario, fecha e IP</td></tr>
+<tr><td>Tiempo de inscripción</td><td>Semanas (ida y vuelta de correos)</td><td>Días (workflow guiado + notificaciones automáticas)</td></tr>
+<tr><td>Riesgo documental</td><td>Documentos vencidos sin control</td><td>Vencimientos automáticos con alerta y archivo histórico</td></tr>
+<tr><td>Cumplimiento</td><td>Consentimientos verbales o en papel</td><td>Habeas Data registrado con evidencia (IP + user-agent)</td></tr>
+<tr><td>Recuperación ante falla</td><td>Dependiente de copias manuales</td><td>Backup automático + mirror + self-healing</td></tr>
+<tr><td>Actualización anual</td><td>Revisión uno a uno</td><td>Solicitud masiva + archivado automático + reinicio del ciclo</td></tr>
+</table>
+
+<!-- ============ 7. FLUJO DEL PROCESO ============ -->
+<h2>7. Flujo del proceso</h2>
+<p class="flow-legend"><strong>Leyenda:</strong> 🟣 paso normal · 🟡 transición / alerta · 🔴 rechazo / bloqueo · 🟢 éxito. Cada documento pasa por: <strong>subida → validación → verificación → aprobación → vencimiento → archivo histórico</strong>.</p>
+
+<h3 class="flow-title">7.1 Proceso normal — inscripción nueva</h3>
+<div class="flow">
+<div class="step"><b>📝 INSCRIPCIÓN</b>Proveedor crea cuenta (o lo crea el admin), acepta Habeas Data, completa datos y tipo de persona</div>
+<span class="arrow">→</span>
+<div class="step"><b>📤 CARGA</b>Sube documentos en PDF o marca "No aplica" en los opcionales</div>
+<span class="arrow">→</span>
+<div class="step"><b>🔍 VERIFICACIÓN</b>Admin marca verificado cada documento; todos verificados → pasa a Aprobación</div>
+<span class="arrow">→</span>
+<div class="step"><b>📋 APROBACIÓN</b>Admin aprueba documentos y aprueba la Evaluación Inicial → pasa a Inscripción</div>
+<span class="arrow">→</span>
+<div class="step"><b>🖋️ INSCRIPCIÓN</b>Admin asigna Fecha Movimiento (N° registro); se crea el ciclo y se asigna a los documentos</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>🏁 REGISTRADO</b>Proveedor activo; documentos con fecha fija de vencimiento</div>
+</div>
+
+<h3 class="flow-title">7.2 Rechazo de un documento</h3>
+<div class="flow">
+<div class="step"><b>🔍 VERIFICACIÓN</b>Admin revisa y detecta error en un documento</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>❌ RECHAZO</b>Admin rechaza con motivo; el proveedor recibe correo</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>🗑️ ELIMINAR</b>Proveedor debe eliminar el documento rechazado (requisito para recargar)</div>
+<span class="arrow">→</span>
+<div class="step"><b>📤 NUEVA CARGA</b>Proveedor sube la versión corregida</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>🔁 CONTINÚA</b>El documento re-entra al flujo de verificación</div>
+</div>
+<p class="flow-legend">⚠️ Si el proveedor ya estaba en Aprobación, Inscripción o Registrado, el rechazo de un documento lo devuelve a <strong>Verificación</strong> y limpia los datos de gestión.</p>
+
+<h3 class="flow-title">7.3 Rechazo de Evaluación Inicial — inscripción nueva</h3>
+<div class="flow">
+<div class="step"><b>📋 APROBACIÓN</b>La evaluación no cumple; los documentos deben estar aprobados para aprobarla</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>❌ RECHAZO EVALUACIÓN</b>Admin rechaza con motivo; correo al proveedor</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>⛔ RECHAZADO</b>Todos los documentos activos pasan a rechazados; etapa → Rechazado</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>🗑️ LIMPIEZA</b>Proveedor elimina rechazados (o el admin usa Reiniciar proceso)</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>📤 RECARGA</b>Sube de nuevo y el flujo reinicia en Verificación</div>
+</div>
+
+<h3 class="flow-title">7.4 Rechazo de Evaluación Inicial — proceso de actualización</h3>
+<div class="flow">
+<div class="step step-amber"><b>🔄 ACTUALIZACIÓN</b>Proveedor en actualización (tipo_gestion = actualizacion)</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>❌ RECHAZO EVALUACIÓN</b>Admin rechaza con motivo</div>
+<span class="arrow">→</span>
+<div class="step step-amber"><b>🔁 A VERIFICACIÓN</b>Documentos rechazados, pero el proveedor NO queda bloqueado: etapa → Verificación</div>
+<span class="arrow">→</span>
+<div class="step"><b>📤 CORRECCIÓN</b>Elimina rechazados y sube corregidos</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>📋 RE-APROBACIÓN</b>Con todo aprobado, se aprueba evaluación y continúa la inscripción</div>
+</div>
+
+<h3 class="flow-title">7.5 Actualización anual de documentos</h3>
+<div class="flow">
+<div class="step step-green"><b>🏁 REGISTRADO</b>Proveedor activo con documentos vigentes</div>
+<span class="arrow">→</span>
+<div class="step"><b>🔄 SOLICITUD</b>Admin solicita actualización (con mensaje); correo y recordatorio al proveedor</div>
+<span class="arrow">→</span>
+<div class="step step-amber"><b>📦 ARCHIVADO</b>Documentos activos y evaluación se mueven al histórico (carpeta del ciclo)</div>
+<span class="arrow">→</span>
+<div class="step"><b>🔍 VERIFICACIÓN</b>Proveedor define tipo de persona y sube documentación nueva</div>
+<span class="arrow">→</span>
+<div class="step"><b>📋 APROBACIÓN + 🖋️ REGISTRO</b>Aprobación de docs y evaluación; nuevo ciclo con nueva Fecha Movimiento</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>🏁 REGISTRADO</b>Proveedor activo para el nuevo período</div>
+</div>
+
+<h3 class="flow-title">7.6 Vencimiento automático (cron diario 12:00 a. m.)</h3>
+<div class="flow">
+<div class="step step-amber"><b>⏰ DETECCIÓN</b>Documentos con fecha_vencimiento ≤ ahora − 5 h</div>
+<span class="arrow">→</span>
+<div class="step step-amber"><b>📦 ARCHIVADO</b>Se mueven a histórico automáticamente</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>⛔ RECHAZO</b>Si el proveedor registrado queda sin documentos activos → Rechazado + correo</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>🔓 REACTIVACIÓN</b>Proveedor define tipo de persona y sube documentación nueva</div>
+</div>
+
+<h3 class="flow-title">7.7 Vencimiento forzado (acción del admin)</h3>
+<div class="flow">
+<div class="step step-red"><b>⚡ ACCIÓN</b>Configuración → "Forzar vencimiento de todos los documentos" (doble confirmación)</div>
+<span class="arrow">→</span>
+<div class="step step-amber"><b>📦 ARCHIVADO TOTAL</b>Todos los documentos activos de todos los proveedores pasan a histórico</div>
+<span class="arrow">→</span>
+<div class="step step-red"><b>⛔ RECHAZO</b>Proveedores afectados pasan a Rechazado con notificación</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>🔓 REACTIVACIÓN</b>Cada proveedor recarga su documentación (flujo 7.6)</div>
+</div>
+<p class="flow-legend">⚠️ Acción irreversible: se recomienda crear un backup manual antes (Configuración → Backups).</p>
+
+<h3 class="flow-title">7.8 Reinicio de proceso desde estado Rechazado</h3>
+<div class="flow">
+<div class="step step-red"><b>⛔ RECHAZADO</b>Proveedor bloqueado con documentos rechazados</div>
+<span class="arrow">→</span>
+<div class="step step-amber"><b>♻️ REINICIAR</b>Admin ejecuta "Reiniciar proceso"</div>
+<span class="arrow">→</span>
+<div class="step step-amber"><b>🧹 LIMPIEZA</b>Se elimina la evaluación; documentos quedan rechazados con comentario de corrección; etapa → Verificación</div>
+<span class="arrow">→</span>
+<div class="step step-green"><b>📤 RECARGA</b>Proveedor elimina rechazados y sube nueva documentación</div>
+</div>
+
+<h2>8. Roadmap y evolución</h2>
+<table>
+<tr><th>Fase</th><th>Alcance</th><th>Horizonte</th></tr>
+<tr><td>Corto plazo</td><td>Firma digital integrada · Notificaciones push móviles</td><td>6 meses</td></tr>
+<tr><td>Dependiento Capacidad o Uso</td><td>Migración Tablas PostgresSQL</td><td>6 meses</td></tr>
+<tr><td>Dependiento Capacidad o Uso</td><td>Migración e Integridad S3 AWS, Wasabi, S2 Cloudflare para volumen de Documentos </td><td>6 meses</td></tr>
+<tr><td>Mediano plazo</td><td>Integración ERP/financiero UNAB · API pública de consultas</td><td>12–24 meses</td></tr>
+<tr><td>Largo plazo</td><td>Analítica de proveedores (KPIs) · Portal multi-entidad</td><td>12–24 meses</td></tr>
+</table>
+
+<div class="legal">
+  <strong style="color:#8a5a00;letter-spacing:.06em;">UNAB</strong> · Universidad Autónoma de Bucaramanga · Portal de Gestión de Proveedores · © 2026 · Versión 4.8<br>
+  <a href="https://www.unab.edu.co">www.unab.edu.co</a>
+</div>
+
+</body>
+</html>
