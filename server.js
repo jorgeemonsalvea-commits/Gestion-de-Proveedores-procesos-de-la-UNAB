@@ -6028,13 +6028,16 @@ if (prov && prov.etapa === 'rechazado') {
 }
 
 if (require.main === module) {
-  server.listen(PORT, () => {
-    console.log(`\n🚀 Servidor: http://localhost:${PORT}`);
-    console.log(`🔐 Seguridad: AES-256-GCM + Rate Limiting + Helmet`);
-    console.log(`👤 Admin: ${process.env.ADMIN_EMAIL || 'admin@empresa.com'}\n`);
-  }).on('error', (err) => {
-    console.error('❌ Error al iniciar el servidor:', err);
-  });
+server.listen(PORT, () => {
+console.log(`
+🚀 Servidor: http://localhost:${PORT}`);
+console.log(`📦 Versión: ${require('./package.json').version}`);
+console.log(`🔐 Seguridad: AES-256-GCM + Rate Limiting + Helmet`);
+console.log(`👤 Admin: ${process.env.ADMIN_EMAIL || 'admin@empresa.com'}
+`);
+}).on('error', (err) => {
+console.error('❌ Error al iniciar el servidor:', err);
+});
 } else {
   console.log('⚠️ El servidor se está ejecutando como módulo, no se inicia automáticamente.');
 }
