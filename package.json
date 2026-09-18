@@ -18,7 +18,7 @@
   "dependencies": {
     "archiver": "^5.3.1",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "11.10.0",
+    "better-sqlite3": "^13.0.3",
     "compression": "^1.8.1",
     "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
@@ -35,7 +35,9 @@
     "sweetalert2": "^11.26.25"
   },
   "allowScripts": {
-    "better-sqlite3@11.10.0": true
+    "better-sqlite3@13.0.3": true,
+    "unrs-resolver@1.12.2": true,
+    "puppeteer": false
   },
   "devDependencies": {
     "jest": "^30.4.2",

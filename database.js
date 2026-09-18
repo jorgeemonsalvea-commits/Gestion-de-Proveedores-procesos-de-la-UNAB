@@ -23,10 +23,15 @@ function asegurarIntegridadInicial() {
         temp.close();
         if (check === 'ok') return; // BD sana: no hacer nada
         console.error(`⚠️ integrity_check de la BD principal falló: ${check}`);
-      } catch (e) {
+        } catch (e) {
         try { if (temp) temp.close(); } catch (_) {}
+        // 🛡️ SELF-HEALING SEGURO: si el fallo es del módulo better-sqlite3
+        // (versión de Node / prebuilds / módulo faltante), NO restaurar ni
+        // cuarentenar: relanzar el error. Solo se restaura si integrity_check
+        // llegó a ejecutarse y falló realmente.
+        if (/NODE_MODULE_VERSION|ERR_DLOPEN_FAILED|Cannot find module|\.node/i.test(e.message)) throw e;
         console.error('⚠️ No se pudo abrir la BD principal para verificación:', e.message);
-      }
+        }
     }
     if (!fs.existsSync(backupsDir)) return;
     const candidatos = fs.readdirSync(backupsDir)

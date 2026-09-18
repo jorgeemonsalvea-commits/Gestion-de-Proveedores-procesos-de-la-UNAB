@@ -77,15 +77,23 @@
 <!-- Contenedor de notificaciones push -->
 <div id="notificationContainer" class="notification-container"></div>
 
-<nav class="navbar">
-<h1>
-<!--<span class="navbar-logo-fallback">UNAB</span>-->
-<!-- LOGO UNAB: public/img/unab-logo-negativo.svg (o .png blanco),
-     descomentar la línea de abajo y BORRA el <span class="navbar-logo-fallback"> de arriba. -->
-<img src="/img/unab-logo-negativo.png" alt="UNAB" class="navbar-logo">
-<span>Panel del Proveedor</span>
-</h1>
-<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+<div class="pv-layout">
+<aside class="pv-sidebar">
+<div class="pv-brand">
+<img src="/img/unab-logo-negativo.png" alt="UNAB">
+</div>
+<nav class="pv-menu">
+<button class="tab side-link active" data-tab="docs"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="txt">Documentos</span></button>
+<button class="tab side-link" data-tab="datos"><svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg><span class="txt">Mis datos</span></button>
+<button class="tab side-link" data-tab="hist"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
+</nav>
+<div class="pv-side-footer">
+<button onclick="logout()"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Cerrar sesión</span></button>
+</div>
+</aside>
+<div class="pv-main">
+<div class="pv-topbar">
+<div class="pv-crumb">Inicio <span>›</span> Portal de Proveedores <span>›</span> <b id="bcActual">Documentos</b></div>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
@@ -93,11 +101,10 @@
 <span class="user-rol">Proveedor</span>
 </span>
 </div>
-<button onclick="logout()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Salir</button>
 </div>
-</nav>
-
-<div class="container">
+<div class="pv-content">
+<div class="pv-grid">
+<div class="pv-col-main">
   <div id="alerta"></div>
 
   <!-- Banner: Proceso rechazado -->
@@ -119,22 +126,14 @@
   </div>
 
   <!-- Estado del registro -->
-<div class="card" style="border-left:4px solid var(--color-primario);">
-<h3 style="margin-bottom:0.4rem;">Estado de tu registro</h3>
 <span id="etapaActual" class="hidden">-</span>
+<div class="pv-wizard">
 <div class="stepper" id="stepperEtapas">
-<div class="step" data-step="verificacion"><span class="step-dot"></span><span class="step-label">Verificación</span></div>
-<div class="step" data-step="aprobacion"><span class="step-dot"></span><span class="step-label">Aprobación</span></div>
-<div class="step" data-step="inscripcion"><span class="step-dot"></span><span class="step-label">Inscripción</span></div>
-<div class="step" data-step="registrado"><span class="step-dot"></span><span class="step-label">Registrado</span></div>
+<div class="step" data-step="verificacion"><span class="step-dot"></span><span class="step-label">Verificación</span><span class="step-sub">Documentos y revisión</span></div>
+<div class="step" data-step="aprobacion"><span class="step-dot"></span><span class="step-label">Aprobación</span><span class="step-sub">Evaluación inicial</span></div>
+<div class="step" data-step="inscripcion"><span class="step-dot"></span><span class="step-label">Inscripción</span><span class="step-sub">Número de registro</span></div>
+<div class="step" data-step="registrado"><span class="step-dot"></span><span class="step-label">Registrado</span><span class="step-sub">Proveedor activo</span></div>
 </div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.9rem;margin-top:1.1rem;">
-<div><div class="kpi-label">Estado general</div><strong id="estadoGeneral">-</strong></div>
-<div><div class="kpi-label">Tipo de persona</div><strong id="tipoPersonaLabel">Sin definir</strong></div>
-<div><div class="kpi-label">Documentos completos</div><strong><span id="docsCompletos">0</span> / <span id="docsTotal">14</span></strong></div>
-</div>
-<p style="font-size:0.8rem;color:#6b7280;margin:0.9rem 0 0;">📌 Todos los documentos deben adjuntarse en formato PDF.</p>
-<div id="badgesVerificacion" style="margin-top:0.8rem;display:flex;gap:0.5rem;flex-wrap:wrap;"></div>
 </div>
 
   <!-- Recordatorios -->
@@ -142,13 +141,6 @@
 
   <!-- Notas -->
   <div id="notas"></div>
-
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab active" data-tab="docs"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Documentos</button>
-    <button class="tab" data-tab="datos"><svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>Mis datos</button>
-    <button class="tab" data-tab="hist"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>Historial</button>
-  </div>
 
   <!-- Tab Documentos -->
   <div id="tab-docs" class="card">
@@ -172,28 +164,32 @@
 <input type="radio" name="tipo_persona" value="natural"> 🧍 Persona Natural
 </label>
 </div>
-<small style="color:#6b7280;font-size:0.8rem;display:block;margin-top:0.4rem;">
-Este valor define la documentación que se te solicitará. Una vez subas documentos, no podrás cambiarlo sin ayuda del administrador.
+</div>
+<div class="form-group" style="background:#eff6ff;padding:1rem;border-radius:8px;border:1px solid #bfdbfe;">
+<label style="font-weight:700;">📧 Correo electrónico *</label>
+<input type="email" name="email" id="email_usuario" placeholder="correo@empresa.com">
+<small style="color:#1e40af;font-size:0.8rem;display:block;margin-top:0.3rem;">
+Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, se conservará todo tu historial y documentos.
 </small>
 </div>
 <div class="grid-2">
-        <div class="form-group">
-          <label>Razón social</label>
-          <input type="text" name="razon_social" id="razon_social">
-        </div>
-        <div class="form-group">
-          <label>NIT / RUT</label>
-          <input type="text" name="rfc" id="rfc">
-        </div>
-        <div class="form-group">
-          <label>Representante legal</label>
-          <input type="text" name="representante" id="representante">
-        </div>
-        <div class="form-group">
-          <label>Teléfono</label>
-          <input type="text" name="telefono" id="telefono">
-        </div>
-      </div>
+<div class="form-group">
+<label>Razón social</label>
+<input type="text" name="razon_social" id="razon_social">
+</div>
+<div class="form-group">
+<label>NIT / RUT</label>
+<input type="text" name="rfc" id="rfc">
+</div>
+<div class="form-group">
+<label>Representante legal</label>
+<input type="text" name="representante" id="representante">
+</div>
+<div class="form-group">
+<label>Teléfono</label>
+<input type="text" name="telefono" id="telefono">
+</div>
+</div>
       <div class="form-group">
         <label>Dirección</label>
         <textarea name="direccion" id="direccion" rows="3"></textarea>
@@ -203,12 +199,43 @@ Este valor define la documentación que se te solicitará. Una vez subas documen
   </div>
 
   <!-- Tab Historial -->
-  <div id="tab-hist" class="card hidden">
-    <h3 style="margin-bottom:1rem;">Historial de actividad</h3>
-    <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">Registro completo con fecha y hora.</p>
-    <div id="listaHistorial"></div>
-  </div>
+<div id="tab-hist" class="card hidden">
+<h3 style="margin-bottom:1rem;">Historial de actividad</h3>
+<p style="color:#6b6478;font-size:0.9rem;margin-bottom:1rem;">Registro completo con fecha y hora.</p>
+<div id="listaHistorial"></div>
 </div>
+<div class="pv-actions">
+<span class="hint">Los documentos obligatorios (*) deben adjuntarse en PDF. Puedes guardar y continuar más tarde.</span>
+<div style="display:flex;gap:.6rem;">
+</div>
+</div>
+</div><!-- /pv-col-main -->
+<aside class="pv-col-side">
+<div class="pv-panel">
+<h4>Información del Proveedor</h4>
+<div class="pv-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg><div><span class="lbl">Razón social</span><span class="val" id="pRazon">—</span></div></div>
+<div class="pv-row"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div><span class="lbl">NIT / RUT</span><span class="val" id="pNit">—</span></div></div>
+<div class="pv-row"><svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><div><span class="lbl">Tipo de persona</span><span class="val" id="tipoPersonaLabel">Sin definir</span></div></div>
+<div class="pv-row"><svg class="ico" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div><span class="lbl">Estado general</span><span class="val" id="estadoGeneral">-</span></div></div>
+<div class="pv-row"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div><span class="lbl">Fecha Movimiento</span><span class="val" id="pRegistro">Pendiente</span></div></div>
+<div class="pv-row"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><div><span class="lbl">Correo</span><span class="val" id="pCorreo">—</span></div></div>
+</div>
+<div class="pv-panel">
+<h4>Estado del flujo</h4>
+<span class="pv-paso" id="pPaso">Paso 1 de 4 · Verificación</span>
+<div class="pv-bar"><span id="pBarra"></span></div>
+<div class="pv-pct"><span id="pPct">0%</span> · Documentos verificados: <strong><span id="docsCompletos">0</span> / <span id="docsTotal">14</span></strong></div>
+<div id="badgesVerificacion" style="margin-top:0.8rem;display:flex;gap:0.5rem;flex-wrap:wrap;"></div>
+</div>
+<div class="pv-panel pv-panel-aviso">
+<h4>Importante</h4>
+<p>Todos los documentos deben adjuntarse en <strong>PDF</strong>. Descarga la plantilla institucional cuando aplique, diligénciala, fírmala y súbela escaneada.</p>
+</div>
+</aside>
+</div><!-- /pv-grid -->
+</div><!-- /pv-content -->
+</div><!-- /pv-main -->
+</div><!-- /pv-layout -->
 
 <!-- Modal Visor PDF -->
 <div class="modal-overlay" id="modalVisor">
@@ -265,6 +292,7 @@ Universidad Autónoma de Bucaramanga · Resolución No. 10820 del 25 de mayo de 
 Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel="noopener">www.unab.edu.co</a>
 </div>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/vendor/sweetalert2/sweetalert2.all.min.js"></script>
 <script>
 // ==========================================
 // 🔧 FUNCIÓN HELPER: fetchAPI
@@ -272,6 +300,52 @@ Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel=
   function fetchAPI(url, options = {}) {
     return fetch(url, { ...options, credentials: 'include' });
   }
+
+// ==========================================
+// 📬 NOTIFICACIONES PUSH (TOASTS)
+// ==========================================
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+    const notif = document.createElement('div');
+    notif.className = `notification notification-${tipo}`;
+    const iconos = { success: '☑️', error: '💥', warning: '⚠️', info: 'ℹ️' };
+    const icono = iconos[tipo] || 'ℹ️';
+    notif.innerHTML = `
+        <span class="notification-icon">${icono}</span>
+        <span class="notification-content">${mensaje}</span>
+        <button class="notification-close" onclick="cerrarNotificacion(this)">✕</button>
+    `;
+    container.appendChild(notif);
+    const timeout = setTimeout(() => {
+        cerrarNotificacion(notif.querySelector('.notification-close'));
+    }, duracion);
+    notif.dataset.timeout = timeout;
+}
+
+function cerrarNotificacion(boton) {
+    const notif = boton.closest('.notification');
+    if (!notif) return;
+    if (notif.dataset.timeout) clearTimeout(parseInt(notif.dataset.timeout));
+    notif.classList.add('notification-exit');
+    setTimeout(() => { if (notif.parentNode) notif.remove(); }, 350);
+}
+
+function mostrarAlerta(msg, tipo = 'error') {
+    const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info', 'warning': 'warning' };
+    mostrarNotificacion(msg, tiposMap[tipo] || 'info');
+}
+
+function mostrarAlertaPassword(msg, tipo = 'error') {
+    const el = document.getElementById('alertaPassword');
+    if (el) {
+        el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+        setTimeout(() => el.innerHTML = '', 5000);
+    } else {
+        mostrarAlerta(msg, tipo); // Fallback si no existe el modal de password
+    }
+}
+
 
   // ==========================================
   // 📋 VARIABLES GLOBALES
@@ -382,46 +456,76 @@ return true;
     }
   }
 
-  // ==========================================
-  // 📬 NOTIFICACIONES PUSH
-  // ==========================================
-  function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
+// ==========================================
+// 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
+// ==========================================
+const SwalToast = (typeof Swal !== 'undefined') ? Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    showCloseButton: true,
+    timerProgressBar: true,
+    didOpen: (self) => {
+        self.addEventListener('mouseenter', Swal.stopTimer);
+        self.addEventListener('mouseleave', Swal.resumeTimer);
+    }
+}) : null;
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
+    if (SwalToast) {
+        const iconos = { success: 'success', error: 'error', warning: 'warning', info: 'info' };
+        SwalToast.fire({ icon: iconos[tipo] || 'info', title: mensaje, timer: duracion });
+        return;
+    }
+    // Fallback si SweetAlert2 no cargó
     const container = document.getElementById('notificationContainer');
     if (!container) return;
     const notif = document.createElement('div');
     notif.className = `notification notification-${tipo}`;
-    const iconos = { success: '☑️', error: '💥', warning: '⚠️', info: 'ℹ️' };
-    const icono = iconos[tipo] || 'ℹ️';
-    notif.innerHTML = `
-      <span class="notification-icon">${icono}</span>
-      <span class="notification-content">${mensaje}</span>
-      <button class="notification-close" onclick="cerrarNotificacion(this)">✕</button>
-    `;
+    notif.innerHTML = `<span class="notification-content">${mensaje}</span>`;
     container.appendChild(notif);
-    const timeout = setTimeout(() => {
-      cerrarNotificacion(notif.querySelector('.notification-close'));
-    }, duracion);
-    notif.dataset.timeout = timeout;
-  }
+    setTimeout(() => notif.remove(), duracion);
+}
+function cerrarNotificacion() { if (SwalToast) Swal.close(); }
 
-  function cerrarNotificacion(boton) {
-    const notif = boton.closest('.notification');
-    if (!notif) return;
-    if (notif.dataset.timeout) clearTimeout(parseInt(notif.dataset.timeout));
-    notif.classList.add('notification-exit');
-    setTimeout(() => { if (notif.parentNode) notif.remove(); }, 350);
-  }
-
-  function mostrarAlerta(msg, tipo = 'error') {
-    const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info' };
-    mostrarNotificacion(msg, tiposMap[tipo] || 'info');
-  }
-
-  function mostrarAlertaPassword(msg, tipo = 'error') {
-    const el = document.getElementById('alertaPassword');
-    el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
-    setTimeout(() => el.innerHTML = '', 5000);
-  }
+function mostrarAlertaPassword(msg, tipo = 'error') {
+const el = document.getElementById('alertaPassword');
+el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+setTimeout(() => el.innerHTML = '', 5000);
+}
+// ==========================================
+// 🍬 SWEETALERT2 — HELPERS DE CONFIRMACIÓN (idénticos a admin)
+// ==========================================
+function confirmarSwal({ titulo = '¿Estás seguro?', texto = '', icono = 'warning', textoConfirmar = 'Sí, continuar', textoCancelar = 'Cancelar', peligro = true } = {}) {
+    return Swal.fire({
+        title: titulo,
+        text: texto,
+        icon: icono,
+        showCancelButton: true,
+        confirmButtonText: textoConfirmar,
+        cancelButtonText: textoCancelar,
+        confirmButtonColor: peligro ? '#dc2626' : '#8600dd',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true
+    }).then(r => r.isConfirmed);
+}
+function promptSwal({ titulo = 'Ingresa un motivo', texto = '', placeholder = '', obligatorio = true } = {}) {
+    return Swal.fire({
+        title: titulo,
+        text: texto,
+        icon: 'question',
+        input: 'textarea',
+        inputPlaceholder: placeholder,
+        showCancelButton: true,
+        confirmButtonText: 'Aceptar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#8600dd',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+        inputValidator: obligatorio
+            ? (v) => (!v || !v.trim()) ? 'Debes escribir un motivo.' : null
+            : null
+    }).then(r => (r.isConfirmed ? (r.value || '') : null));
+}
 
   // ==========================================
   // 🚦 BANNER DE ESTADO (rechazado / registrado)
@@ -527,8 +631,33 @@ t.classList.toggle('active', t.dataset.tab === tgt);
 document.getElementById('tab-docs').classList.toggle('hidden', tgt !== 'docs');
 document.getElementById('tab-datos').classList.toggle('hidden', tgt !== 'datos');
 document.getElementById('tab-hist').classList.toggle('hidden', tgt !== 'hist');
+const bc = document.getElementById('bcActual');
+if (bc) bc.textContent = ({ docs: 'Documentos', datos: 'Mis datos', hist: 'Historial' })[tgt] || '';
 if (tgt === 'hist') cargarHistorial();
 }
+// 🏛️ PANEL LATERAL (modelo convocatorias): resumen + progreso del flujo
+function actualizarBarraProgreso() {
+const c = parseInt(document.getElementById('docsCompletos')?.textContent || '0', 10);
+const t = parseInt(document.getElementById('docsTotal')?.textContent || '1', 10);
+const pct = t ? Math.round((c / t) * 100) : 0;
+const bar = document.getElementById('pBarra'); if (bar) bar.style.width = pct + '%';
+const p = document.getElementById('pPct'); if (p) p.textContent = pct + '%';
+}
+function actualizarPanelProveedor(prov) {
+const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+set('pRazon', prov.razon_social || '—');
+set('pNit', prov.rfc || '—');
+set('pRegistro', prov.numero_registro || 'Pendiente');
+const mapa = { verificacion: 'Paso 1 de 4 · Verificación', aprobacion: 'Paso 2 de 4 · Aprobación', inscripcion: 'Paso 3 de 4 · Inscripción', registrado: 'Paso 4 de 4 · Registrado', rechazado: '⚠️ Requiere corrección' };
+set('pPaso', mapa[prov.etapa || ''] || 'Paso 1 de 4 · Verificación');
+const correo = document.getElementById('userEmail')?.textContent;
+if (correo && correo !== '—') set('pCorreo', correo);
+actualizarBarraProgreso();
+}
+function irPasoSig() { const a = document.querySelector('.tab.active'); if (!a) return; if (a.dataset.tab === 'docs') cambiarTab('datos'); else if (a.dataset.tab === 'datos') cambiarTab('hist'); }
+function irPasoAnt() { const a = document.querySelector('.tab.active'); if (!a) return; if (a.dataset.tab === 'hist') cambiarTab('datos'); else if (a.dataset.tab === 'datos') cambiarTab('docs'); }
+
+
 // ==========================================
 // 🧾 ACTUALIZAR UI DE TIPO DE PERSONA
 // ==========================================
@@ -661,7 +790,8 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
           prov.estado_general === 'aprobado' ? '#059669' :
           prov.estado_general === 'rechazado' ? '#dc2626' : '#d97706';
         document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
-        actualizarBannerEstado(prov);
+actualizarBannerEstado(prov);
+actualizarPanelProveedor(prov);
 const lblTipo = document.getElementById('tipoPersonaLabel');
 if (lblTipo) lblTipo.textContent =
 prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
@@ -701,6 +831,8 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
         document.getElementById('representante').value = prov.representante || '';
         document.getElementById('telefono').value = prov.telefono || '';
         document.getElementById('direccion').value = prov.direccion || '';
+const emailInput = document.getElementById('email_usuario');
+if (emailInput) emailInput.value = me.usuario.email || '';
     // 🆕 Cargar tipo de persona en el radio y en la tarjeta de estado
     actualizarTipoPersonaUI(prov);
         document.getElementById('estadoGeneral').textContent = prov.estado_general || 'pendiente';
@@ -711,7 +843,7 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
 
         // Banner de estado (rechazado / registrado)
         actualizarBannerEstado(prov);
-
+        actualizarPanelProveedor(prov);
         verificarYBloquearPerfil(prov);
 
         const badgesContainer = document.getElementById('badgesVerificacion');
@@ -769,6 +901,7 @@ if (perfilCompleto) {
         console.log('⏳ Perfil incompleto, esperando que el usuario complete datos.');
         document.getElementById('docsCompletos').textContent = '0';
         document.getElementById('docsTotal').textContent = '14';
+        actualizarBarraProgreso();
       }
 
       conectarSocket();
@@ -827,7 +960,9 @@ avisoEtapa.innerHTML = '';
 
     cont.innerHTML = requeridos.map((req, idx) => {
       const sub = map[req.tipo] || [];
-      const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
+      // ✅ Avance: un tipo cuenta como completo si está verificado (o aprobado) o marcado "No aplica".
+// Así la barra avanza durante la Verificación (paso 1) y se mantiene llena al aprobar.
+      const ok = sub.filter(d => d.estado === 'aprobado' || d.verificado === 1).length >= req.cantidadMin;
       const noAplica = sub.some(d => d.no_aplica === 1);
       const tieneArchivos = sub.length > 0;
 
@@ -881,9 +1016,11 @@ html += `
     </span>
 
     ${subirHabilitado && !tieneRechazado && !maxAlcanzado && puedeSubir ? `
-      <form class="form-upload" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
-        <input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-        <button type="submit" class="btn btn-sm" style="background:#059669;">${ICONOS.upload} Subir PDF</button>
+      <form class="form-upload dropzone" data-tipo="${req.tipo}">
+        <div class="dz-icon">${ICONOS.upload}</div>
+        <div class="dz-text"><strong>Adjuntar certificados PDF</strong><small>Máx. ${maxExp} certificados · PDF · máx. 15 MB c/u</small></div>
+        <input type="file" name="archivo" required accept=".pdf">
+        <button type="submit" class="btn btn-sm btn-success">${ICONOS.upload} Subir PDF</button>
       </form>
     ` : `
       <span style="color:${subidosRechazados > 0 ? '#991b1b' : '#6b7280'};font-size:0.9rem;font-weight:${subidosRechazados > 0 ? '700' : '400'};">
@@ -922,7 +1059,9 @@ const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.tri
 
           html += `<div class="doc-row">
             <div style="flex:1;min-width:180px;">
-              <small>📎 ${escapeHtml(nombreFormato(d.tipo))} <span class="badge badge-${d.estado}">${d.estado}</span></small>
+              <small>📎 ${escapeHtml(nombreFormato(d.tipo))} ${(d.estado === 'pendiente' && d.verificado === 1)
+            ? '<span class="badge badge-verificado-pendiente">✅ Verificado</span>'
+            : `<span class="badge badge-${d.estado}">${d.estado}</span>`}</small>
               ${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
               <br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
               ${d.fecha_vencimiento ? `
@@ -975,9 +1114,11 @@ ${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocume
 // FORMULARIO DE SUBIDA
 if (req.tipo !== 'experiencia' && subirHabilitado && puedeSubir && !noAplica && !tieneRechazado) {
 const label = sub.length === 0 ? ICONOS.upload + ' Subir PDF' : (req.cantidadMin > 1 ? ICONOS.plus + ` Agregar PDF (${sub.length}/${req.cantidadMin})` : ICONOS.upload + ' Reemplazar PDF');
-html += `<form class="form-upload" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
-<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-<button type="submit" class="btn btn-sm" style="background:#059669;">${label}</button>
+html += `<form class="form-upload dropzone" data-tipo="${req.tipo}">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Adjuntar PDF</strong><small>Descarga la plantilla, diligénciala, fírmala y súbela aquí · PDF · máx. 15 MB</small></div>
+<input type="file" name="archivo" required accept=".pdf">
+<button type="submit" class="btn btn-sm btn-success">${label}</button>
 </form>`;
 } else if (req.tipo !== 'experiencia' && tieneRechazado && !noAplica) {
 html += `
@@ -995,8 +1136,8 @@ html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-
     }).join('');
 
     document.getElementById('docsCompletos').textContent = completados;
-
     configurarEventosDocumentos();
+    actualizarBarraProgreso();
   }
 
   // ==========================================
@@ -1152,10 +1293,15 @@ checkbox.disabled = true;
   // ==========================================
   // 🗑️ ELIMINAR DOCUMENTO
   // ==========================================
-  async function eliminarDocumento(id) {
-    if (!confirm('¿Estás seguro de eliminar este documento?')) return;
-
-    try {
+async function eliminarDocumento(id) {
+const confirmado = await confirmarSwal({
+titulo: '¿Eliminar este documento?',
+texto: 'El documento se eliminará de forma permanente. Esta acción no se puede deshacer.',
+textoConfirmar: 'Sí, eliminar',
+peligro: true
+});
+if (!confirmado) return;
+try {
       const res = await fetchAPI(`/api/proveedor/documento/${id}`, { method: 'DELETE' });
       if (res.ok) {
         mostrarAlerta('👌 Documento eliminado', 'success');
@@ -1187,7 +1333,13 @@ mostrarAlerta('No hay documentos rechazados para eliminar.', 'info');
 return;
 }
 
-if (!confirm(`¿Estás seguro de eliminar ${rechazados.length} documento(s) rechazado(s)?`)) return;
+const confirmado = await confirmarSwal({
+titulo: `¿Eliminar ${rechazados.length} documento(s) rechazado(s)?`,
+texto: 'Debes eliminar los documentos rechazados antes de subir nueva documentación. Esta acción no se puede deshacer.',
+textoConfirmar: 'Sí, eliminar todos',
+peligro: true
+});
+if (!confirmado) return;
 
 let eliminados = 0;
 let errores = 0;
@@ -1429,72 +1581,51 @@ mostrarAlerta(`⚠️ Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning
     }).join('');
   }
 
-  // ==========================================
-  // 🏢 GUARDAR DATOS
-  // ==========================================
+// ==========================================
+// 🏢 GUARDAR DATOS
+// ==========================================
 document.getElementById('form-datos').addEventListener('submit', async e => {
-e.preventDefault();
-
-const btn = e.target.querySelector('button');
-const textoOriginal = btn.textContent;
-btn.disabled = true;
-btn.textContent = '⏳ Guardando...';
-
-try {
-const data = Object.fromEntries(new FormData(e.target));
-
-const res = await fetchAPI('/api/proveedor/datos', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(data)
-});
-
-if (res.ok) {
-mostrarAlerta('👌 Datos guardados correctamente', 'success');
-
-const prov = await (await fetchAPI('/api/proveedor/info')).json();
-
-// Actualizar radios y etiqueta del tipo de persona
-actualizarTipoPersonaUI(prov);
-
-// Recalcular bloqueo/desbloqueo del portal
-verificarYBloquearPerfil(prov);
-
-if (perfilCompleto) {
-try {
-requeridos = await (await fetchAPI('/api/proveedor/requerimientos')).json();
-
-if (!requeridos || requeridos.length === 0) {
-console.warn('⚠️ No se pudieron cargar los requerimientos después de guardar los datos.');
-mostrarAlerta('No se pudieron cargar los documentos requeridos. Recarga la página o contacta al administrador.', 'warning');
-}
-
-documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
-
-document.getElementById('docsTotal').textContent = requeridos.length || 0;
-
-renderDocumentos();
-await actualizarBadgesVerificacion();
-} catch (err) {
-console.error('❌ Error recargando documentos después de guardar datos:', err);
-mostrarAlerta('Error al cargar los documentos actualizados.', 'error');
-}
-
-// 🚫 FIX: pasar EXPLÍCITAMENTE a la pestaña Documentos
-// (oculta "Mis datos", activa "Documentos" y muestra la lista recién cargada)
-cambiarTab('docs');
-}
-} else {
-const r = await res.json();
-mostrarAlerta(`❌ ${r.error}`);
-}
-} catch (err) {
-console.error('Error guardando datos:', err);
-mostrarAlerta('Error al guardar los datos');
-} finally {
-btn.disabled = false;
-btn.textContent = textoOriginal;
-}
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Guardando...';
+    try {
+        const data = Object.fromEntries(new FormData(e.target));
+        const res = await fetchAPI('/api/proveedor/datos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            mostrarAlerta('👌 Datos guardados correctamente', 'success');
+            const prov = await (await fetchAPI('/api/proveedor/info')).json();
+            actualizarTipoPersonaUI(prov);
+            verificarYBloquearPerfil(prov);
+            if (perfilCompleto) {
+                try {
+                    requeridos = await (await fetchAPI('/api/proveedor/requerimientos')).json();
+                    documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+                    document.getElementById('docsTotal').textContent = requeridos.length || 0;
+                    renderDocumentos();
+                    await actualizarBadgesVerificacion();
+                } catch (err) {
+                    console.error('❌ Error recargando documentos después de guardar datos:', err);
+                    mostrarAlerta('Error al cargar los documentos actualizados.', 'error');
+                }
+                cambiarTab('docs');
+            }
+        } else {
+            const r = await res.json();
+            mostrarAlerta(`❌ ${r.error}`, 'error');
+        }
+    } catch (err) {
+        console.error('Error guardando datos:', err);
+        mostrarAlerta('Error al guardar los datos', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+    }
 });
 
   // ==========================================

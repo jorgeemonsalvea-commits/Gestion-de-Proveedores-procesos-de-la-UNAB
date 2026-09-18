@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Panel Administrador</title>
+<title>Panel de Administración — UNAB</title>
 <link rel="stylesheet" href="style.css">
 <style>
 /* 🧩 Menú de accesos (estilo portal UNAB) — solo admin.html */
@@ -56,59 +56,40 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <!-- Contenedor de notificaciones push -->
 <div id="notificationContainer" class="notification-container"></div>
 
-<nav class="navbar">
-<h1>
-<!-- <span class="navbar-logo-fallback">UNAB</span> -->
-<!-- LOGO UNAB: public/img/unab-logo-negativo.svg (o .png blanco),
-     descomentar la línea de abajo y BORRA el <span class="navbar-logo-fallback"> de arriba.
-     El CSS de style.css ya lo dimensiona y le da sombra (.navbar-logo). -->
-<img src="/img/unab-logo-negativo.png" alt="UNAB" class="navbar-logo">
-<span>Panel de Administración</span>
-</h1>
-<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
-<div class="user-chip">
-<span class="user-avatar" id="userAvatar">UN</span>
-<span class="user-meta">
-<span class="user-mail" id="userEmail">—</span>
-<span class="user-rol">Administrador</span>
-</span>
-</div>
-<button onclick="logout()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Salir</button>
-<div class="apps-menu-wrap">
-<button class="apps-menu-trigger" onclick="toggleAppsMenu()" aria-label="Menú de accesos" title="Configuración y Plantillas">
-<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-<rect x="1" y="1" width="4" height="4" rx="1"></rect>
-<rect x="8" y="1" width="4" height="4" rx="1"></rect>
-<rect x="15" y="1" width="4" height="4" rx="1"></rect>
-<rect x="1" y="8" width="4" height="4" rx="1"></rect>
-<rect x="8" y="8" width="4" height="4" rx="1"></rect>
-<rect x="15" y="8" width="4" height="4" rx="1"></rect>
-<rect x="1" y="15" width="4" height="4" rx="1"></rect>
-<rect x="8" y="15" width="4" height="4" rx="1"></rect>
-<rect x="15" y="15" width="4" height="4" rx="1"></rect>
-</svg>
-</button>
-<div class="apps-menu-panel" id="appsMenuPanel">
-<div class="apps-menu-title">Accesos</div>
-<a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('configuracion');return false;">
-<span class="apps-tile-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
-<span class="apps-tile-label">Configuración</span>
-</a>
-<a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('plant');return false;">
-<span class="apps-tile-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
-<span class="apps-tile-label">Plantillas</span>
-</a>
-<a class="apps-tile" href="#" onclick="abrirModuloDesdeApps('historial');return false;">
-<span class="apps-tile-icon"><svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg></span>
-<span class="apps-tile-label">Historial</span>
-</a>
-</div>
-</div>
-</div>
-</nav>
-
-<div class="container">
-<div id="alerta"></div>
+<div class="ad-layout">
+<aside class="ad-sidebar">
+  <div class="ad-brand">
+    <img src="/img/unab-logo-negativo.png" alt="UNAB">
+    <span>Universidad Autónoma<br>de Bucaramanga</span>
+  </div>
+  <nav class="ad-menu">
+    <button class="ad-item active" data-mod="registrados" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="txt">Registrados</span><span class="ad-badge" id="side-registrados">0</span></button>
+    <button class="ad-item" data-mod="verificacion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="txt">Verificación</span><span class="ad-badge" id="side-verificacion">0</span></button>
+    <button class="ad-item" data-mod="aprobacion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span class="txt">Aprobación</span><span class="ad-badge" id="side-aprobacion">0</span></button>
+    <button class="ad-item" data-mod="inscripcion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="txt">Inscripción</span><span class="ad-badge" id="side-inscripcion">0</span></button>
+    <button class="ad-item" data-mod="rechazados" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span class="txt">Rechazados</span><span class="ad-badge" id="side-rechazados">0</span></button>
+    <div class="ad-sep"></div>
+    <button class="ad-item" data-mod="historial" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
+    <button class="ad-item" data-mod="configuracion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="txt">Configuración</span></button>
+    <button class="ad-item" data-mod="plantillas" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="txt">Plantillas</span></button>
+  </nav>
+  <div class="ad-side-footer">
+    <button class="ad-item" onclick="logout()"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="txt">Cerrar sesión</span></button>
+  </div>
+</aside>
+<div class="ad-main">
+  <div class="ad-topbar">
+    <div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b></div>
+    <div class="user-chip">
+      <span class="user-avatar" id="userAvatar">UN</span>
+      <span class="user-meta">
+        <span class="user-mail" id="userEmail">—</span>
+        <span class="user-rol">Administrador</span>
+      </span>
+    </div>
+  </div>
+  <div class="ad-content">
+    <div id="alerta"></div>
 
 <!-- DASHBOARD CARDS = NAVEGACIÓN PRINCIPAL (las tarjetas funcionan como pestañas) -->
 <div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.5rem;">
@@ -118,11 +99,16 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div></div></div>
 <div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div></div></div>
 </div>
+<div class="ad-grid">
+  <div class="ad-col-main">
+    <!-- CONTENEDOR DINÁMICO -->
+    <div id="contenedor-modulos"></div>
+  </div>
+  <aside class="ad-col-side" id="panelContexto"></aside>
 </div>
-
-<!-- CONTENEDOR DINÁMICO -->
-<div id="contenedor-modulos"></div>
-
+</div><!-- /ad-content -->
+</div><!-- /ad-main -->
+</div><!-- /ad-layout -->
 <!-- ========================================== -->
 <!-- MODALES                                   -->
 <!-- ========================================== -->
@@ -293,6 +279,7 @@ Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel=
 <!-- SCRIPTS                                   -->
 <!-- ========================================== -->
 <script src="/socket.io/socket.io.js"></script>
+<script src="/vendor/sweetalert2/sweetalert2.all.min.js"></script>
 <script>
 // ==========================================
 // 🔧 FUNCIÓN HELPER: fetchAPI
@@ -418,34 +405,73 @@ return 'Pendiente';
 }
 
 // ==========================================
-// 📬 NOTIFICACIONES PUSH
+// 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
 // ==========================================
+const SwalToast = (typeof Swal !== 'undefined') ? Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    showCloseButton: true,
+    timerProgressBar: true,
+    didOpen: (self) => {
+        self.addEventListener('mouseenter', Swal.stopTimer);
+        self.addEventListener('mouseleave', Swal.resumeTimer);
+    }
+}) : null;
 function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
-const container = document.getElementById('notificationContainer');
-if (!container) return;
-const notif = document.createElement('div');
-notif.className = `notification notification-${tipo}`;
-const iconos = { success: '☑️', error: '💥', warning: '⚠️', info: 'ℹ️' };
-const icono = iconos[tipo] || 'ℹ️';
-notif.innerHTML = `
-<span class="notification-icon">${icono}</span>
-<span class="notification-content">${mensaje}</span>
-<button class="notification-close" onclick="cerrarNotificacion(this)">✕</button>
-`;
-container.appendChild(notif);
-const timeout = setTimeout(() => { cerrarNotificacion(notif.querySelector('.notification-close')); }, duracion);
-notif.dataset.timeout = timeout;
+    if (SwalToast) {
+        const iconos = { success: 'success', error: 'error', warning: 'warning', info: 'info' };
+        SwalToast.fire({ icon: iconos[tipo] || 'info', title: mensaje, timer: duracion });
+        return;
+    }
+    // Fallback si SweetAlert2 no cargó
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+    const notif = document.createElement('div');
+    notif.className = `notification notification-${tipo}`;
+    notif.innerHTML = `<span class="notification-content">${mensaje}</span>`;
+    container.appendChild(notif);
+    setTimeout(() => notif.remove(), duracion);
 }
-function cerrarNotificacion(boton) {
-const notif = boton.closest('.notification');
-if (!notif) return;
-if (notif.dataset.timeout) clearTimeout(parseInt(notif.dataset.timeout));
-notif.classList.add('notification-exit');
-setTimeout(() => { if (notif.parentNode) notif.remove(); }, 350);
-}
+function cerrarNotificacion() { if (SwalToast) Swal.close(); }
 function mostrarAlerta(msg, tipo = 'error') {
 const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info' };
 mostrarNotificacion(msg, tiposMap[tipo] || 'info');
+}
+// ==========================================
+// 🍬 SWEETALERT2 — reemplazo de confirm()/prompt() nativos
+// ==========================================
+function confirmarSwal({ titulo = '¿Estás seguro?', texto = '', icono = 'warning', textoConfirmar = 'Sí, continuar', textoCancelar = 'Cancelar', peligro = true } = {}) {
+if (typeof Swal === 'undefined') return Promise.resolve(confirm(`${titulo}\n${texto}`));
+return Swal.fire({
+title: titulo,
+text: texto,
+icon: icono,
+showCancelButton: true,
+confirmButtonText: textoConfirmar,
+cancelButtonText: textoCancelar,
+confirmButtonColor: peligro ? '#dc2626' : '#8600dd',
+cancelButtonColor: '#6b7280',
+reverseButtons: true,
+focusCancel: true
+}).then(r => r.isConfirmed);
+}
+function promptSwal({ titulo = 'Ingresa un motivo', texto = '', placeholder = '', obligatorio = true } = {}) {
+if (typeof Swal === 'undefined') return Promise.resolve(prompt(`${titulo}\n${texto}`));
+return Swal.fire({
+title: titulo,
+text: texto,
+icon: 'question',
+input: 'textarea',
+inputPlaceholder: placeholder,
+showCancelButton: true,
+confirmButtonText: 'Aceptar',
+cancelButtonText: 'Cancelar',
+confirmButtonColor: '#8600dd',
+cancelButtonColor: '#6b7280',
+reverseButtons: true,
+inputValidator: obligatorio ? (v) => (!v || !v.trim()) ? 'Debes escribir un motivo.' : null : null
+}).then(r => (r.isConfirmed ? (r.value || '') : null));
 }
 
 // ==========================================
@@ -553,8 +579,13 @@ console.error('❌ Error al cargar requerimientos');
 requeridos = [];
 }
 
+marcarModuloAdmin('registrados');
+actualizarPanelContexto(null);
 await cargarModulo('registrados');
 await actualizarEstadisticasGlobales();
+actualizarContadorPlantillas();
+sincronizarSidebarAdmin();
+actualizarContadoresSidebar();
 configurarTabs();
 const cardInicial = document.querySelector('.kpi-tab[data-modulo="registrados"]:not([data-estado])');
 if (cardInicial) cardInicial.classList.add('kpi-active');
@@ -573,6 +604,21 @@ mostrarAlerta('Error al cargar: ' + err.message);
 }
 
 // ==========================================
+// 📄 CONTADOR DE PLANTILLAS (tarjeta visible)
+// ==========================================
+async function actualizarContadorPlantillas() {
+    const el = document.getElementById('card-plantillas');
+    if (!el) return;
+    try {
+        const r = await fetchAPI('/api/admin/plantillas');
+        if (!r.ok) return;
+        const list = await r.json();
+        const total = (requeridos || []).filter(x => x.esPlantilla).length || list.length;
+        el.textContent = `${list.length}/${total}`;
+    } catch (e) { /* silencioso: la tarjeta muestra 0/0 */ }
+}
+
+// ==========================================
 // 📊 ACTUALIZAR ESTADÍSTICAS GLOBALES
 // ==========================================
 async function actualizarEstadisticasGlobales() {
@@ -585,6 +631,10 @@ document.getElementById('card-verificacion').textContent = stats.verificacion ||
 document.getElementById('card-aprobacion').textContent = stats.aprobacion || 0;
 document.getElementById('card-inscripcion').textContent = stats.inscripcion || 0;
 document.getElementById('card-rechazados').textContent = stats.rechazados || 0;
+  const setSide = (mod, v) => { const e = document.getElementById('side-' + mod); if (e) e.textContent = v || 0; };
+  setSide('registrados', stats.registrados); setSide('verificacion', stats.verificacion);
+  setSide('aprobacion', stats.aprobacion); setSide('inscripcion', stats.inscripcion);
+  setSide('rechazados', stats.rechazados);
 } catch (err) {
 console.error('❌ Error actualizando estadísticas:', err);
 }
@@ -607,20 +657,103 @@ cargarModulo(tabId);
 }
 
 // ==========================================
+// 🧭 NAV SIDEBAR ADMIN (modelo convocatorias)
+// ==========================================
+const MODULOS_TITULO = {
+  registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
+  inscripcion: 'Inscripción', rechazados: 'Rechazados', historial: 'Historial de actualizaciones',
+  configuracion: 'Configuración', plantillas: 'Plantillas'
+};
+function marcarModuloAdmin(mod) {
+    document.querySelectorAll('.ad-item[data-mod]').forEach(b => b.classList.toggle('active', b.dataset.mod === mod));
+    document.querySelectorAll('.kpi-tab').forEach(k => {
+        const esRech = k.dataset.estado === 'rechazado';
+        k.classList.toggle('kpi-active', k.dataset.modulo === mod || (mod === 'rechazados' && esRech));
+    });
+    const crumb = document.getElementById('crumbModulo');
+    if (crumb) crumb.textContent = MODULOS_TITULO[mod] || mod;
+}
+// 🔄 Sincroniza el estado visual (sidebar + KPIs + breadcrumb) desde el estado actual
+function sincronizarSidebarAdmin() {
+    let efectivo = (moduloActual === 'registrados' && filtroEstadoActual === 'rechazado') ? 'rechazados' : moduloActual;
+    if (efectivo === 'plant') efectivo = 'plantillas';
+    marcarModuloAdmin(efectivo);
+}
+// 🔢 Refresca los badges contadores del sidebar desde /api/admin/stats
+function actualizarContadoresSidebar() {
+    fetchAPI('/api/admin/stats')
+        .then(r => r.json())
+        .then(s => {
+            const set = (mod, v) => { const e = document.getElementById('side-' + mod); if (e) e.textContent = v || 0; };
+            set('registrados', s.registrados);
+            set('verificacion', s.verificacion);
+            set('aprobacion', s.aprobacion);
+            set('inscripcion', s.inscripcion);
+            set('rechazados', s.rechazados);
+        })
+        .catch(() => {});
+}
+function cambiarModuloSidebar(el) {
+  const mod = el.dataset.mod;
+  if (mod === 'rechazados') { filtroEstadoActual = 'rechazado'; moduloActual = 'registrados'; }
+  else if (mod === 'plantillas') { filtroEstadoActual = 'todos'; moduloActual = 'plant'; }
+  else { filtroEstadoActual = 'todos'; moduloActual = mod; }
+  paginaActual = 1;
+  marcarModuloAdmin(mod);
+  cargarModulo(moduloActual);
+  if (mod === 'registrados') {
+    document.querySelectorAll('.filtro-estado').forEach(btn => btn.classList.toggle('active', btn.dataset.estado === 'todos'));
+  }
+}
+function actualizarPanelContexto(p) {
+  const side = document.getElementById('panelContexto');
+  if (!side) return;
+  if (!p) {
+    side.innerHTML = `
+      <div class="ad-panel">
+        <h4>Contexto</h4>
+        <p style="font-size:.82rem;color:var(--color-texto-suave);margin:0;">Selecciona un proveedor con el botón <strong>Revisar</strong> para ver aquí su resumen.</p>
+      </div>`;
+    return;
+  }
+  // 🩹 FIX: contar TIPOS completos (aprobados >= cantidadMin, u opcional con "No aplica"),
+// mismo criterio que el listado y el portal del proveedor.
+// Contar archivos crudos daba 16/14 porque experiencia aporta 3 certificados.
+const mapDocs = {};
+(p.documentos || []).forEach(d => { (mapDocs[d.tipo] = mapDocs[d.tipo] || []).push(d); });
+const aprobados = (requeridos || []).filter(r => {
+    const docs = mapDocs[r.tipo] || [];
+    const aps = docs.filter(d => d.estado === 'aprobado').length;
+    const noAplica = docs.some(d => d.no_aplica === 1);
+    return (r.opcional && noAplica) || aps >= r.cantidadMin;
+}).length;
+  side.innerHTML = `
+    <div class="ad-panel">
+      <h4>Proveedor seleccionado</h4>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg><div><span class="lbl">Razón social</span><span class="val">${escapeHtml(p.razon_social || p.nombre_empresa || '—')}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div><span class="lbl">NIT / RUT</span><span class="val">${escapeHtml(p.rfc || '—')}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><div><span class="lbl">Tipo de persona</span><span class="val">${p.tipo_proveedor === 'natural' ? 'Persona Natural' : p.tipo_proveedor === 'juridica' ? 'Persona Jurídica' : 'Sin definir'}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div><span class="lbl">Estado general</span><span class="val">${escapeHtml(p.estado_general || 'pendiente')}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg><div><span class="lbl">Etapa</span><span class="val">${escapeHtml(p.etapa || 'verificacion')}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><span class="lbl">Docs aprobados</span><span class="val">${aprobados}/${requeridos.length || 0}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><div><span class="lbl">Correo</span><span class="val">${escapeHtml(p.email || '—')}</span></div></div>
+    </div>`;
+}
+
+// ==========================================
 // 🃏 TARJETAS-PESTAÑA (navegación principal)
 // ==========================================
 function cambiarModuloCard(el) {
-const modulo = el.dataset.modulo;
-const estado = el.dataset.estado || null;
-document.querySelectorAll('.kpi-tab').forEach(k => k.classList.remove('kpi-active'));
-el.classList.add('kpi-active');
-if (modulo === 'registrados') filtroEstadoActual = estado || 'todos';
-moduloActual = modulo;
-paginaActual = 1;
-cargarModulo(modulo);
-if (modulo === 'registrados') {
-document.querySelectorAll('.filtro-estado').forEach(btn => btn.classList.toggle('active', btn.dataset.estado === (estado || 'todos')));
-}
+  const modulo = el.dataset.modulo;
+  const estado = el.dataset.estado || null;
+  if (modulo === 'registrados') filtroEstadoActual = estado || 'todos';
+  moduloActual = modulo;
+  paginaActual = 1;
+  marcarModuloAdmin(estado === 'rechazado' ? 'rechazados' : modulo);
+  cargarModulo(modulo);
+  if (modulo === 'registrados') {
+    document.querySelectorAll('.filtro-estado').forEach(btn => btn.classList.toggle('active', btn.dataset.estado === (estado || 'todos')));
+  }
 }
 // Accesibilidad: Enter/Espacio activan la tarjeta enfocada
 document.addEventListener('keydown', function(e) {
@@ -656,10 +789,13 @@ cargarModulo(mod);
 // 🗂️ CARGAR MÓDULO
 // ==========================================
 function cargarModulo(modulo) {
-const contenedor = document.getElementById('contenedor-modulos');
-if (modulo === 'configuracion') { cargarConfiguracion(); return; }
+    const contenedor = document.getElementById('contenedor-modulos');
+    // 🩹 Normaliza el alias del sidebar: 'plantillas' → 'plant'
+    if (modulo === 'plantillas') modulo = 'plant';
+    sincronizarSidebarAdmin();
+    if (modulo === 'configuracion') { cargarConfiguracion(); return; }
 if (modulo === 'historial') { cargarHistorial(1); return; }
-if (modulo === 'plant') { renderizarPlantillas(); return; }
+if (modulo === 'plant' || modulo === 'plantillas') { renderizarPlantillas(); return; }
 const botonesAccion = modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
 <button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
@@ -969,6 +1105,8 @@ return;
 
 proveedorActualId = id;
 proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
+data.proveedor.documentos = data.documentos || [];
+actualizarPanelContexto(data.proveedor);
 historicosCache = data.documentos_historicos || [];
 // 🆕 Cargar los requerimientos según el tipo de persona de ESTE proveedor
 try {
@@ -1253,10 +1391,11 @@ ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
 ${(!maxAlcanzado || subidosRechazados > 0) && puedeSubir ? `
-<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;">
-<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
-<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-<button type="submit" class="btn btn-sm" style="background:#0284c7;">${subidosRechazados > 0 ? '🔄 Reemplazar rechazado' : '📤 Subir PDF'}</button>
+<form class="form-upload dropzone form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Subir como administrador</strong><small>Adjunta el PDF en nombre del proveedor · PDF · máx. 15 MB</small></div>
+<input type="file" name="archivo" required accept=".pdf">
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">${subidosRechazados > 0 ? '🔄 Reemplazar rechazado' : ICONOS.upload + ' Subir PDF'}</button>
 </form>
 ` : `
 <span style="color:#6b7280;font-size:0.9rem;">
@@ -1268,9 +1407,10 @@ ${maxAlcanzado && subidosRechazados === 0 ? `✅ Máximo de ${maxExp} certificad
 }
 if (req.tipo !== 'experiencia' && puedeSubir && !noAplica && mostrarSubida) {
 const label = sub.length === 0 ? ICONOS.upload + ' Admin subir PDF' : (req.cantidadMin > 1 ? ICONOS.plus + ` Agregar PDF (${sub.length}/${req.cantidadMin})` : ICONOS.upload + ' Reemplazar PDF');
-html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;width:100%;box-sizing:border-box;">
-<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
-<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+html += `<form class="form-upload dropzone form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Subir como administrador</strong><small>Adjunta el PDF en nombre del proveedor · PDF · máx. 15 MB</small></div>
+<input type="file" name="archivo" required accept=".pdf">
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
 </form>`;
 } else if (req.tipo !== 'experiencia' && noAplica) {
@@ -1313,44 +1453,46 @@ La lista de documentos requeridos depende de esta definición. Puedes definirla 
 `;
 }
 async function guardarTipoPersona(proveedorId) {
-const seleccion = document.querySelector('input[name="tipoPersonaDefinicion"]:checked');
-if (!seleccion) {
-mostrarAlerta('⚠️ Debes seleccionar un tipo de persona', 'warning');
-return;
-}
-const tipo = seleccion.value;
-try {
-mostrarAlerta('⏳ Guardando tipo de persona...', 'info');
-const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ tipo_proveedor: tipo })
-});
-const data = await res.json();
-if (res.ok) {
-mostrarAlerta('✅ Tipo de persona definido. Recargando documentos...', 'success');
-await recargarVistaProveedor();
-await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else if (data.requiere_confirmacion) {
-if (confirm(`⚠️ ${data.error}\n\n¿Forzar el cambio de tipo? Esto podría afectar los documentos ya cargados.`)) {
-const res2 = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ tipo_proveedor: tipo, forzar: true })
-});
-if (res2.ok) {
-mostrarAlerta('✅ Tipo de persona forzado. Recargando...', 'success');
-await recargarVistaProveedor();
-await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else { mostrarAlerta('❌ Error al forzar el cambio'); }
-}
-} else {
-mostrarAlerta('❌ ' + (data.error || 'Error al guardar el tipo'));
-}
-} catch (err) {
-console.error('Error guardando tipo:', err);
-mostrarAlerta('❌ Error de conexión');
-}
+    const seleccion = document.querySelector('input[name="tipoPersonaDefinicion"]:checked');
+    if (!seleccion) {
+        mostrarAlerta('⚠️ Debes seleccionar un tipo de persona', 'warning');
+        return;
+    }
+    const tipo = seleccion.value;
+    try {
+        mostrarAlerta('⏳ Guardando tipo de persona...', 'info');
+        const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo_proveedor: tipo })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarAlerta('✅ Tipo de persona definido. Recargando documentos...', 'success');
+            await recargarVistaProveedor();
+            await cargarProveedoresPorModulo(moduloActual, paginaActual);
+        } else if (data.requiere_confirmacion) {
+            if (await confirmarSwal({ titulo: '⚠️ Forzar cambio de tipo', texto: data.error, textoConfirmar: 'Sí, forzar' })) {
+                const res2 = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tipo_proveedor: tipo, forzar: true })
+                });
+                if (res2.ok) {
+                    mostrarAlerta('✅ Tipo de persona forzado. Recargando...', 'success');
+                    await recargarVistaProveedor();
+                    await cargarProveedoresPorModulo(moduloActual, paginaActual);
+                } else {
+                    mostrarAlerta('❌ Error al forzar el cambio');
+                }
+            }
+        } else {
+            mostrarAlerta('❌ ' + (data.error || 'Error al guardar el tipo'));
+        }
+    } catch (err) {
+        console.error('Error guardando tipo:', err);
+        mostrarAlerta('❌ Error de conexión');
+    }
 }
 
 function renderVerificacionCompleta(proveedor, documentos) {
@@ -1408,11 +1550,10 @@ ${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-d
 <div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
 <p>⚠️ Aún no se ha subido la evaluación inicial. Sube el PDF a continuación.</p>
 </div>
-<form id="formEvaluacion" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:1rem;background:#f9fafb;padding:1rem;border-radius:6px;">
-<div class="form-group">
-<label>📎 Subir PDF de evaluación inicial</label>
+<form id="formEvaluacion" enctype="multipart/form-data" class="form-upload dropzone">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Evaluación Inicial</strong><small>Adjunta el PDF de evaluación firmado · PDF · máx. 15 MB</small></div>
 <input type="file" name="archivo" required accept=".pdf">
-</div>
 <button type="submit" class="btn" style="background:#8600dd;">${ICONOS.upload} Subir evaluación</button>
 </form>
 `}
@@ -1580,7 +1721,11 @@ html += renderDefinirTipoPersona(p);
 }
 html += `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
-<strong>Email:</strong> ${escapeHtml(p.email || '')}<br>
+<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0 0 2px;">
+<strong>Email:</strong> <span id="emailActualProv">${escapeHtml(p.email || '—')}</span>
+<button class="btn btn-sm btn-secondary" onclick="editarEmailProveedor(${p.id}, '${escapeAttr(p.email || '')}')" style="padding:0.2rem 0.6rem;font-size:0.78rem;">✏️ Cambiar</button>
+</div>
+<div id="contenedorEditarEmail" style="display:none;margin:0.3rem 0 0.4rem;"></div>
 <strong>NIT/RUT:</strong> ${escapeHtml(p.rfc || '—')}<br>
 <strong>Representante:</strong> ${escapeHtml(p.representante || '—')}<br>
 <strong>Teléfono:</strong> ${escapeHtml(p.telefono || '—')}<br>
@@ -1732,10 +1877,11 @@ html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
 ${!maxAlcanzado && puedeSubir ? `
-<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}" style="display:flex;gap:0.5rem;align-items:center;">
-<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
-<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
-<button type="submit" class="btn btn-sm" style="background:#0284c7;">📤 Subir PDF</button>
+<form class="form-upload dropzone form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Subir como administrador</strong><small>Adjunta el PDF en nombre del proveedor · PDF · máx. 15 MB</small></div>
+<input type="file" name="archivo" required accept=".pdf">
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">${ICONOS.upload} Subir PDF</button>
 </form>
 ` : `
 <span style="color:#6b7280;font-size:0.9rem;">${maxAlcanzado ? `✅ Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}</span>
@@ -1746,9 +1892,10 @@ ${!maxAlcanzado && puedeSubir ? `
 
 if (!soloLectura && req.tipo !== 'experiencia' && puedeSubir && !noAplica) {
 const label = sub.length === 0 ? ICONOS.upload + ' Admin subir PDF' : (req.cantidadMin > 1 ? ICONOS.plus + ` Agregar PDF (${sub.length}/${req.cantidadMin})` : ICONOS.upload + ' Reemplazar PDF');
-html += `<form class="form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.8rem;padding:0.8rem;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd;">
-<span style="font-size:0.85rem;color:#0369a1;font-weight:500;">👤 Admin:</span>
-<input type="file" name="archivo" required accept=".pdf" style="flex:1;">
+html += `<form class="form-upload dropzone form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Subir como administrador</strong><small>Adjunta el PDF en nombre del proveedor · PDF · máx. 15 MB</small></div>
+<input type="file" name="archivo" required accept=".pdf">
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
 </form>`;
 } else if (!soloLectura && req.tipo !== 'experiencia' && noAplica) {
@@ -1791,63 +1938,89 @@ const cont = document.getElementById('contenedor-modulos');
 if (!cont) return;
 let html = `
 <div class="card">
-<h3>📄 Plantillas para proveedores</h3>
-<p style="color:#6b7280;font-size:0.9rem;margin:0.5rem 0 1rem;">Sube los formatos que los proveedores deben diligenciar.</p>
-<div id="listaPlantillas" class="doc-grid"></div>
+    <h3><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Plantillas para proveedores</h3>
+    <p style="color:#6b6478;font-size:0.9rem;margin:0.5rem 0 1rem;">Sube los formatos institucionales que el proveedor debe descargar, diligenciar, firmar y devolver en PDF.</p>
+    <div id="listaPlantillas" class="doc-grid"></div>
 </div>
 `;
 cont.innerHTML = html;
 cargarPlantillas();
 }
 async function cargarPlantillas() {
-if (!requeridos || requeridos.length === 0) { setTimeout(() => cargarPlantillas(), 300); return; }
 const cont = document.getElementById('listaPlantillas');
 if (!cont) return;
-const plantillasRequeridas = requeridos.filter(r => r.esPlantilla === true);
-if (plantillasRequeridas.length === 0) { cont.innerHTML = '<p style="color:#6b7280;">No hay plantillas configuradas.</p>'; return; }
-try {
-const response = await fetchAPI('/api/admin/plantillas');
-if (!response.ok) throw new Error('Error al obtener plantillas');
-const plantillas = await response.json();
-const map = {};
-plantillas.forEach(p => map[p.tipo] = p);
-cont.innerHTML = '';
-plantillasRequeridas.forEach(req => {
-const p = map[req.tipo];
-const div = document.createElement('div');
-div.className = 'doc-item';
-div.style.cssText = 'flex-direction:column;align-items:stretch;';
-div.innerHTML = `
-<div style="margin-bottom:0.5rem;"><h4>${req.nombre}</h4></div>
-${p ? `
-<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:#f9fafb;border-radius:6px;margin-bottom:0.5rem;">
-<small>✅ ${p.nombre_original}</small>
-<a href="/plantillas/${p.archivo}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>
-</div>
-` : `
-<div class="alert" style="background:#fee2e2;color:#991b1b;padding:0.5rem;margin-bottom:0.5rem;">⚠️ Sin plantilla</div>
-`}
-<form class="form-plantilla" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
-<input type="file" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx">
-<button type="submit" class="btn btn-sm">${p ? 'Reemplazar' : 'Subir'}</button>
-</form>
-`;
-cont.appendChild(div);
-});
-document.querySelectorAll('.form-plantilla').forEach(form => {
-form.addEventListener('submit', async e => {
-e.preventDefault();
-const fd = new FormData(e.target);
-fd.append('tipo', e.target.dataset.tipo);
-const res = await fetchAPI('/api/admin/plantilla', { method: 'POST', body: fd });
-if (res.ok) { mostrarAlerta('👌 Plantilla cargada', 'success'); cargarPlantillas(); }
-else { const r = await res.json(); mostrarAlerta(r.error); }
-});
-});
-} catch (err) {
-console.error('Error cargando plantillas:', err);
-mostrarAlerta('Error al cargar plantillas: ' + err.message);
+// Espera ACOTADA a que existan los requerimientos (máx. 10 intentos)
+if (!requeridos || requeridos.length === 0) {
+cargarPlantillas._intentos = (cargarPlantillas._intentos || 0) + 1;
+if (cargarPlantillas._intentos > 10) {
+cont.innerHTML = '<p style="color:#991b1b;">No se pudieron cargar los tipos de documento. Recarga la página o revisa tu sesión.</p>';
+return;
 }
+setTimeout(() => cargarPlantillas(), 300);
+return;
+}
+cargarPlantillas._intentos = 0; // 🆕 resetea el contador al cargar bien
+
+    const plantillasRequeridas = requeridos.filter(r => r.esPlantilla === true);
+    if (plantillasRequeridas.length === 0) {
+        cont.innerHTML = '<p style="color:#6b6478;">No hay plantillas configuradas.</p>';
+        return;
+    }
+
+    try {
+        const response = await fetchAPI('/api/admin/plantillas');
+        if (!response.ok) throw new Error('Error al obtener plantillas');
+        const plantillas = await response.json();
+        const map = {};
+        plantillas.forEach(p => map[p.tipo] = p);
+        cont.innerHTML = '';
+
+        plantillasRequeridas.forEach(req => {
+            const p = map[req.tipo];
+            const div = document.createElement('div');
+            div.className = 'doc-item';
+            div.style.cssText = 'flex-direction:column;align-items:stretch;';
+            div.innerHTML = `
+                <div style="margin-bottom:0.5rem;"><h4>${req.nombre}</h4></div>
+                ${p ? `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:#f9fafb;border-radius:6px;margin-bottom:0.5rem;">
+                    <small>✅ ${p.nombre_original}</small>
+                    <a href="/plantillas/${p.archivo}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>
+                </div>
+                ` : `
+                <div class="alert" style="background:#fee2e2;color:#991b1b;padding:0.5rem;margin-bottom:0.5rem;">⚠️ Sin plantilla</div>
+                `}
+                <form class="form-plantilla" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
+                    <input type="file" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx">
+                    <button type="submit" class="btn btn-sm">${p ? 'Reemplazar' : 'Subir'}</button>
+                </form>
+            `;
+            cont.appendChild(div);
+        });
+
+        // Adjunta handlers SOLO a los formularios recién renderizados
+        cont.querySelectorAll('.form-plantilla').forEach(form => {
+            form.addEventListener('submit', async e => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                fd.append('tipo', e.target.dataset.tipo);
+                const res = await fetchAPI('/api/admin/plantilla', { method: 'POST', body: fd });
+                if (res.ok) {
+                    mostrarAlerta('👌 Plantilla cargada', 'success');
+                    cargarPlantillas();
+                    actualizarContadorPlantillas();
+                } else {
+                    const r = await res.json();
+                    mostrarAlerta(r.error);
+                }
+            });
+        });
+
+        actualizarContadorPlantillas();
+    } catch (err) {
+        console.error('Error cargando plantillas:', err);
+        cont.innerHTML = `<p style="color:#991b1b;">Error al cargar plantillas: ${err.message}</p>`;
+    }
 }
 
 // ==========================================
@@ -1945,8 +2118,10 @@ await cargarAnosHistorial();
 renderizarTablaHistorial(data.data || []);
 actualizarBotonesHistorial();
 
-document.getElementById('historialBusqueda').addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
-document.getElementById('historialRfc').addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
+const hb = document.getElementById('historialBusqueda');
+const hr = document.getElementById('historialRfc');
+if (hb) hb.addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
+if (hr) hr.addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
 } catch (err) {
 console.error('❌ Error cargando historial:', err);
 const contenedor = document.getElementById('contenedor-modulos');
@@ -1989,7 +2164,7 @@ let html = `
 <th style="padding:0.7rem;text-align:center;">Fecha Inicio</th>
 <th style="padding:0.7rem;text-align:center;">Fecha Fin</th>
 <th style="padding:0.7rem;text-align:center;">Estado</th>
-<th style="padding:0.7rem;text-align:center;">Docs</th>
+<th style="padding:0.7rem;text-align:center;">NIT / RUT</th>
 <th style="padding:0.7rem;text-align:center;">Acciones</th>
 </tr>
 </thead>
@@ -2013,11 +2188,8 @@ html += `
 <td style="padding:0.7rem;text-align:center;">
 <span style="color:${estadoColor};font-weight:600;">${estadoIcon} ${c.estado}</span>
 </td>
-<td style="padding:0.7rem;text-align:center;">
-${aprobados}/${documentosTotal}
-<div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;margin:0.3rem auto 0;overflow:hidden;">
-<div style="width:${documentosTotal > 0 ? (aprobados/documentosTotal)*100 : 0}%;height:100%;background:#059669;"></div>
-</div>
+<td style="padding:0.7rem;text-align:center;font-family:monospace;font-weight:600;color:#1f1830;">
+${escapeHtml(c.rfc || '—')}
 </td>
 <td style="padding:0.7rem;text-align:center;">
 <button class="btn btn-sm btn-secondary" onclick="verCiclo(${c.id})">👁️ Ver docs</button>
@@ -2291,117 +2463,135 @@ const cont = document.getElementById('configuracionContenido');
 if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error al cargar configuración: ${err.message}</div>`;
 }
 }
-async function ejecutarVencimientosAhora() {
-if (!confirm('⚠️ ¿Ejecutar el procesamiento de vencimientos ahora? Se moverán todos los documentos vencidos a histórico.')) return;
-try {
-const res = await fetchAPI('/api/admin/ejecutar-vencimientos', { method: 'POST' });
-const data = await res.json();
-if (res.ok) {
-mostrarAlerta(`✅ Vencimientos procesados: ${data.movidos} movidos, ${data.notificados} notificados`, 'success');
-recargarConfiguracion();
-} else {
-mostrarAlerta('❌ ' + (data.error || 'Error'), 'error');
-}
-} catch (err) { mostrarAlerta('❌ Error de conexión', 'error'); }
-}
+
+// ==========================================
+// ⚙️ RENDER DEL FORMULARIO DE CONFIGURACIÓN
+// ==========================================
 function renderizarFormularioConfiguracion(config) {
-const cont = document.getElementById('configuracionContenido');
-if (!cont) return;
-
-let fechaActual = config?.valor || '';
-if (!fechaActual) {
-const fecha = new Date();
-fecha.setFullYear(fecha.getFullYear() + 1);
-fecha.setHours(23, 59, 59, 0);
-fechaActual = fecha.toISOString().slice(0, 16);
-} else {
-fechaActual = fechaActual.replace(' ', 'T').slice(0, 16);
+    const cont = document.getElementById('configuracionContenido');
+    if (!cont) return;
+    let fechaActual = config?.valor || '';
+    if (!fechaActual) {
+        const fecha = new Date();
+        fecha.setFullYear(fecha.getFullYear() + 1);
+        fecha.setHours(23, 59, 59, 0);
+        fechaActual = fecha.toISOString().slice(0, 16);
+    } else {
+        fechaActual = fechaActual.replace(' ', 'T').slice(0, 16);
+    }
+    const fechaMostrada = config?.valor ? formatearFecha(config.valor) : 'No configurada';
+    const fechaActualizacion = config?.actualizado_en ? formatearFecha(config.actualizado_en) : 'Nunca';
+    cont.innerHTML = `
+    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #e5e7eb;">
+        <h4 style="color:#dc2626;margin-bottom:0.5rem;">⚡ Acciones urgentes</h4>
+        <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
+            Esta acción moverá <strong>TODOS los documentos activos</strong> de <strong>TODOS los proveedores</strong> a histórico y los cambiará a estado RECHAZADO, sin importar su fecha de vencimiento.
+        </p>
+        <button class="btn btn-danger" onclick="forzarVencimientosAhora()" style="background:#dc2626;color:white;font-weight:bold;padding:0.8rem 2rem;">
+            ⚡ Forzar vencimiento de todos los documentos
+        </button>
+        <small style="color:#6b7280;display:block;margin-top:0.5rem;">
+            ⚠️ Esta acción es irreversible. Se recomienda hacer una copia de seguridad antes.
+        </small>
+    </div>
+    <div style="background:#f0fdf4;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;border-left:4px solid #059669;">
+        <h4 style="color:#065f46;margin-bottom:0.5rem;">📋 Configuración actual</h4>
+        <p><strong>📅 Fecha fija de vencimiento:</strong> <span style="font-size:1.2rem;font-weight:700;color:#059669;">${fechaMostrada}</span></p>
+        <p><strong>🕐 Última actualización:</strong> ${fechaActualizacion}</p>
+        <p><strong>📝 Descripción:</strong> Fecha y hora a partir de la cual los documentos aprobados se considerarán vencidos.</p>
+    </div>
+    <div style="background:#f9fafb;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;">
+        <h4 style="margin-bottom:0.5rem;">✏️ Modificar fecha fija de vencimiento</h4>
+        <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
+            Establece la fecha y hora exacta en que todos los documentos aprobados pasarán a vencidos.
+            Esta fecha se aplicará a los documentos que se aprueben a partir de ahora.
+        </p>
+        <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;">
+                <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Fecha y hora de vencimiento</label>
+                <input type="datetime-local" id="fechaVencimientoInput" value="${fechaActual}"
+                    style="width:100%;padding:0.7rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">
+            </div>
+            <button class="btn" onclick="guardarConfiguracion()" style="background:#059669;">💾 Guardar</button>
+        </div>
+        <small style="color:#6b7280;display:block;margin-top:0.5rem;">
+            ⚠️ Este cambio afectará solo a los documentos que se aprueben a partir de ahora.
+        </small>
+    </div>
+    <div style="background:#fffbeb;padding:1.5rem;border-radius:8px;border:2px solid #f59e0b;">
+        <h4 style="color:#92400e;margin-bottom:0.5rem;">🔄 Recalcular fechas de vencimiento existentes</h4>
+        <p style="color:#78350f;font-size:0.9rem;margin-bottom:1rem;">
+            Aplica la fecha fija configurada a todos los documentos <strong>aprobados y activos</strong> (no históricos).
+            Esto asignará la misma fecha y hora a todos los documentos aprobados.
+        </p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="btn btn-warning" onclick="recalcularVencimientos()" style="background:#d97706;color:white;">
+                🔄 Aplicar a todos (fecha fija)
+            </button>
+            <small style="color:#6b7280;display:block;margin-top:0.5rem;">
+                ⚠️ Esta acción puede afectar a muchos documentos. Se recomienda hacer una copia de seguridad antes.
+            </small>
+        </div>
+    </div>
+    <div style="background:#f0f9ff;padding:1.5rem;border-radius:8px;margin-top:1.5rem;border:2px solid #0284c7;">
+        <h4 style="color:#075985;margin-bottom:0.5rem;">💾 Backups de BD y documentos</h4>
+        <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
+            Copia automática cada 12 h (2 AM / 2 PM): base de datos completa + mirror de PDFs cifrados y plantillas.
+            Crea, verifica, descarga (copia externa) o restaura sin usar consola.
+        </p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">➕ Crear backup ahora</button>
+            <button class="btn btn-secondary" onclick="cargarBackups()">🔄 Actualizar lista</button>
+        </div>
+        <div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div>
+    </div>
+    `;
 }
-const fechaMostrada = config?.valor ? formatearFecha(config.valor) : 'No configurada';
-const fechaActualizacion = config?.actualizado_en ? formatearFecha(config.actualizado_en) : 'Nunca';
 
-cont.innerHTML = `
-<div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #e5e7eb;">
-<h4 style="color:#dc2626;margin-bottom:0.5rem;">⚡ Acciones urgentes</h4>
-<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
-Esta acción moverá <strong>TODOS los documentos activos</strong> de <strong>TODOS los proveedores</strong> a histórico y los cambiará a estado RECHAZADO, sin importar su fecha de vencimiento.
-</p>
-<button class="btn btn-danger" onclick="forzarVencimientosAhora()" style="background:#dc2626;color:white;font-weight:bold;padding:0.8rem 2rem;">
-⚡ Forzar vencimiento de todos los documentos
-</button>
-<small style="color:#6b7280;display:block;margin-top:0.5rem;">
-⚠️ Esta acción es irreversible. Se recomienda hacer una copia de seguridad antes.
-</small>
-</div>
-<div style="background:#f0fdf4;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;border-left:4px solid #059669;">
-<h4 style="color:#065f46;margin-bottom:0.5rem;">📋 Configuración actual</h4>
-<p><strong>📅 Fecha fija de vencimiento:</strong> <span style="font-size:1.2rem;font-weight:700;color:#059669;">${fechaMostrada}</span></p>
-<p><strong>🕐 Última actualización:</strong> ${fechaActualizacion}</p>
-<p><strong>📝 Descripción:</strong> Fecha y hora a partir de la cual los documentos aprobados se considerarán vencidos.</p>
-</div>
-<div style="background:#f9fafb;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;">
-<h4 style="margin-bottom:0.5rem;">✏️ Modificar fecha fija de vencimiento</h4>
-<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
-Establece la fecha y hora exacta en que todos los documentos aprobados pasarán a vencidos.
-Esta fecha se aplicará a los documentos que se aprueben a partir de ahora.
-</p>
-<div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
-<div style="flex:1;min-width:200px;">
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Fecha y hora de vencimiento</label>
-<input type="datetime-local" id="fechaVencimientoInput" value="${fechaActual}"
-style="width:100%;padding:0.7rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">
-</div>
-<button class="btn" onclick="guardarConfiguracion()" style="background:#059669;">💾 Guardar</button>
-</div>
-<small style="color:#6b7280;display:block;margin-top:0.5rem;">
-⚠️ Este cambio afectará solo a los documentos que se aprueben a partir de ahora.
-</small>
-</div>
-<div style="background:#fffbeb;padding:1.5rem;border-radius:8px;border:2px solid #f59e0b;">
-<h4 style="color:#92400e;margin-bottom:0.5rem;">🔄 Recalcular fechas de vencimiento existentes</h4>
-<p style="color:#78350f;font-size:0.9rem;margin-bottom:1rem;">
-Aplica la fecha fija configurada a todos los documentos <strong>aprobados y activos</strong> (no históricos).
-Esto asignará la misma fecha y hora a todos los documentos aprobados.
-</p>
-<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-warning" onclick="recalcularVencimientos()" style="background:#d97706;color:white;">
-🔄 Aplicar a todos (fecha fija)
-</button>
-<small style="color:#6b7280;display:block;margin-top:0.5rem;">
-⚠️ Esta acción puede afectar a muchos documentos. Se recomienda hacer una copia de seguridad antes.
-</small>
-</div>
-</div>
-<div style="background:#f0f9ff;padding:1.5rem;border-radius:8px;margin-top:1.5rem;border:2px solid #0284c7;">
-<h4 style="color:#075985;margin-bottom:0.5rem;">💾 Backups de BD y documentos</h4>
-<p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
-Copia automática cada 12 h (2 AM / 2 PM): base de datos completa + mirror de PDFs cifrados y plantillas.
-Crea, verifica, descarga (copia externa) o restaura sin usar consola.
-</p>
-<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
-<button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">➕ Crear backup ahora</button>
-<button class="btn btn-secondary" onclick="cargarBackups()">🔄 Actualizar lista</button>
-</div>
-<div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div>
-</div>
-`;
+// ==========================================
+// ⏰ VENCIMIENTOS — LANZAMIENTO + POLLING DEL JOB (anti-congelamiento)
+// ==========================================
+async function lanzarJobVencimientos(url, etiqueta) {
+    try {
+        mostrarAlerta(`⏳ ${etiqueta}: iniciando en segundo plano...`, 'info');
+        const res = await fetchAPI(url, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409) { mostrarAlerta('⚠️ ' + (data.error || 'Ya hay un procesamiento en curso.'), 'warning'); return; }
+        if (!res.ok) { mostrarAlerta('❌ ' + (data.error || 'Error al iniciar el proceso.'), 'error'); return; }
+        await pollJobVencimientos(etiqueta);
+    } catch (err) {
+        console.error('Error lanzando job de vencimientos:', err);
+        mostrarAlerta('❌ Error de conexión', 'error');
+    }
+}
+async function pollJobVencimientos(etiqueta) {
+    return new Promise(resolve => {
+        const iv = setInterval(async () => {
+            try {
+                const r = await fetchAPI('/api/admin/vencimientos-job');
+                const j = await r.json();
+                const pct = j.total ? Math.round((j.procesados / j.total) * 100) : 0;
+                console.log(`⏳ ${etiqueta}: ${j.procesados}/${j.total} (${pct}%) · movidos=${j.movidos} notificados=${j.notificados} errores=${j.errores}`);
+                if (!j.enCurso) {
+                    clearInterval(iv);
+                    mostrarAlerta(`✅ ${etiqueta} completado: ${j.movidos} movidos, ${j.notificados} notificados, ${j.errores} errores`, 'success');
+                    recargarConfiguracion();
+                    recargarVistaActual();
+                    resolve();
+                }
+            } catch (e) { /* se reintenta en el siguiente tick */ }
+        }, 2500);
+    });
+}
+async function ejecutarVencimientosAhora() {
+    if (!await confirmarSwal({ titulo: '⏰ Ejecutar vencimientos ahora', texto: 'Se moverán todos los documentos vencidos a histórico.', icono: 'question', peligro: false, textoConfirmar: 'Sí, ejecutar' })) return;
+    await lanzarJobVencimientos('/api/admin/ejecutar-vencimientos', 'Procesamiento de vencimientos');
 }
 async function forzarVencimientosAhora() {
-if (!confirm('⚠️ ESTA ACCIÓN ES IRREVERSIBLE\n\nSe moverán TODOS los documentos activos de TODOS los proveedores a histórico y se cambiarán a estado RECHAZADO.\n\n¿Estás seguro de continuar?')) return;
-if (!confirm('ÚLTIMA ADVERTENCIA: Esta acción afectará a todos los proveedores con documentos activos. ¿Continuar?')) return;
-try {
-mostrarAlerta('⏳ Procesando vencimientos forzados...', 'info');
-const res = await fetchAPI('/api/admin/forzar-vencimientos', { method: 'POST' });
-const data = await res.json();
-if (res.ok) {
-mostrarAlerta(`✅ Vencimientos forzados completados: ${data.movidos} movidos, ${data.notificados} notificados`, 'success');
-recargarConfiguracion();
-recargarVistaActual();
-} else {
-mostrarAlerta('❌ ' + (data.error || 'Error'), 'error');
+    if (!await confirmarSwal({ titulo: '♻️ Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
+    await lanzarJobVencimientos('/api/admin/forzar-vencimientos', 'Vencimiento forzado');
 }
-} catch (err) { mostrarAlerta('❌ Error de conexión', 'error'); }
-}
+
 async function guardarConfiguracion() {
 const input = document.getElementById('fechaVencimientoInput');
 if (!input) return;
@@ -2411,7 +2601,7 @@ const fechaSeleccionada = new Date(fecha);
 const hoy = new Date();
 if (fechaSeleccionada < hoy) {
 mostrarAlerta('⚠️ La fecha de vencimiento no puede ser anterior a la fecha actual', 'warning');
-if (!confirm('¿Estás seguro de usar una fecha ya pasada?')) return;
+if (!await confirmarSwal({ titulo: '⚠️ Fecha en el pasado', texto: 'La fecha elegida ya pasó. ¿Usarla de todos modos?', icono: 'question', textoConfirmar: 'Sí, usar' })) return;
 }
 const btn = document.querySelector('#configuracionContenido .btn');
 const textoOriginal = btn.textContent;
@@ -2430,9 +2620,9 @@ console.error('❌ Error guardando configuración:', err);
 mostrarAlerta('❌ Error de conexión', 'error');
 } finally { btn.disabled = false; btn.textContent = textoOriginal; }
 }
+
 async function recalcularVencimientos() {
-if (!confirm(`⚠️ ¿Estás seguro de recalcular las fechas de vencimiento de TODOS los documentos aprobados y activos usando la fecha fija configurada?\n\nEsta acción afectará a todos los documentos aprobados (no históricos).`)) return;
-const btn = document.querySelector('#configuracionContenido .btn-warning');
+if (!await confirmarSwal({ titulo: '⚠️ Recalcular vencimientos', texto: 'Se aplicará la fecha fija configurada a TODOS los documentos aprobados y activos (no históricos).', textoConfirmar: 'Sí, recalcular' })) return;const btn = document.querySelector('#configuracionContenido .btn-warning');
 if (!btn) return;
 const textoOriginal = btn.textContent;
 btn.disabled = true; btn.textContent = '⏳ Procesando...';
@@ -2480,7 +2670,7 @@ cont.innerHTML = '<p style="color:#dc2626;">Error al cargar la lista de backups.
 }
 }
 async function crearBackupAhora() {
-if (!confirm('¿Crear un backup manual de la BD y los archivos ahora?')) return;
+if (!await confirmarSwal({ titulo: 'Crear backup manual', texto: 'Se respaldará la base de datos y los archivos ahora.', icono: 'question', peligro: false, textoConfirmar: 'Sí, crear backup' })) return;
 mostrarAlerta('⏳ Creando backup…', 'info');
 try {
 const res = await fetchAPI('/api/admin/backups/crear', { method: 'POST' });
@@ -2502,8 +2692,8 @@ mostrarAlerta('❌ ' + (r.mensaje || 'Backup dañado'), 'error');
 } catch (err) { mostrarAlerta('❌ Error al verificar: ' + err.message, 'error'); }
 }
 async function restaurarBackup(nombre) {
-if (!confirm(`⚠️ ¿Restaurar "${nombre}"?\nLos datos ACTUALES se reemplazarán por los del backup.\nSe creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.`)) return;
-if (!confirm('ÚLTIMA ADVERTENCIA: el servicio se reiniciará tras restaurar. ¿Continuar?')) return;
+if (!await confirmarSwal({ titulo: `⚠️ Restaurar "${nombre}"`, texto: 'Los datos ACTUALES se reemplazarán por los del backup. Se creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.', textoConfirmar: 'Sí, restaurar' })) return;
+if (!await confirmarSwal({ titulo: 'ÚLTIMA ADVERTENCIA', texto: 'El servicio se reiniciará tras restaurar.', textoConfirmar: 'Sí, continuar' })) return;
 mostrarAlerta('⏳ Restaurando… el servicio se reiniciará en unos segundos.', 'info');
 try {
 const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/restaurar', { method: 'POST' });
@@ -2522,7 +2712,7 @@ if (!proveedorId) {
 if (proveedorActualId) proveedorId = proveedorActualId;
 else { mostrarAlerta('❌ No se pudo identificar al proveedor', 'error'); return; }
 }
-if (!confirm('¿Estás seguro de eliminar este documento?')) return;
+if (!await confirmarSwal({ titulo: '¿Eliminar este documento?', texto: 'El documento se eliminará de forma permanente.', textoConfirmar: 'Sí, eliminar' })) return;
 try {
 const res = await fetchAPI(`/api/admin/documento/${docId}`, { method: 'DELETE' });
 if (res.ok) {
@@ -2623,7 +2813,17 @@ if (res.ok) {
 mostrarAlerta('✅ Gestión guardada correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else { mostrarAlerta(`❌ ${r.error}`); }
+} else {
+mostrarAlerta(`❌ ${r.error}`);
+if (r.ciclo_duplicado) {
+const campo = document.getElementById('numeroRegistro');
+if (campo) {
+campo.focus();
+campo.style.borderColor = '#dc2626';
+campo.style.boxShadow = '0 0 0 3px rgba(220,38,38,.15)';
+}
+}
+}
 } catch (err) {
 console.error('Error guardando gestión:', err);
 mostrarAlerta('❌ Error al guardar la gestión');
@@ -2700,18 +2900,17 @@ checkbox.checked = !noAplica;
 // ==========================================
 async function cambiarEstadoEvaluacion(proveedorId, estado) {
 if (estado === 'rechazado') {
-const motivo = prompt('Motivo del rechazo (obligatorio):');
+const motivo = await promptSwal({ titulo: 'Motivo del rechazo', texto: 'El proveedor recibirá este motivo por correo.', placeholder: 'Ej: La evaluación no cumple los requisitos…', obligatorio: true });
 if (motivo === null) return;
-if (!motivo.trim()) { mostrarAlerta('Debes escribir un motivo de rechazo', 'error'); return; }
 await enviarEstadoEvaluacion(proveedorId, estado, motivo.trim());
 } else {
-if (!confirm('¿Aprobar la evaluación inicial?')) return;
+if (!await confirmarSwal({ titulo: '¿Aprobar la evaluación inicial?', texto: 'El proveedor pasará a la etapa de Inscripción.', icono: 'question', peligro: false, textoConfirmar: 'Sí, aprobar' })) return;
 await enviarEstadoEvaluacion(proveedorId, estado, '');
 }
 }
 async function eliminarEvaluacion(proveedorId) {
 if (!proveedorId) { mostrarAlerta('❌ ID de proveedor no válido', 'error'); return; }
-if (!confirm('⚠️ ¿Estás seguro de eliminar la Evaluación Inicial? Esta acción no se puede deshacer.')) return;
+if (!await confirmarSwal({ titulo: '⚠️ Eliminar Evaluación Inicial', texto: 'Esta acción no se puede deshacer.', textoConfirmar: 'Sí, eliminar' })) return;
 try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/evaluacion`, { method: 'DELETE' });
 const r = await res.json();
@@ -2743,8 +2942,8 @@ console.error('Error cambiando estado evaluación:', err);
 mostrarAlerta('Error al cambiar estado');
 }
 }
-function rechazarEvaluacion(proveedorId) {
-if (!confirm('⚠️ ADVERTENCIA: Al rechazar la evaluación inicial, TODOS los documentos activos serán rechazados. El proveedor volverá a verificación (si es actualización) o pasará a rechazado (si es inscripción). ¿Estás seguro?')) return;
+async function rechazarEvaluacion(proveedorId) {
+if (!await confirmarSwal({ titulo: '⚠️ ADVERTENCIA', texto: 'Al rechazar la evaluación inicial, TODOS los documentos activos serán rechazados. El proveedor volverá a verificación (si es actualización) o pasará a rechazado (si es inscripción).', textoConfirmar: 'Sí, rechazar todo' })) return;
 cambiarEstadoEvaluacion(proveedorId, 'rechazado');
 }
 
@@ -2774,8 +2973,8 @@ const r = await res.json();
 mostrarAlerta(r.error || 'Error al cambiar estado');
 }
 }
-function rechazar(docId) {
-const c = prompt('Motivo del rechazo (opcional):');
+async function rechazar(docId) {
+const c = await promptSwal({ titulo: 'Motivo del rechazo', texto: 'Opcional: el proveedor lo verá en su portal y por correo.', placeholder: 'Ej: Documento ilegible…', obligatorio: false });
 if (c === null) return;
 cambiarEstado(docId, 'rechazado', c);
 }
@@ -3007,7 +3206,7 @@ if (!password) {
 alertaEl.innerHTML = '<div class="alert alert-error">Debes ingresar tu contraseña de administrador</div>';
 return;
 }
-if (!confirm(`⚠️ ÚLTIMA ADVERTENCIA\n\n¿Estás 100% seguro de eliminar a "${proveedorActualNombre}"?\n\nEsta acción es PERMANENTE y NO se puede deshacer.`)) return;
+if (!await confirmarSwal({ titulo: '⚠️ ÚLTIMA ADVERTENCIA', texto: `¿Estás 100% seguro de eliminar a "${proveedorActualNombre}"? Esta acción es PERMANENTE y NO se puede deshacer.`, textoConfirmar: 'Sí, eliminar definitivamente' })) return;
 try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`, {
 method: 'DELETE',
@@ -3070,7 +3269,7 @@ mostrarAlerta('❌ Error al descargar: ' + err.message);
 }
 }
 async function reiniciarProceso(proveedorId) {
-if (!confirm('⚠️ ¿Estás seguro de reiniciar el proceso para este proveedor?\n\nSe eliminará la evaluación actual y los documentos volverán a estado pendiente. El proveedor podrá subir documentos nuevamente.')) return;
+if (!await confirmarSwal({ titulo: '♻️ Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
 try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/reiniciar-proceso`, { method: 'POST' });
 const data = await res.json();
@@ -3311,6 +3510,53 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target.i
 document.getElementById('modalVisor').addEventListener('click', e => { if (e.target.id === 'modalVisor') cerrarVisor(); });
 document.getElementById('modalConfirmarEliminar').addEventListener('click', e => { if (e.target.id === 'modalConfirmarEliminar') cerrarConfirmacionEliminar(); });
 document.getElementById('modalCrearProveedor').addEventListener('click', e => { if (e.target.id === 'modalCrearProveedor') cerrarModalCrearProveedor(); });
+
+// ==========================================
+// 📧 EDITAR CORREO DE PROVEEDOR (admin) — AGENDA #2
+// ==========================================
+function editarEmailProveedor(proveedorId, emailActual) {
+    const cont = document.getElementById('contenedorEditarEmail');
+    if (!cont) return;
+    cont.style.display = 'block';
+    cont.innerHTML = `
+    <div style="background:#eff6ff;padding:0.7rem;border-radius:8px;border:1px solid #bfdbfe;">
+        <label style="font-weight:600;color:#1e40af;display:block;margin-bottom:0.3rem;">📧 Nuevo correo electrónico</label>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <input type="email" id="nuevoEmailProveedor" value="${escapeAttr(emailActual)}" placeholder="nuevo@correo.com" style="flex:1;min-width:200px;padding:0.45rem;border:1px solid #bfdbfe;border-radius:6px;">
+            <button class="btn btn-sm" style="background:#2563eb;" onclick="guardarEmailProveedor(${proveedorId})">💾 Guardar</button>
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('contenedorEditarEmail').style.display='none'">✕ Cancelar</button>
+        </div>
+        <small style="color:#1e40af;font-size:0.78rem;display:block;margin-top:0.3rem;">El proveedor conservará historial, documentos y contraseña; solo cambia su correo de acceso.</small>
+    </div>`;
+    const inp = document.getElementById('nuevoEmailProveedor');
+    if (inp) inp.focus();
+}
+async function guardarEmailProveedor(proveedorId) {
+    const input = document.getElementById('nuevoEmailProveedor');
+    if (!input) return;
+    const emailNuevo = input.value.trim();
+    if (!emailNuevo) { mostrarAlerta('❌ Escribe un correo', 'error'); return; }
+    try {
+        mostrarAlerta('⏳ Actualizando correo...', 'info');
+        const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: emailNuevo })
+        });
+        const r = await res.json();
+        if (res.ok) {
+            mostrarAlerta('✅ ' + r.mensaje, 'success');
+            const span = document.getElementById('emailActualProv');
+            if (span) span.textContent = emailNuevo;
+            document.getElementById('contenedorEditarEmail').style.display = 'none';
+            await cargarProveedoresPorModulo(moduloActual, paginaActual);
+        } else {
+            mostrarAlerta('❌ ' + (r.error || 'Error'), 'error');
+        }
+    } catch (err) {
+        mostrarAlerta('❌ Error de conexión', 'error');
+    }
+}
 
 // ==========================================
 // 🚀 INICIAR APLICACIÓN

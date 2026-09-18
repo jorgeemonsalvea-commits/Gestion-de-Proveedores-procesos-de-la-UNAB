@@ -263,6 +263,26 @@ function limpiarSesionesCorruptas() {
 limpiarArchivosTemporalesSesiones();
 limpiarSesionesCorruptas();
 
+// 🆕 Cierra todas las sesiones activas de un usuario (se usa al cambiar su correo)
+function cerrarSesionesDeUsuario(usuarioId) {
+let cerradas = 0;
+try {
+for (const archivo of fs.readdirSync(sessionsDir)) {
+if (!archivo.endsWith('.json')) continue;
+try {
+const contenido = JSON.parse(fs.readFileSync(path.join(sessionsDir, archivo), 'utf8'));
+if (contenido && contenido.usuario && contenido.usuario.id === usuarioId) {
+fs.unlinkSync(path.join(sessionsDir, archivo));
+cerradas++;
+}
+} catch (e) { /* sesión ilegible: se ignora */ }
+}
+} catch (e) {
+console.error('Error cerrando sesiones:', e.message);
+}
+return cerradas;
+}
+
 const fileStoreOptions = {
   path: sessionsDir,
   ttl: 60 * 60 * 8,
@@ -672,94 +692,72 @@ console.error('⚠️ Error resolviendo evaluación del ciclo:', e.message);
 return null;
 }
 }
+
+// 🛡️ ANTI-DUPLICADOS: mueve rutaActual → rutaNueva. Si el destino ya existe con
+// contenido IDÉNTICO (mismo tamaño + hash SHA-256), elimina el origen y REUTILIZA
+// el destino sin crear copia. Solo usa sufijo _timestamp si el contenido difiere.
+function moverArchivoConDedup(rutaActual, rutaNueva) {
+    if (!fs.existsSync(rutaNueva)) {
+        fs.renameSync(rutaActual, rutaNueva);
+        return { rutaFinal: rutaNueva, reutilizado: false };
+    }
+    let identico = false;
+    try {
+        const a = fs.statSync(rutaActual), b = fs.statSync(rutaNueva);
+        if (a.size === b.size) {
+            identico = calcularHash(fs.readFileSync(rutaActual)) === calcularHash(fs.readFileSync(rutaNueva));
+        }
+    } catch (_) { identico = false; }
+    if (identico) {
+        fs.unlinkSync(rutaActual);
+        return { rutaFinal: rutaNueva, reutilizado: true };
+    }
+    const ext = path.extname(rutaNueva);
+    const conSufijo = `${path.basename(rutaNueva, ext)}_${Date.now()}${ext}`;
+    fs.renameSync(rutaActual, conSufijo);
+    return { rutaFinal: conSufijo, reutilizado: false };
+}
+
 function moverDocumentoAHistorico(doc, comentarioPersonalizado = null) {
 const comentario = comentarioPersonalizado || 'Documento movido a histórico por vencimiento';
-  try {
-    const proveedor = db.prepare(`
-      SELECT id, razon_social, numero_registro
-      FROM proveedores
-      WHERE id = ?
-    `).get(doc.proveedor_id);
-
-    if (!proveedor) {
-      console.warn(`⚠️ Proveedor ${doc.proveedor_id} no encontrado para mover documento ${doc.id}`);
-      return false;
-    }
-
-    const ciclo = obtenerCicloParaDocumento(doc, proveedor.id);
-
-    if (doc.id) {
-      db.prepare(`
-        UPDATE documentos
-        SET ciclo = ?
-        WHERE id = ?
-      `).run(ciclo, doc.id);
-    }
-
-    if (doc.archivo === 'no_aplica') {
-      if (doc.id) {
-        db.prepare(`
-          UPDATE documentos
-          SET es_historico = 1,
-              fecha_archivado = datetime('now', '-05:00'),
-              estado = 'rechazado',
-              comentario = ?,
-              ciclo = ?
-              WHERE id = ?
-      `).run(comentario, ciclo, doc.id);
-      }
-
-      console.log(`📄 Documento ${doc.id} (no_aplica) marcado como histórico en ciclo ${ciclo}.`);
-      return true;
-    }
-
-    const rutaActual = path.join(uploadsDir, doc.archivo);
-
-    if (!fs.existsSync(rutaActual)) {
-      console.warn(`⚠️ Archivo no encontrado: ${rutaActual}`);
-      return false;
-    }
-
-    const rutaHistorico = path.join(uploadsDir, String(proveedor.id), ciclo);
-
-    if (!fs.existsSync(rutaHistorico)) {
-      fs.mkdirSync(rutaHistorico, { recursive: true });
-    }
-
-    let nombreArchivo = path.basename(doc.archivo);
-    let rutaNueva = path.join(rutaHistorico, nombreArchivo);
-
-    if (fs.existsSync(rutaNueva)) {
-      const ext = path.extname(nombreArchivo);
-      const base = path.basename(nombreArchivo, ext);
-      nombreArchivo = `${base}_${Date.now()}${ext}`;
-      rutaNueva = path.join(rutaHistorico, nombreArchivo);
-    }
-
-    fs.renameSync(rutaActual, rutaNueva);
-
-    console.log(`📦 Documento ${doc.id} movido a histórico: ${rutaNueva}`);
-
-    const rutaRelativa = `${proveedor.id}/${ciclo}/${nombreArchivo}`;
-
-    if (doc.id) {
-      db.prepare(`
-        UPDATE documentos
-        SET archivo = ?,
-          es_historico = 1,
-          fecha_archivado = datetime('now', '-05:00'),
-          estado = 'rechazado',
-          comentario = ?,
-          ciclo = ?
-        WHERE id = ?
-        `).run(rutaRelativa, comentario, ciclo, doc.id);
-    }
-
-    return true;
-  } catch (err) {
-    console.error(`❌ Error moviendo documento ${doc.id} a histórico:`, err.message);
-    return false;
-  }
+try {
+const proveedor = db.prepare(`SELECT id, razon_social, numero_registro FROM proveedores WHERE id = ?`).get(doc.proveedor_id);
+if (!proveedor) { console.warn(`⚠️ Proveedor ${doc.proveedor_id} no encontrado para mover documento ${doc.id}`); return false; }
+const ciclo = String(obtenerCicloParaDocumento(doc, proveedor.id));
+if (doc.id) db.prepare(`UPDATE documentos SET ciclo = ? WHERE id = ?`).run(ciclo, doc.id);
+if (doc.archivo === 'no_aplica') {
+if (doc.id) db.prepare(`UPDATE documentos SET es_historico = 1, fecha_archivado = datetime('now','-05:00'), estado = 'rechazado', comentario = ?, ciclo = ? WHERE id = ?`).run(comentario, ciclo, doc.id);
+console.log(`📄 Documento ${doc.id} (no_aplica) marcado como histórico en ciclo ${ciclo}.`);
+return true;
+}
+const dirCiclo = path.join(uploadsDir, String(proveedor.id), ciclo);
+fs.mkdirSync(dirCiclo, { recursive: true });
+const rutaActual = path.join(uploadsDir, doc.archivo);
+let nombreArchivo = path.basename(doc.archivo);
+let rutaNueva = path.join(dirCiclo, nombreArchivo);
+if (fs.existsSync(rutaActual)) {
+// 🛡️ Dedup: si el ciclo ya tiene este mismo contenido, se reutiliza (♻️) y no se duplica.
+const r = moverArchivoConDedup(rutaActual, rutaNueva);
+rutaNueva = r.rutaFinal;
+nombreArchivo = path.basename(r.rutaFinal);
+if (r.reutilizado) console.log(`♻️ Doc ${doc.id}: contenido idéntico ya estaba en el ciclo; se reutilizó sin duplicar`);
+} else {
+// El archivo ya estaba en el ciclo (residuo de un archivado previo o de un restore):
+// se reutiliza esa ruta; si no, se recupera del mirror.
+const enCiclo = path.join(dirCiclo, nombreArchivo);
+const mirror = path.join(dataDir, 'backups', 'uploads_mirror', doc.archivo);
+if (fs.existsSync(enCiclo)) { rutaNueva = enCiclo; }
+else if (fs.existsSync(mirror)) { fs.copyFileSync(mirror, rutaNueva); }
+else console.warn(`⚠️ Archivo físico no encontrado para doc ${doc.id} (${rutaActual}); se archiva solo el registro.`);
+}
+const rutaRelativa = `${proveedor.id}/${ciclo}/${nombreArchivo}`;
+if (doc.id) db.prepare(`UPDATE documentos SET archivo = ?, es_historico = 1, fecha_archivado = datetime('now','-05:00'), estado = 'rechazado', comentario = ?, ciclo = ? WHERE id = ?`).run(rutaRelativa, comentario, ciclo, doc.id);
+console.log(`📦 Documento ${doc.id} movido a histórico: ${rutaNueva}`);
+return true;
+} catch (err) {
+console.error(`❌ Error moviendo documento ${doc.id} a histórico:`, err.message);
+return false;
+}
 }
 
 function notificarVencimientoProveedor(proveedorId) {
@@ -848,227 +846,123 @@ function notificarVencimientoProveedor(proveedorId) {
   }
 }
 
-async function procesarVencimientos() {
-  console.log(`\n🔄 [CRON VENCIMIENTOS] Iniciando procesamiento - ${new Date().toLocaleString()}`);
+// ==========================================
+// ⏰ VENCIMIENTOS — JOB EN SEGUNDO PLANO CON LOTES (anti-congelamiento)
+// ==========================================
+const LOTE_VENCIMIENTOS = 200;
+const jobVencimientos = {
+    enCurso: false,
+    tipo: null,
+    total: 0,
+    procesados: 0,
+    movidos: 0,
+    notificados: 0,
+    errores: 0,
+    iniciadoEn: null
+};
+const cederEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
-  let movidos = 0;
-  let notificados = 0;
-  let errores = 0;
-  const proveedoresAfectados = new Set();
-
-  try {
-    const docsVencidos = db.prepare(`
-      SELECT id, proveedor_id, archivo, ciclo
-      FROM documentos
-      WHERE es_historico = 0
-      AND fecha_vencimiento <= datetime('now', '-5 hours')
-    `).all();
-
-    if (docsVencidos.length === 0) {
-      console.log('✅ No hay documentos vencidos para procesar.');
-      const resultado = { movidos: 0, notificados: 0, errores: 0 };
-      emitirAdmin('vencimientos_procesados', resultado);
-      return resultado;
-    }
-
-    console.log(`📋 Encontrados ${docsVencidos.length} documentos vencidos.`);
-
-    for (const doc of docsVencidos) {
-      try {
-        const exito = moverDocumentoAHistorico(doc);
-        if (exito) {
-          movidos++;
-          proveedoresAfectados.add(doc.proveedor_id);
-        } else {
-          errores++;
+async function procesarVencimientosCore({ forzar = false } = {}) {
+    const inicio = Date.now();
+    jobVencimientos.enCurso = true;
+    jobVencimientos.tipo = forzar ? 'forzar' : 'programado';
+    jobVencimientos.total = 0;
+    jobVencimientos.procesados = 0;
+    jobVencimientos.movidos = 0;
+    jobVencimientos.notificados = 0;
+    jobVencimientos.errores = 0;
+    jobVencimientos.iniciadoEn = new Date().toISOString();
+    const proveedoresAfectados = new Set();
+    try {
+        const docs = forzar
+            ? db.prepare(`SELECT id, proveedor_id, archivo, ciclo FROM documentos WHERE es_historico = 0`).all()
+            : db.prepare(`SELECT id, proveedor_id, archivo, ciclo FROM documentos WHERE es_historico = 0 AND fecha_vencimiento <= datetime('now', '-5 hours')`).all();
+        jobVencimientos.total = docs.length;
+        console.log(`🔄 [VENCIMIENTOS ${forzar ? 'FORZADOS' : 'PROGRAMADOS'}] ${docs.length} documento(s) a procesar - ${new Date().toLocaleString()}`);
+        if (docs.length === 0) {
+            console.log('✅ No hay documentos vencidos para procesar.');
+            const resultado = { movidos: 0, notificados: 0, errores: 0 };
+            emitirAdmin('vencimientos_procesados', resultado);
+            return resultado;
         }
-      } catch (err) {
-        console.error(`❌ Error procesando documento ${doc.id}:`, err.message);
-        errores++;
-      }
-    }
-
-    for (const proveedorId of proveedoresAfectados) {
-      try {
-        const proveedor = db.prepare(`
-          SELECT id, evaluacion_inicial, numero_registro, etapa, estado_general
-          FROM proveedores
-          WHERE id = ?
-        `).get(proveedorId);
-
-        if (!proveedor) continue;
-
-        const activos = db.prepare(`
-          SELECT COUNT(*) as total
-          FROM documentos
-          WHERE proveedor_id = ?
-            AND es_historico = 0
-        `).get(proveedorId).total;
-
-        if (proveedor.etapa === 'registrado' && activos === 0) {
-          console.log(`⚠️ Proveedor ${proveedorId} (${proveedor.numero_registro}) ya no tiene documentos activos.`);
-
-          if (proveedor.evaluacion_inicial) {
-            const docEvaluacion = {
-              id: null,
-              proveedor_id: proveedorId,
-              archivo: proveedor.evaluacion_inicial,
-              ciclo: proveedor.numero_registro || null
-            };
-
-            const exito = moverDocumentoAHistorico(docEvaluacion);
-
-            if (exito) {
-              db.prepare(`UPDATE proveedores SET evaluacion_inicial = NULL WHERE id = ?`).run(proveedorId);
-              console.log(`📄 Evaluación inicial del proveedor ${proveedorId} movida a histórico.`);
-            } else {
-              console.warn(`⚠️ No se pudo mover la evaluación del proveedor ${proveedorId}.`);
+        // Fase 1: archivado de documentos por lotes
+        for (let i = 0; i < docs.length; i++) {
+            const doc = docs[i];
+            try {
+                const exito = moverDocumentoAHistorico(doc);
+                if (exito) { jobVencimientos.movidos++; proveedoresAfectados.add(doc.proveedor_id); }
+                else jobVencimientos.errores++;
+            } catch (err) {
+                console.error(`❌ Error procesando documento ${doc.id}:`, err.message);
+                jobVencimientos.errores++;
             }
-          }
-         
-        db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente', evaluacion_fecha = NULL WHERE id = ?`).run(proveedorId);
-
-        db.prepare(`
-         UPDATE proveedores
-         SET etapa = 'rechazado',
-             estado_general = 'rechazado',
-             notas_gestion = 'Rechazado por vencimiento de documentos',
-             tipo_proveedor = NULL
-         WHERE id = ?
-       `).run(proveedorId);
-       registrarHistorial(
-         proveedorId,
-         { id: 1, email: 'Sistema' },
-         'vencimiento_automatico',
-            `Proveedor rechazado automáticamente por vencimiento de todos los documentos.`,
-            null,
-            null,
-            null
-          );
-
-          console.log(`❌ Proveedor ${proveedorId} cambiado a RECHAZADO por vencimiento.`);
-
-          await notificarVencimientoProveedor(proveedorId);
-          notificados++;
+            jobVencimientos.procesados = i + 1;
+            if ((i + 1) % LOTE_VENCIMIENTOS === 0) {
+                emitirAdmin('vencimientos_progreso', { ...jobVencimientos });
+                await cederEventLoop();
+            }
         }
-      } catch (err) {
-        console.error(`❌ Error procesando proveedor ${proveedorId}:`, err.message);
-        errores++;
-      }
+        // Fase 2: rechazo + notificación de proveedores afectados (también por lotes)
+        const provsArr = [...proveedoresAfectados];
+        jobVencimientos.total = docs.length + provsArr.length;
+        for (let i = 0; i < provsArr.length; i++) {
+            const proveedorId = provsArr[i];
+            try {
+                const proveedor = db.prepare(`SELECT id, evaluacion_inicial, numero_registro, etapa, estado_general FROM proveedores WHERE id = ?`).get(proveedorId);
+                if (!proveedor) continue;
+                const activos = db.prepare(`SELECT COUNT(*) as total FROM documentos WHERE proveedor_id = ? AND es_historico = 0`).get(proveedorId).total;
+                const debeRechazar = forzar
+                    ? (proveedor.etapa !== 'rechazado')
+                    : (proveedor.etapa === 'registrado' && activos === 0);
+                if (debeRechazar) {
+                    if (proveedor.evaluacion_inicial) {
+                        const docEvaluacion = { id: null, proveedor_id: proveedorId, archivo: proveedor.evaluacion_inicial, ciclo: proveedor.numero_registro || (forzar ? 'sin_ciclo' : null) };
+                        const exito = moverDocumentoAHistorico(docEvaluacion);
+                        if (exito) {
+                            db.prepare(`UPDATE proveedores SET evaluacion_inicial = NULL WHERE id = ?`).run(proveedorId);
+                            console.log(`📄 Evaluación inicial del proveedor ${proveedorId} movida a histórico.`);
+                        } else {
+                            console.warn(`⚠️ No se pudo mover la evaluación del proveedor ${proveedorId}.`);
+                        }
+                    }
+                    db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente', evaluacion_fecha = NULL WHERE id = ?`).run(proveedorId);
+                    db.prepare(`UPDATE proveedores SET etapa = 'rechazado', estado_general = 'rechazado', notas_gestion = ?, tipo_proveedor = NULL WHERE id = ?`)
+                        .run(forzar ? 'Rechazado por vencimiento forzado de todos los documentos.' : 'Rechazado por vencimiento de documentos', proveedorId);
+                    registrarHistorial(proveedorId, { id: 1, email: 'Sistema' }, forzar ? 'vencimiento_forzado' : 'vencimiento_automatico', `Proveedor rechazado por vencimiento ${forzar ? 'forzado' : 'automático'} de todos los documentos.`, null, null, null);
+                    console.log(`❌ Proveedor ${proveedorId} cambiado a RECHAZADO por vencimiento.`);
+                    await notificarVencimientoProveedor(proveedorId);
+                    jobVencimientos.notificados++;
+                }
+            } catch (err) {
+                console.error(`❌ Error procesando proveedor ${proveedorId}:`, err.message);
+                jobVencimientos.errores++;
+            }
+            jobVencimientos.procesados = docs.length + i + 1;
+            if ((i + 1) % LOTE_VENCIMIENTOS === 0) {
+                emitirAdmin('vencimientos_progreso', { ...jobVencimientos });
+                await cederEventLoop();
+            }
+        }
+        const resultado = { movidos: jobVencimientos.movidos, notificados: jobVencimientos.notificados, errores: jobVencimientos.errores };
+        console.log(`✅ [VENCIMIENTOS] completado en ${((Date.now() - inicio) / 1000).toFixed(1)}s: ${resultado.movidos} movidos, ${resultado.notificados} notificados, ${resultado.errores} errores`);
+        emitirAdmin('vencimientos_procesados', resultado);
+        return resultado;
+    } catch (err) {
+        console.error('❌ Error en procesarVencimientosCore:', err.message);
+        const resultado = { movidos: jobVencimientos.movidos, notificados: jobVencimientos.notificados, errores: jobVencimientos.errores };
+        emitirAdmin('vencimientos_procesados', resultado);
+        return resultado;
+    } finally {
+        jobVencimientos.enCurso = false;
+        jobVencimientos.procesados = jobVencimientos.total;
+        emitirAdmin('vencimientos_progreso', { ...jobVencimientos });
     }
-
-    console.log(`✅ CRON VENCIMIENTOS completado: ${movidos} documentos movidos, ${notificados} proveedores notificados, ${errores} errores.`);
-
-    const resultado = { movidos, notificados, errores };
-    emitirAdmin('vencimientos_procesados', resultado);
-    return resultado;
-  } catch (err) {
-    console.error('❌ Error en procesarVencimientos:', err.message);
-    const resultado = { movidos, notificados, errores };
-    emitirAdmin('vencimientos_procesados', resultado);
-    return resultado;
-  }
 }
 
-async function forzarVencimientos() {
-  console.log(`\n🔄 [FORZAR VENCIMIENTOS] Iniciando procesamiento - ${new Date().toLocaleString()}`);
-
-  let movidos = 0;
-  let notificados = 0;
-  let errores = 0;
-  const proveedoresAfectados = new Set();
-
-  try {
-    const docsActivos = db.prepare(`
-      SELECT id, proveedor_id, archivo, ciclo
-      FROM documentos
-      WHERE es_historico = 0
-    `).all();
-
-    if (docsActivos.length === 0) {
-      console.log('✅ No hay documentos activos para procesar.');
-      return { movidos: 0, notificados: 0, errores: 0 };
-    }
-
-    console.log(`📋 Encontrados ${docsActivos.length} documentos activos.`);
-
-    for (const doc of docsActivos) {
-      try {
-        const exito = moverDocumentoAHistorico(doc);
-        if (exito) {
-          movidos++;
-          proveedoresAfectados.add(doc.proveedor_id);
-        } else {
-          errores++;
-        }
-      } catch (err) {
-        console.error(`❌ Error procesando documento ${doc.id}:`, err.message);
-        errores++;
-      }
-    }
-
-    for (const proveedorId of proveedoresAfectados) {
-      try {
-        const proveedor = db.prepare(`
-          SELECT id, evaluacion_inicial, numero_registro, etapa, estado_general
-          FROM proveedores
-          WHERE id = ?
-        `).get(proveedorId);
-
-        if (!proveedor || proveedor.etapa === 'rechazado') continue;
-
-        if (proveedor.evaluacion_inicial) {
-          const docEvaluacion = {
-            id: null,
-            proveedor_id: proveedorId,
-            archivo: proveedor.evaluacion_inicial,
-            ciclo: proveedor.numero_registro || 'sin_ciclo'
-          };
-
-          const exito = moverDocumentoAHistorico(docEvaluacion);
-
-          if (exito) {
-            db.prepare(`UPDATE proveedores SET evaluacion_inicial = NULL WHERE id = ?`).run(proveedorId);
-          }
-        }
-
-     db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente', evaluacion_fecha = NULL WHERE id = ?`).run(proveedorId);
-
-      db.prepare(`
-       UPDATE proveedores
-       SET etapa = 'rechazado',
-           estado_general = 'rechazado',
-           notas_gestion = 'Rechazado por vencimiento de documentos',
-           tipo_proveedor = NULL
-       WHERE id = ?
-     `).run(proveedorId);
-     registrarHistorial(
-       proveedorId,
-       { id: 1, email: 'Sistema' },
-       'vencimiento_forzado',
-          `Proveedor rechazado por vencimiento forzado de todos los documentos.`,
-          null,
-          null,
-          null
-        );
-
-        await notificarVencimientoProveedor(proveedorId);
-        notificados++;
-      } catch (err) {
-        console.error(`❌ Error procesando proveedor ${proveedorId}:`, err.message);
-        errores++;
-      }
-    }
-
-    console.log(`✅ FORZAR VENCIMIENTOS completado: ${movidos} documentos movidos, ${notificados} proveedores notificados, ${errores} errores.`);
-
-    const resultado = { movidos, notificados, errores };
-    emitirAdmin('vencimientos_procesados', resultado);
-    return resultado;
-  } catch (err) {
-    console.error('❌ Error en forzarVencimientos:', err.message);
-    return { movidos, notificados, errores };
-  }
+function arrancarVencimientos(opts = {}) {
+    if (jobVencimientos.enCurso) return { ok: false, yaEnCurso: true };
+    procesarVencimientosCore(opts).catch(err => console.error('❌ Job de vencimientos falló:', err.message));
+    return { ok: true, iniciado: true };
 }
 
 async function enviarRecordatoriosFaltantes() {
@@ -1786,68 +1680,64 @@ todos_verificados
 });
 
 app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
-const { razon_social, rfc, representante, telefono, direccion, tipo_persona } = req.body;
-
-if (!razon_social || !rfc || !representante || !telefono || !direccion ||
-!razon_social.trim() || !rfc.trim() || !representante.trim() || !telefono.trim() || !direccion.trim()) {
-return res.status(400).json({ error: 'Todos los datos de la empresa son obligatorios para desbloquear el portal.' });
-}
-
-// 🆕 Validar tipo de persona (opcional en el payload, pero validado si viene)
-let tipoPersona = null;
-if (tipo_persona) {
-if (!['natural', 'juridica'].includes(tipo_persona)) {
-return res.status(400).json({ error: 'El tipo de persona debe ser "natural" o "juridica"' });
-}
-tipoPersona = tipo_persona;
-}
-
-const prov = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
-
-// 🆕 Bloquear cambio de tipo si ya tiene documentos activos
-if (tipoPersona && prov.tipo_proveedor && tipoPersona !== prov.tipo_proveedor) {
-const activos = db.prepare(`
-SELECT COUNT(*) as t FROM documentos WHERE proveedor_id = ? AND es_historico = 0
-`).get(prov.id).t;
-if (activos > 0) {
-return res.status(400).json({
-error: 'No puedes cambiar el tipo de persona porque ya tienes documentos subidos. Contacta al administrador.'
+    const { razon_social, rfc, representante, telefono, direccion, tipo_persona, email } = req.body;
+    if (!razon_social || !rfc || !representante || !telefono || !direccion ||
+        !razon_social.trim() || !rfc.trim() || !representante.trim() || !telefono.trim() || !direccion.trim()) {
+        return res.status(400).json({ error: 'Todos los datos de la empresa son obligatorios para desbloquear el portal.' });
+    }
+    // Validar tipo de persona (opcional en el payload, pero validado si viene)
+    let tipoPersona = null;
+    if (tipo_persona) {
+        if (!['natural', 'juridica'].includes(tipo_persona)) {
+            return res.status(400).json({ error: 'El tipo de persona debe ser "natural" o "juridica"' });
+        }
+        tipoPersona = tipo_persona;
+    }
+    // ✅ prov se define ANTES de usarlo (fix TDZ)
+    const prov = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
+    if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    // 🆕 Cambio de correo electrónico (proveedor) — ahora con "email" declarado y prov definido
+    if (email && String(email).trim()) {
+        const emailNuevo = String(email).trim().toLowerCase();
+        if (!EMAIL_REGEX.test(emailNuevo)) {
+            return res.status(400).json({ error: 'Formato de correo electrónico inválido' });
+        }
+        const usuario = db.prepare('SELECT id, email FROM usuarios WHERE id = ?').get(req.session.usuario.id);
+        if (usuario && emailNuevo !== usuario.email) {
+            const duplicado = db.prepare('SELECT id FROM usuarios WHERE email = ? AND id != ?').get(emailNuevo, usuario.id);
+            if (duplicado) {
+                return res.status(409).json({ error: 'El correo electrónico ya está registrado por otra cuenta.' });
+            }
+            db.prepare('UPDATE usuarios SET email = ? WHERE id = ?').run(emailNuevo, usuario.id);
+            registrarHistorial(prov.id, { id: usuario.id, email: emailNuevo }, 'email_cambiado', `Correo cambiado de ${usuario.email} a ${emailNuevo}`, null, null, req);
+            registrarLogSeguridad(usuario.id, emailNuevo, 'email_cambiado_proveedor', true, `Anterior: ${usuario.email}`, req);
+            req.session.usuario.email = emailNuevo;
+            console.log(`📧 Email del proveedor ${usuario.id} cambiado a ${emailNuevo}`);
+        }
+    }
+    // Bloquear cambio de tipo si ya tiene documentos ACTIVOS (en renovación por vencimiento los docs están archivados → permite elegir tipo)
+    if (tipoPersona && prov.tipo_proveedor && tipoPersona !== prov.tipo_proveedor) {
+        const activos = db.prepare(`SELECT COUNT(*) as t FROM documentos WHERE proveedor_id = ? AND es_historico = 0`).get(prov.id).t;
+        if (activos > 0) {
+            return res.status(400).json({ error: 'No puedes cambiar el tipo de persona porque ya tienes documentos subidos. Contacta al administrador.' });
+        }
+    }
+    db.prepare(`
+        UPDATE proveedores
+        SET razon_social = ?, rfc = ?, representante = ?, telefono = ?, direccion = ?,
+            tipo_proveedor = COALESCE(?, tipo_proveedor)
+        WHERE usuario_id = ?
+    `).run(
+        razon_social.trim(), rfc.trim(), representante.trim(), telefono.trim(), direccion.trim(),
+        tipoPersona, req.session.usuario.id
+    );
+    registrarHistorial(
+        prov.id, req.session.usuario, 'datos_actualizados',
+        `Datos de empresa completados. Razón social: ${razon_social}. Tipo de persona: ${tipoPersona || prov.tipo_proveedor || 'sin definir'}`,
+        null, null, req
+    );
+    res.json({ ok: true, perfil_completo: true });
 });
-}
-}
-
-db.prepare(`
-UPDATE proveedores
-SET razon_social = ?,
-rfc = ?,
-representante = ?,
-telefono = ?,
-direccion = ?,
-tipo_proveedor = COALESCE(?, tipo_proveedor)
-WHERE usuario_id = ?
-`).run(
-razon_social.trim(),
-rfc.trim(),
-representante.trim(),
-telefono.trim(),
-direccion.trim(),
-tipoPersona,
-req.session.usuario.id
-);
-
-registrarHistorial(
-prov.id,
-req.session.usuario,
-'datos_actualizados',
-`Datos de empresa completados. Razón social: ${razon_social}. Tipo de persona: ${tipoPersona || prov.tipo_proveedor || 'sin definir'}`,
-null,
-null,
-req
-);
-
-res.json({ ok: true, perfil_completo: true });
-});
-
 app.post('/api/proveedor/documento', requiereLogin, (req, res, next) => {
   if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
     const proveedor = db.prepare('SELECT id, etapa, tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
@@ -2531,19 +2421,10 @@ app.post('/api/proveedor/recordatorio/:id/cerrar', requiereLogin, (req, res) => 
 // ==========================================
 // 8. ENDPOINTS DE ADMINISTRADOR
 // ==========================================
-app.post('/api/admin/forzar-vencimientos', requiereAdmin, async (req, res) => {
-  try {
-    const resultado = await forzarVencimientos();
-
-    res.json({
-      ok: true,
-      mensaje: 'Procesamiento forzado de vencimientos completado',
-      ...resultado
-    });
-  } catch (err) {
-    console.error('Error forzando vencimientos:', err);
-    res.status(500).json({ error: 'Error al forzar el procesamiento: ' + err.message });
-  }
+app.post('/api/admin/forzar-vencimientos', requiereAdmin, (req, res) => {
+const r = arrancarVencimientos({ forzar: true });
+if (!r.ok) return res.status(409).json({ error: 'Ya hay un procesamiento de vencimientos en curso.', yaEnCurso: true });
+res.status(202).json({ ok: true, mensaje: 'Vencimiento forzado iniciado en segundo plano. Consulta /api/admin/vencimientos-job.' });
 });
 
 app.delete('/api/admin/documento/:id', requiereAdmin, (req, res) => {
@@ -2827,6 +2708,7 @@ app.get('/api/admin/ciclos', requiereAdmin, (req, res) => {
         c.estado,
         c.creado_en,
         p.razon_social,
+        p.rfc,
         u.email,
         u.nombre_empresa,
         (SELECT COUNT(*) FROM documentos WHERE proveedor_id = p.id AND ciclo = c.numero_registro) as total_documentos,
@@ -3157,19 +3039,13 @@ app.post('/api/admin/recalcular-vencimientos', requiereAdmin, async (req, res) =
   }
 });
 
-app.post('/api/admin/ejecutar-vencimientos', requiereAdmin, async (req, res) => {
-  try {
-    const resultado = await procesarVencimientos();
-
-    res.json({
-      ok: true,
-      mensaje: 'Procesamiento de vencimientos completado',
-      ...resultado
-    });
-  } catch (err) {
-    console.error('Error ejecutando vencimientos:', err);
-    res.status(500).json({ error: 'Error al ejecutar el procesamiento: ' + err.message });
-  }
+app.post('/api/admin/ejecutar-vencimientos', requiereAdmin, (req, res) => {
+const r = arrancarVencimientos({ forzar: false });
+if (!r.ok) return res.status(409).json({ error: 'Ya hay un procesamiento de vencimientos en curso.', yaEnCurso: true });
+res.status(202).json({ ok: true, mensaje: 'Procesamiento de vencimientos iniciado en segundo plano. Consulta /api/admin/vencimientos-job.' });
+});
+app.get('/api/admin/vencimientos-job', requiereAdmin, (req, res) => {
+res.json({ ...jobVencimientos });
 });
 
 app.get('/api/admin/proveedores/export', requiereAdmin, (req, res) => {
@@ -3341,12 +3217,48 @@ app.get('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
   }
 });
 
+// 🆕 AGENDA #2: admin cambia correo de un proveedor (conserva historial/documentos/contraseña)
+app.post('/api/admin/proveedor/:id/email', requiereAdmin, (req, res) => {
+    const proveedorId = parseInt(req.params.id);
+    const { email } = req.body || {};
+    if (!email || !String(email).trim()) return res.status(400).json({ error: 'El correo es obligatorio' });
+    const emailNuevo = String(email).trim().toLowerCase();
+    if (!EMAIL_REGEX.test(emailNuevo)) return res.status(400).json({ error: 'Formato de correo inválido' });
+    try {
+        const prov = db.prepare(`SELECT p.id, p.usuario_id, u.email AS email_actual FROM proveedores p JOIN usuarios u ON u.id = p.usuario_id WHERE p.id = ?`).get(proveedorId);
+        if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    if (emailNuevo === String(prov.email_actual).toLowerCase()) return res.status(400).json({ error: 'El correo nuevo es igual al actual' });
+    const dup = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE AND id != ?').get(emailNuevo, prov.usuario_id);
+    if (dup) return res.status(409).json({ error: 'Ese correo ya está registrado por otra cuenta.' });
+db.prepare('UPDATE usuarios SET email = ? WHERE id = ?').run(emailNuevo, proveedor.usuario_id);
+// 🆕 Cierra las sesiones activas del proveedor: deberá entrar con el nuevo correo
+const sesionesCerradas = cerrarSesionesDeUsuario(proveedor.usuario_id);
+        registrarHistorial(proveedorId, req.session.usuario, 'email_cambiado', `Admin cambió el correo de ${prov.email_actual} a ${emailNuevo}`, null, null, req);
+        registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'email_cambiado_admin', true, `Proveedor ${proveedorId}: ${prov.email_actual} → ${emailNuevo}`, req);
+        emitirAdmin('proveedores_actualizados');
+        res.json({ ok: true, mensaje: `Correo actualizado a ${emailNuevo}. El proveedor deberá iniciar sesión con su nuevo correo.`, email: emailNuevo, sesiones_cerradas: sesionesCerradas });
+    } catch (err) {
+        console.error('Error cambiando email:', err);
+        res.status(500).json({ error: 'Error al cambiar el correo' });
+    }
+});
+
 app.post('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
 const { numero_registro, tipo_gestion, notas_gestion, tipo_proveedor } = req.body;
 const proveedorId = req.params.id;
 // 🛡️ Validar longitud de numero_registro (texto libre)
 if (numero_registro && String(numero_registro).length > 100) {
 return res.status(400).json({ error: 'La fecha de movimiento no puede exceder 100 caracteres.' });
+}
+// 🆕 AGENDA #4: impedir ciclos duplicados por proveedor
+if (numero_registro && String(numero_registro).trim()) {
+    const dup = db.prepare('SELECT id, estado FROM ciclos_actualizacion WHERE proveedor_id = ? AND numero_registro = ?').get(proveedorId, String(numero_registro).trim());
+    if (dup) {
+        return res.status(409).json({
+            error: `El número de ciclo "${numero_registro}" ya existe para este proveedor (estado: ${dup.estado}). Genera uno diferente.`,
+            ciclo_duplicado: true
+        });
+    }
 }
 // 🆕 El tipo de proveedor ahora es un valor controlado
 let tipoProveedorValido = (tipo_proveedor || '').trim();
@@ -4226,59 +4138,74 @@ res.json({ integro: false, mensaje: 'Backup dañado o ilegible: ' + e.message })
 }
 });
 app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
-const n = nombreBackupValido(req.params.nombre);
-if (!n) return res.status(400).json({ error: 'Nombre de backup inválido' });
-const ruta = path.join(dataDir, 'backups', n);
-if (!fs.existsSync(ruta)) return res.status(404).json({ error: 'Backup no encontrado' });
-registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'backup_restaurado', true, n, req);
-// 1) Snapshot de seguridad del estado actual (nunca pierdes lo de hoy)
-const safety = path.join(dataDir, 'backups', `pre_restore_${Date.now()}.db`);
-db.backup(safety).then(() => {
-// 2) Cerrar BD y reemplazar archivos (incluye WAL/SHM para evitar corrupción)
-try { db.close(); } catch (e) {}
-fs.rmSync(path.join(dataDir, 'proveedores.db'), { force: true });
-fs.rmSync(path.join(dataDir, 'proveedores.db-wal'), { force: true });
-fs.rmSync(path.join(dataDir, 'proveedores.db-shm'), { force: true });
-fs.copyFileSync(ruta, path.join(dataDir, 'proveedores.db'));
-// 2.5) 🩹 Restaurar archivos físicos faltantes desde el mirror.
-// El mirror conserva todo lo que haya existido; copiamos SOLO los archivos
-// que la BD restaurada referencia y que faltan en uploads/ (preciso y seguro).
-let archivosRestaurados = 0;
-try {
-const Database = require('better-sqlite3');
-const restored = new Database(path.join(dataDir, 'proveedores.db'), { readonly: true });
-const rutas = [
-...restored.prepare(`SELECT archivo FROM documentos WHERE archivo IS NOT NULL AND archivo != 'no_aplica'`).all().map(r => r.archivo),
-...restored.prepare(`SELECT evaluacion_inicial AS archivo FROM proveedores WHERE evaluacion_inicial IS NOT NULL AND evaluacion_inicial != ''`).all().map(r => r.archivo)
-];
-const rutasPlant = restored.prepare(`SELECT archivo FROM plantillas WHERE archivo IS NOT NULL`).all().map(r => r.archivo);
-restored.close();
-const copiarSiFalta = (rel, mirror, base) => {
-const relLimpio = String(rel || '').replace(/\\/g, '/');
-if (!relLimpio || relLimpio.includes('..')) return;
-const dest = path.resolve(base, relLimpio);
-if (!dest.startsWith(path.resolve(base) + path.sep)) return; // anti path-traversal
-if (fs.existsSync(dest)) return;
-const src = path.join(mirror, relLimpio);
-if (!fs.existsSync(src)) return;
-fs.mkdirSync(path.dirname(dest), { recursive: true });
-fs.copyFileSync(src, dest);
-archivosRestaurados++;
-};
-const mUp = path.join(dataDir, 'backups', 'uploads_mirror');
-const mPl = path.join(dataDir, 'backups', 'plantillas_mirror');
-rutas.forEach(rel => copiarSiFalta(rel, mUp, uploadsDir));
-rutasPlant.forEach(rel => copiarSiFalta(rel, mPl, plantillasDir));
-if (archivosRestaurados > 0) console.log(`🩹 Restauración: ${archivosRestaurados} archivo(s) físico(s) recuperado(s) del mirror`);
-} catch (e) {
-console.error('️ Error restaurando archivos del mirror:', e.message);
-}
-res.json({ ok: true, mensaje: `Restauración completada${archivosRestaurados ? ` (${archivosRestaurados} archivo(s) recuperado(s))` : ''}. Reiniciando el servicio…` });
-// 3) Railway reinicia solo al salir el proceso
-setTimeout(() => process.exit(0), 800);
-}).catch(e => {
-if (!res.headersSent) res.status(500).json({ error: 'Error al restaurar: ' + e.message });
-});
+  const n = nombreBackupValido(req.params.nombre);
+  if (!n) return res.status(400).json({ error: 'Nombre de backup inválido' });
+  const ruta = path.join(dataDir, 'backups', n);
+  if (!fs.existsSync(ruta)) return res.status(404).json({ error: 'Backup no encontrado' });
+  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'backup_restaurado', true, n, req);
+  // 1) Snapshot de seguridad del estado actual (nunca pierdes lo de hoy)
+  const safety = path.join(dataDir, 'backups', `pre_restore_${Date.now()}.db`);
+  db.backup(safety).then(() => {
+    // 2) Cerrar BD y reemplazar archivos (incluye WAL/SHM para evitar corrupción)
+    try { db.close(); } catch (e) {}
+    fs.rmSync(path.join(dataDir, 'proveedores.db'), { force: true });
+    fs.rmSync(path.join(dataDir, 'proveedores.db-wal'), { force: true });
+    fs.rmSync(path.join(dataDir, 'proveedores.db-shm'), { force: true });
+    fs.copyFileSync(ruta, path.join(dataDir, 'proveedores.db'));
+    // 2.5) 🩹 Restaurar archivos físicos faltantes desde el mirror + GC post-restauración
+    let archivosRestaurados = 0;
+    try {
+      const Database = require('better-sqlite3');
+      const restored = new Database(path.join(dataDir, 'proveedores.db'), { readonly: true });
+      const rutas = [
+        ...restored.prepare(`SELECT archivo FROM documentos WHERE archivo IS NOT NULL AND archivo != 'no_aplica'`).all().map(r => r.archivo),
+        ...restored.prepare(`SELECT evaluacion_inicial AS archivo FROM proveedores WHERE evaluacion_inicial IS NOT NULL AND evaluacion_inicial != ''`).all().map(r => r.archivo)
+      ];
+      const rutasPlant = restored.prepare(`SELECT archivo FROM plantillas WHERE archivo IS NOT NULL`).all().map(r => r.archivo);
+      // 🧹 FIX: las referencias se calculan ANTES de cerrar la BD restaurada
+      // (antes se usaba `db.prepare` con la BD ya cerrada → el GC fallaba en silencio)
+      const referencias = new Set(rutas.concat(rutasPlant).map(r => String(r || '').replace(/\\/g, '/')));
+      restored.close();
+      const copiarSiFalta = (rel, mirror, base) => {
+        const relLimpio = String(rel || '').replace(/\\/g, '/');
+        if (!relLimpio || relLimpio.includes('..')) return; // anti path-traversal
+        const dest = path.resolve(base, relLimpio);
+        if (!dest.startsWith(path.resolve(base) + path.sep)) return;
+        if (fs.existsSync(dest)) return;
+        const src = path.join(mirror, relLimpio);
+        if (!fs.existsSync(src)) return;
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(src, dest);
+        archivosRestaurados++;
+      };
+      const mUp = path.join(dataDir, 'backups', 'uploads_mirror');
+      const mPl = path.join(dataDir, 'backups', 'plantillas_mirror');
+      rutas.forEach(rel => copiarSiFalta(rel, mUp, uploadsDir));
+      rutasPlant.forEach(rel => copiarSiFalta(rel, mPl, plantillasDir));
+      if (archivosRestaurados > 0) console.log(`🩹 Restauración: ${archivosRestaurados} archivo(s) físico(s) recuperado(s) del mirror`);
+      // 🧹 GC post-restauración: elimina de uploads/ los archivos que NINGUNA fila referencia
+      try {
+        let borrados = 0;
+        const caminar = (dir) => {
+          for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) { caminar(full); continue; }
+            const rel = path.relative(uploadsDir, full).replace(/\\/g, '/');
+            if (!referencias.has(rel)) { fs.unlinkSync(full); borrados++; }
+          }
+        };
+        if (fs.existsSync(uploadsDir)) caminar(uploadsDir);
+        if (borrados > 0) console.log(`🧹 GC post-restauración: ${borrados} archivo(s) huérfano(s) eliminado(s) de uploads/`);
+      } catch (e) { console.error('⚠️ Error en GC post-restauración:', e.message); }
+    } catch (e) {
+      console.error('⚠️ Error restaurando archivos del mirror:', e.message);
+    }
+    res.json({ ok: true, mensaje: `Restauración completada${archivosRestaurados ? ` (${archivosRestaurados} archivo(s) recuperado(s))` : ''}. Reiniciando el servicio…` });
+    // 3) Railway reinicia solo al salir el proceso
+    setTimeout(() => process.exit(0), 800);
+  }).catch(e => {
+    if (!res.headersSent) res.status(500).json({ error: 'Error al restaurar: ' + e.message });
+  });
 });
 
 app.post('/api/admin/proveedor/:id/documento', requiereAdmin, limiterUpload, uploadDoc.single('archivo'), validarPDFMagico, (req, res) => {
@@ -5413,11 +5340,11 @@ cron.schedule('0 8 * * *', async () => {
 
 console.log('⏰ Cron job de recordatorios configurado para las 8:00 AM (Colombia)');
 
-cron.schedule('0 0 * * *', async () => {
-  console.log(`\n🕐 Ejecutando procesamiento de vencimientos - ${new Date().toLocaleString()}`);
-  await procesarVencimientos();
+cron.schedule('0 0 * * *', () => {
+console.log(`🕐 Programando procesamiento de vencimientos - ${new Date().toLocaleString()}`);
+arrancarVencimientos({ forzar: false });
 }, {
-  timezone: "America/Bogota"
+timezone: "America/Bogota"
 });
 
 // 🧹 N1: limpieza de logs_seguridad (retención 90 días). Antes nunca se ejecutaba.
@@ -5692,13 +5619,27 @@ function recuperarDocumentosHuérfanos() {
           'carta': 'carta_ica'
           };
 
-          if (mapTipos[tipo]) {
-            tipo = mapTipos[tipo];
-          }
-
-          if (tipo === 'evaluacion') continue;
-
-          const nombreOriginal = archivo.replace('.enc', '.pdf');
+if (mapTipos[tipo]) {
+tipo = mapTipos[tipo];
+}
+if (tipo === 'evaluacion') continue;
+// 🛡️ ANTI-DUPLICADOS: si el proveedor YA tiene un registro ACTIVO de este tipo
+// y el tipo no permite múltiples archivos, NO insertamos un registro duplicado:
+// el archivo huérfano se pone en cuarentena (fuera de futuros escaneos) y se reporta.
+const tipoProv = db.prepare('SELECT tipo_proveedor FROM proveedores WHERE id = ?').get(proveedorId)?.tipo_proveedor;
+const cfg = configDocumento(tipo, tipoProv);
+const permiteMultiples = cfg && ((cfg.cantidadMin || 1) > 1 || (cfg.cantidadMax || 1) > 1);
+if (!permiteMultiples) {
+const activosDelTipo = db.prepare(`SELECT COUNT(*) AS c FROM documentos WHERE proveedor_id = ? AND tipo = ? AND es_historico = 0`).get(proveedorId, tipo).c;
+if (activosDelTipo > 0) {
+const cuarentena = path.join(rutaCarpeta, '_recuperados');
+if (!fs.existsSync(cuarentena)) fs.mkdirSync(cuarentena, { recursive: true });
+fs.renameSync(path.join(rutaCarpeta, archivo), path.join(cuarentena, archivo));
+console.log(`🧫 Huérfano en cuarentena (ya hay un activo del tipo ${tipo}): ${archivo}`);
+continue;
+}
+}
+const nombreOriginal = archivo.replace('.enc', '.pdf');
 
           db.prepare(`
             INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, verificado, no_aplica, subido_en)
@@ -5726,68 +5667,72 @@ function recuperarDocumentosHuérfanos() {
 recuperarDocumentosHuérfanos();
 // 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
 // evaluaciones iniciales huérfanas asignándolas a su ciclo por fecha. Idempotente.
+// 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
+// evaluaciones iniciales huérfanas asignándolas a su ciclo por fecha. Idempotente.
 function reorganizarHistoricosPorCiclo() {
-try {
-// 1) Documentos históricos con ciclo pero archivo suelto
-const docs = db.prepare(`
-SELECT id, proveedor_id, archivo, ciclo
-FROM documentos
-WHERE es_historico = 1
-AND archivo IS NOT NULL AND archivo != 'no_aplica'
-AND ciclo IS NOT NULL AND ciclo != ''
-`).all();
-let movidos = 0;
-for (const doc of docs) {
-if (String(doc.archivo).startsWith(`${doc.proveedor_id}/${doc.ciclo}/`)) continue;
-const rutaActual = path.join(uploadsDir, doc.archivo);
-if (!fs.existsSync(rutaActual)) continue;
-const dirDestino = path.join(uploadsDir, String(doc.proveedor_id), String(doc.ciclo));
-if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
+    try {
+        // 1) Documentos históricos con ciclo pero archivo suelto
+        const docs = db.prepare(`
+            SELECT id, proveedor_id, archivo, ciclo
+            FROM documentos
+            WHERE es_historico = 1
+            AND archivo IS NOT NULL AND archivo != 'no_aplica'
+            AND ciclo IS NOT NULL AND ciclo != ''
+        `).all();
+        let movidos = 0;
+        for (const doc of docs) {
+            if (String(doc.archivo).startsWith(`${doc.proveedor_id}/${doc.ciclo}/`)) continue;
+            const rutaActual = path.join(uploadsDir, doc.archivo);
+            if (!fs.existsSync(rutaActual)) continue;
+            const dirDestino = path.join(uploadsDir, String(doc.proveedor_id), String(doc.ciclo));
+            if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
 let nombre = path.basename(doc.archivo);
 let rutaNueva = path.join(dirDestino, nombre);
-if (fs.existsSync(rutaNueva)) {
-const ext = path.extname(nombre);
-nombre = `${path.basename(nombre, ext)}_${Date.now()}${ext}`;
-rutaNueva = path.join(dirDestino, nombre);
-}
-fs.renameSync(rutaActual, rutaNueva);
+const r = moverArchivoConDedup(rutaActual, rutaNueva);
+rutaNueva = r.rutaFinal;
+nombre = path.basename(r.rutaFinal);
+if (r.reutilizado) console.log(`♻️ Doc ${doc.id}: duplicado eliminado al reorganizar (contenido idéntico ya en ciclo)`);
 db.prepare(`UPDATE documentos SET archivo = ? WHERE id = ?`).run(`${doc.proveedor_id}/${doc.ciclo}/${nombre}`, doc.id);
 movidos++;
-}
-if (movidos > 0) console.log(`🗂️ ${movidos} histórico(s) reorganizados en subcarpetas de ciclo`);
-// 2) Evaluaciones huérfanas sueltas en uploads/<id>/ → al ciclo por fecha
-const provs = db.prepare(`SELECT DISTINCT proveedor_id FROM ciclos_actualizacion`).all();
-let evalsMovidas = 0;
-for (const { proveedor_id } of provs) {
-const dirProv = path.join(uploadsDir, String(proveedor_id));
-if (!fs.existsSync(dirProv)) continue;
-const sueltas = fs.readdirSync(dirProv).filter(f => f.startsWith('evaluacion_') && f.endsWith('.enc'));
-if (!sueltas.length) continue;
-const ciclos = db.prepare(`
-SELECT numero_registro, fecha_inicio, fecha_fin
-FROM ciclos_actualizacion WHERE proveedor_id = ?
-`).all(proveedor_id);
-for (const f of sueltas) {
-const mtime = fs.statSync(path.join(dirProv, f)).mtime;
-const parse = s => new Date(String(s).replace(' ', 'T') + '-05:00');
-let ciclo = ciclos.find(c => mtime >= parse(c.fecha_inicio) && (!c.fecha_fin || mtime <= parse(c.fecha_fin)));
-if (!ciclo) {
-ciclo = ciclos.map(c => ({ ...c, ini: parse(c.fecha_inicio) }))
-.filter(c => c.ini > mtime)
-.sort((a, b) => a.ini - b.ini)[0];
-}
-if (!ciclo) continue;
-const dirDestino = path.join(dirProv, String(ciclo.numero_registro));
-if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
-if (fs.existsSync(path.join(dirDestino, f))) continue;
-fs.renameSync(path.join(dirProv, f), path.join(dirDestino, f));
-evalsMovidas++;
-}
-}
-if (evalsMovidas > 0) console.log(`🗂️ ${evalsMovidas} evaluación(es) huérfana(s) asignadas a su ciclo`);
-} catch (err) {
-console.error('❌ Error reorganizando históricos:', err.message);
-}
+        }
+        if (movidos > 0) console.log(`🗂️ ${movidos} histórico(s) reorganizados en subcarpetas de ciclo`);
+
+        // 2) Evaluaciones huérfanas sueltas en uploads/<id>/ → al ciclo por fecha
+        const provs = db.prepare(`SELECT DISTINCT proveedor_id FROM ciclos_actualizacion`).all();
+        let evalsMovidas = 0;
+        for (const { proveedor_id } of provs) {
+            const dirProv = path.join(uploadsDir, String(proveedor_id));
+            if (!fs.existsSync(dirProv)) continue;
+            const sueltas = fs.readdirSync(dirProv).filter(f => f.startsWith('evaluacion_') && f.endsWith('.enc'));
+            if (!sueltas.length) continue;
+            const ciclos = db.prepare(`
+                SELECT numero_registro, fecha_inicio, fecha_fin
+                FROM ciclos_actualizacion WHERE proveedor_id = ?
+            `).all(proveedor_id);
+            for (const f of sueltas) {
+                // 🛡️ FIX: no mover evaluaciones que siguen referenciadas como ACTIVAS (evaluacion_inicial)
+                const refActiva = db.prepare(`SELECT id FROM proveedores WHERE id = ? AND evaluacion_inicial = ?`).get(proveedor_id, `${proveedor_id}/${f}`);
+                if (refActiva) continue;
+                const mtime = fs.statSync(path.join(dirProv, f)).mtime;
+                const parse = s => new Date(String(s).replace(' ', 'T') + '-05:00');
+                // 🛡️ Solo ciclos CERRADOS con ventana que contenga la fecha del archivo.
+                // Sin adivinanza: si no encaja, se deja intacta y se reporta.
+                const ciclo = ciclos.find(c => c.fecha_fin && mtime >= parse(c.fecha_inicio) && mtime <= parse(c.fecha_fin));
+                if (!ciclo) {
+                console.log(`⚠️ Evaluación huérfana sin ciclo cerrado coincidente: ${proveedor_id}/${f} → se deja intacta`);
+                continue;
+                }
+                const dirDestino = path.join(dirProv, String(ciclo.numero_registro));
+                if (!fs.existsSync(dirDestino)) fs.mkdirSync(dirDestino, { recursive: true });
+                if (fs.existsSync(path.join(dirDestino, f))) continue;
+                fs.renameSync(path.join(dirProv, f), path.join(dirDestino, f));
+                evalsMovidas++;
+            }
+        }
+        if (evalsMovidas > 0) console.log(`🗂️ ${evalsMovidas} evaluación(es) huérfana(s) asignadas a su ciclo`);
+    } catch (err) {
+        console.error('❌ Error reorganizando históricos:', err.message);
+    }
 }
 reorganizarHistoricosPorCiclo();
 
