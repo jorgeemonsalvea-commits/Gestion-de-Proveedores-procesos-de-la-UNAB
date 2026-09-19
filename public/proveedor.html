@@ -71,6 +71,21 @@
 from { opacity: 0; transform: translateY(-10px); }
 to { opacity: 1; transform: translateY(0); }
 }
+/* ==========================================
+🧹 COMPACTAR FILAS DE DOCUMENTOS (elimina el espacio gris residual)
+========================================== */
+/* 1) La columna de información pasa a flex-column con gap mínimo:
+   los <br> sobrantes dejan de generar líneas vacías. */
+#listaDocumentos .doc-row div[style*="flex:1"] { display: flex; flex-direction: column; gap: 0.15rem; }
+#listaDocumentos .doc-row div[style*="flex:1"] br { display: none; }
+/* 2) Todo nodo SIN contenido se colapsa: no aporta alto, margen ni padding. */
+#listaDocumentos .doc-row div[style*="flex:1"] > *:empty { display: none !important; margin: 0 !important; padding: 0 !important; }
+/* 3) Filas más apretadas verticalmente */
+#listaDocumentos .doc-row { margin-bottom: 0.4rem; padding: 0.5rem 0.6rem; }
+/* 4) El motivo y la fecha quedan pegados al nombre, sin huecos */
+#listaDocumentos .doc-row div[style*="flex:1"] > small,
+#listaDocumentos .doc-row div[style*="flex:1"] > div { margin: 0 !important; }
+
 /* 🆕 A6.2: resaltar tarjeta al saltar desde el checklist */
 .doc-item.doc-flash {
 border-color: #8600dd !important;
@@ -423,12 +438,40 @@ return String(text)
 }
 // 🛡️ A1: escape para valores de atributos HTML (data-*)
 function escapeAttr(text) {
-if (!text) return '';
-return String(text)
-.replace(/&/g, '&amp;')
-.replace(/"/g, '&quot;')
-.replace(/</g, '&lt;')
-.replace(/>/g, '&gt;');
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// 🧹 Limpia el comentario de rechazo eliminando sufijos automáticos del sistema
+// para mostrar solo el motivo real escrito por el administrador
+function limpiarMotivoRechazo(comentario) {
+    if (!comentario) return '';
+    let texto = String(comentario).trim();
+    // Remover sufijos automáticos agregados por el backend
+    const sufijos = [
+        '— Debes eliminar este documento antes de subir uno nuevo.',
+        'Debes eliminar este documento antes de subir uno nuevo.',
+        'Debes eliminar este documento rechazado antes de subir uno nuevo',
+        'Debes subir una nueva versión (reinicio de proceso)'
+    ];
+    sufijos.forEach(sufijo => {
+        if (texto.endsWith(sufijo)) {
+            texto = texto.substring(0, texto.length - sufijo.length).trim();
+        }
+        // También remover si está en medio (con guión largo)
+        const idx = texto.indexOf('— ' + sufijo);
+        if (idx !== -1) {
+            texto = texto.substring(0, idx).trim();
+        }
+    });
+    // Remover patrón genérico de rechazo
+    texto = texto.replace(/\s*—\s*Debes eliminar.*$/i, '').trim();
+    texto = texto.replace(/^Documento rechazado\.\s*/i, '').trim();
+    return texto || 'Sin motivo especificado';
 }
 
 // 🎨 Iconografía de línea UNAB v5 — reemplaza emojis en botones de acción
@@ -452,6 +495,14 @@ verDocumento(btn.dataset.url, btn.dataset.nombre || 'Documento');
 function nombreFormato(tipo) {
 const r = (requeridos || []).find(x => x.tipo === tipo);
 return r ? r.nombre : (tipo || 'Documento');
+}
+// 🧹 Retira el sufijo legado de los motivos de rechazo almacenados antes del
+// cambio ("... Debes eliminar este documento antes de subir uno nuevo.").
+// El aviso de eliminación ya vive en el letrero del pie de la tarjeta.
+function limpiarMotivoRechazo(texto) {
+return String(texto || '')
+.replace(/\s*[.\-—]\s*Debes eliminar este documento antes de subir uno nuevo\.\s*$/i, '')
+.trim();
 }
 
 // 🚫 Punto 8: además de la etapa, bloquea si hay rechazo total con documentos rechazados activos
@@ -1087,14 +1138,6 @@ ${(ok || noAplica) && !tieneRechazado ? `<button type="button" class="btn-toggle
 const colapsado = (ok || noAplica) && !tieneRechazado;
 html += `<div class="doc-body" style="${colapsado ? 'display:none;' : ''}">`;
 
-// 🚫 Punto 8: aviso por tipo con rechazo activo
-if (tieneRechazado) {
-html += `
-<div class="alert alert-error" style="margin-bottom:0.8rem;">
-🚫 Este documento está rechazado. Debes eliminar la versión rechazada antes de subir una nueva.
-</div>`;
-}
-
 // BLOQUE EXPERIENCIA (máximo 3)
 if (req.tipo === 'experiencia') {
 const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
@@ -1158,7 +1201,7 @@ const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.tri
               <small>📎 ${escapeHtml(nombreFormato(d.tipo))} ${(d.estado === 'pendiente' && d.verificado === 1)
             ? '<span class="badge badge-verificado-pendiente">✅ Verificado</span>'
             : `<span class="badge badge-${d.estado}">${d.estado}</span>`}</small>
-              ${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
+              ${d.comentario ? `<div style="color:#991b1b;font-size:0.95rem;font-weight:600;margin:0.35rem 0;line-height:1.4;">💬 Motivo: ${escapeHtml(limpiarMotivoRechazo(d.comentario))}</div>` : ''}
               <br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
               ${d.fecha_vencimiento ? `
                 <br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
@@ -1394,7 +1437,7 @@ function actualizarChecklistFaltantes(completados) {
     '<span style="font-size:1.1rem;">📋</span>' +
     '<strong style="color:#92400e;">Te faltan ' + faltantes.length + ' de ' + total + ' documentos por subir</strong>' +
     (rechazadosCount > 0
-      ? '<span style="color:#dc2626;font-|size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ' — debes reponerlos)</span>'
+      ? '<span style="color:#dc2626;font-|size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ')</span>'
       : '') +
     '</div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.4rem;">';

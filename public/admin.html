@@ -3022,10 +3022,50 @@ const r = await res.json();
 mostrarAlerta(r.error || 'Error al cambiar estado');
 }
 }
+// 🆕 C2: motivos institucionales predefinidos (estandariza rechazos del equipo)
+const MOTIVOS_RECHAZO = [
+  'Documento ilegible o borroso',
+  'Falta firma o huella',
+  'Documento vencido',
+  'Formato incorrecto (no es la plantilla institucional)',
+  'Documento no corresponde al tipo solicitado',
+  'Información incompleta o inconsistente'
+];
 async function rechazar(docId) {
-const c = await promptSwal({ titulo: 'Motivo del rechazo', texto: 'Opcional: el proveedor lo verá en su portal y por correo.', placeholder: 'Ej: Documento ilegible…', obligatorio: false });
-if (c === null) return;
-cambiarEstado(docId, 'rechazado', c);
+  // Paso 1: select de motivos predefinidos
+  const opciones = { '': '— Selecciona un motivo —' };
+  MOTIVOS_RECHAZO.forEach((m, i) => { opciones[String(i)] = m; });
+  opciones['otro'] = '✏️ Otro (escribir)…';
+  const r1 = await Swal.fire({
+    title: 'Motivo del rechazo',
+    text: 'El proveedor lo verá en su portal y por correo.',
+    icon: 'warning',
+    input: 'select',
+    inputOptions: opciones,
+    showCancelButton: true,
+    confirmButtonText: 'Continuar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#6b7280',
+    reverseButtons: true,
+    inputValidator: (v) => (v === '' || v === undefined || v === null) ? 'Debes seleccionar un motivo.' : null
+  });
+  if (!r1.isConfirmed) return;
+  // Paso 2: si eligió "Otro", texto libre obligatorio (reusa promptSwal)
+  let motivo;
+  if (r1.value === 'otro') {
+    const r2 = await promptSwal({
+      titulo: 'Escribe el motivo',
+      texto: 'Sé específico: el proveedor lo verá en su portal y por correo.',
+      placeholder: 'Describe el motivo del rechazo…',
+      obligatorio: true
+    });
+    if (r2 === null) return;
+    motivo = r2.trim();
+  } else {
+    motivo = MOTIVOS_RECHAZO[parseInt(r1.value, 10)];
+  }
+  cambiarEstado(docId, 'rechazado', motivo);
 }
 
 // ==========================================

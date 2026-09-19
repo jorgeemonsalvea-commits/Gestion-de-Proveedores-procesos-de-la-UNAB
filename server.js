@@ -3813,7 +3813,7 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
            verificado = 0,
            no_aplica = 0,
            fecha_vencimiento = NULL,
-           comentario = 'Rechazado por evaluación inicial en proceso de actualización. Debes eliminar este documento antes de subir uno nuevo.'
+           comentario = 'Rechazado por evaluación inicial en proceso de actualización.'
        WHERE proveedor_id = ?
          AND es_historico = 0
      `).run(proveedorId);
@@ -3907,7 +3907,7 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
            verificado = 0,
            no_aplica = 0,
            fecha_vencimiento = NULL,
-           comentario = 'Rechazado por evaluación inicial. Debes eliminar este documento antes de subir uno nuevo.'
+           comentario = 'Rechazado por evaluación inicial.'
        WHERE proveedor_id = ?
          AND es_historico = 0
      `).run(proveedorId);
@@ -4085,11 +4085,10 @@ let ciclo = doc.ciclo || null;
 let comentarioFinal = comentario || null;
 
 if (estado === 'rechazado') {
-  const motivo = (comentario || '').trim();
-
-  comentarioFinal = motivo
-    ? `${motivo} — Debes eliminar este documento antes de subir uno nuevo.`
-    : 'Documento rechazado. Debes eliminar este documento antes de subir uno nuevo.';
+// 🧹 El motivo se guarda LIMPIO: el portal muestra por separado el aviso
+// "elimínalo antes de subir uno nuevo" al pie de la tarjeta (sin duplicar).
+const motivo = (comentario || '').trim();
+comentarioFinal = motivo || 'Documento rechazado.';
 }
 
   if (estado === 'aprobado') {
