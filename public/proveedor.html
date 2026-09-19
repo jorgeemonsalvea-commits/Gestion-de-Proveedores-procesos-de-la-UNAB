@@ -1285,65 +1285,152 @@ function mostrarPreviewArchivo(e) {
 // ==========================================
 // HANDLER PARA SUBIDA DE DOCUMENTOS
 // ==========================================
-  async function handleUploadSubmit(e) {
-    e.preventDefault();
+async function handleUploadSubmit(e) {
+  e.preventDefault();
+  if (!puedeSubirDocumentos()) {
+    mostrarAlerta('🔒 No puedes subir documentos en la etapa actual.', 'warning');
+    return;
+  }
 
-    if (!puedeSubirDocumentos()) {
-      mostrarAlerta('🔒 No puedes subir documentos en la etapa actual.', 'warning');
-      return;
-    }
+  const form = e.target;
+  const fd = new FormData(form);
+  fd.append('tipo', form.dataset.tipo);
 
-    const form = e.target;
-    const fd = new FormData(form);
-    fd.append('tipo', form.dataset.tipo);
+  const btn = form.querySelector('button');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Subiendo...';
 
-    const btn = form.querySelector('button');
-const textoOriginal = btn.textContent;
-btn.disabled = true;
-btn.textContent = '⏳ Subiendo...';
+  // 🆕 A5: Crear barra de progreso dentro del formulario
+  let progressContainer = form.querySelector('.upload-progress');
+  if (!progressContainer) {
+    progressContainer = document.createElement('div');
+    progressContainer.className = 'upload-progress';
+    progressContainer.style.cssText = `
+      flex-basis: 100%; margin-top: 0.5rem; padding: 0.5rem 0.8rem;
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px;
+    `;
+    progressContainer.innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.6rem;">
+        <div style="flex:1;height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+          <div class="upload-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--color-primario),var(--color-acento));border-radius:999px;transition:width 0.2s ease;"></div>
+        </div>
+        <span class="upload-progress-text" style="font-size:0.78rem;color:#0369a1;font-weight:600;white-space:nowrap;">0%</span>
+      </div>
+      <small class="upload-progress-status" style="color:#6b7280;font-size:0.75rem;display:block;margin-top:0.3rem;">Preparando subida...</small>
+    `;
+    form.appendChild(progressContainer);
+  }
+  progressContainer.style.display = 'block';
 
-// 🚫 Cambio 9: ya no se controla reinicio automático; el flujo exige eliminar documentos rechazados antes de subir.
-const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica');
-    if (checkboxNoAplica && checkboxNoAplica.checked) {
-      try {
-        const tipo = form.dataset.tipo;
-        await fetchAPI('/api/proveedor/documento', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tipo, no_aplica: false })
-        });
-      } catch (err) {
-        console.error('Error desmarcando No Aplica:', err);
-        mostrarAlerta('❌ Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
-        btn.disabled = false;
-        btn.textContent = textoOriginal;
-        return;
-      }
-    }
+  const bar = progressContainer.querySelector('.upload-progress-bar');
+  const text = progressContainer.querySelector('.upload-progress-text');
+  const status = progressContainer.querySelector('.upload-progress-status');
 
+  // 🚫 Cambio 9: ya no se controla reinicio automático; el flujo exige eliminar documentos rechazados antes de subir.
+  const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica');
+  if (checkboxNoAplica && checkboxNoAplica.checked) {
     try {
-      const res = await fetchAPI('/api/proveedor/documento', { method: 'POST', body: fd });
-      const r = await res.json();
-if (res.ok) {
-mostrarAlerta('👌 Documento subido correctamente', 'success');
-documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
-renderDocumentos();
-await actualizarEstado();
-
-// 🚫 Cambio 9: sin mensaje de reinicio automático
-} else {
-        mostrarAlerta(`❌ ${r.error}`);
-      }
+      const tipo = form.dataset.tipo;
+      await fetchAPI('/api/proveedor/documento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, no_aplica: false })
+      });
     } catch (err) {
-      console.error('Error subiendo documento:', err);
-      mostrarAlerta('❌ Error al subir el documento: ' + err.message);
-    } finally {
+      console.error('Error desmarcando No Aplica:', err);
+      mostrarAlerta('❌ Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
       btn.disabled = false;
       btn.textContent = textoOriginal;
+      progressContainer.remove();
+      return;
     }
   }
 
+  // 🆕 A5: Subida con progreso real usando XMLHttpRequest
+  try {
+    const resultado = await subirConProgreso(fd, bar, text, status);
 
+    if (resultado.ok) {
+      // Animación de éxito
+      bar.style.width = '100%';
+      bar.style.background = 'linear-gradient(90deg, #059669, #10b981)';
+      text.textContent = '100%';
+      status.textContent = '✅ Documento recibido y procesado';
+      status.style.color = '#059669';
+
+      mostrarAlerta('👌 Documento subido correctamente', 'success');
+      documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+      renderDocumentos();
+      await actualizarEstado();
+    } else {
+      bar.style.background = '#dc2626';
+      status.textContent = `❌ ${resultado.error}`;
+      status.style.color = '#dc2626';
+      mostrarAlerta(`❌ ${resultado.error}`);
+      setTimeout(() => progressContainer.remove(), 3000);
+    }
+  } catch (err) {
+    console.error('Error subiendo documento:', err);
+    bar.style.background = '#dc2626';
+    status.textContent = `❌ ${err.message}`;
+    status.style.color = '#dc2626';
+    mostrarAlerta('❌ Error al subir el documento: ' + err.message);
+    setTimeout(() => progressContainer.remove(), 3000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+    // La barra se elimina automáticamente al re-renderizar documentos
+  }
+}
+
+// ==========================================
+// 🆕 A5: HELPER DE SUBIDA CON PROGRESO (XHR)
+// ==========================================
+function subirConProgreso(formData, bar, text, status) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/proveedor/documento');
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        if (bar) bar.style.width = pct + '%';
+        if (text) text.textContent = pct + '%';
+        if (status) {
+          if (pct < 100) {
+            status.textContent = `Subiendo archivo... (${(e.loaded / 1024 / 1024).toFixed(1)} / ${(e.total / 1024 / 1024).toFixed(1)} MB)`;
+          } else {
+            status.textContent = 'Procesando en servidor...';
+          }
+        }
+      }
+    };
+
+    xhr.upload.onloadstart = () => {
+      if (status) status.textContent = 'Iniciando transferencia...';
+    };
+
+    xhr.onload = () => {
+      if (status) status.textContent = 'Respuesta recibida del servidor...';
+      try {
+        const data = JSON.parse(xhr.responseText);
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300, ...data });
+      } catch (e) {
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300 });
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Error de red durante la subida'));
+    xhr.ontimeout = () => reject(new Error('Tiempo de espera agotado (120s)'));
+    xhr.onabort = () => reject(new Error('Subida cancelada'));
+
+    xhr.timeout = 120000; // 2 minutos para archivos grandes
+
+    xhr.send(formData);
+  });
+}
 
   // ==========================================
   // HANDLER PARA "NO APLICA"
