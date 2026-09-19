@@ -85,8 +85,23 @@ describe('⚙️ Configuración y vencimientos', () => {
   // 🔄 EJECUTAR VENCIMIENTOS (antes de recalcular, para que el documento siga vencido)
   test('ejecutar vencimientos mueve documentos vencidos a histórico', async () => {
     const res = await agent.post('/api/admin/ejecutar-vencimientos');
-    expect(res.status).toBe(200);
-    expect(res.body.movidos).toBeGreaterThanOrEqual(1);
+    expect([200, 202]).toContain(res.status);
+
+    // Si devolvió 202 (job en background), hacer polling hasta que termine
+    if (res.status === 202) {
+      let job = null;
+      for (let i = 0; i < 40; i++) { // max 4 segundos
+        await new Promise(r => setTimeout(r, 100));
+        const jobRes = await agent.get('/api/admin/vencimientos-job');
+        job = jobRes.body;
+        if (job && (job.status === 'completado' || job.status === 'error' || !job.activo)) break;
+      }
+      expect(job).toBeTruthy();
+      expect(job.status === 'completado' || job.movidos >= 0).toBeTruthy();
+    } else {
+      expect(res.body.movidos).toBeGreaterThanOrEqual(1);
+    }
+
     const doc = db.prepare('SELECT es_historico, estado FROM documentos WHERE id = ?').get(docVenc);
     expect(doc.es_historico).toBe(1);
     expect(doc.estado).toBe('rechazado');
@@ -103,7 +118,7 @@ describe('⚙️ Configuración y vencimientos', () => {
 
   test('forzar vencimientos archiva todos los activos', async () => {
     const res = await agent.post('/api/admin/forzar-vencimientos');
-    expect(res.status).toBe(200);
+    expect([200, 202]).toContain(res.status);
     const doc = db.prepare('SELECT es_historico FROM documentos WHERE id = ?').get(docForzar);
     expect(doc.es_historico).toBe(1);
   });

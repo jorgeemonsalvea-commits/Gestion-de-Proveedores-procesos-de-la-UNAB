@@ -1143,20 +1143,148 @@ html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-
   // ==========================================
   // 🎯 CONFIGURAR EVENTOS DE DOCUMENTOS
   // ==========================================
-  function configurarEventosDocumentos() {
-    document.querySelectorAll('.form-upload').forEach(form => {
-      form.removeEventListener('submit', handleUploadSubmit);
-      form.addEventListener('submit', handleUploadSubmit);
-    });
-    document.querySelectorAll('.checkbox-no-aplica').forEach(checkbox => {
-      checkbox.removeEventListener('change', handleNoAplicaChange);
-      checkbox.addEventListener('change', handleNoAplicaChange);
-    });
-  }
+function configurarEventosDocumentos() {
+  document.querySelectorAll('.form-upload').forEach(form => {
+    form.removeEventListener('submit', handleUploadSubmit);
+    form.addEventListener('submit', handleUploadSubmit);
+  });
+  document.querySelectorAll('.checkbox-no-aplica').forEach(checkbox => {
+    checkbox.removeEventListener('change', handleNoAplicaChange);
+    checkbox.addEventListener('change', handleNoAplicaChange);
+  });
+  // 🆕 A4: Drag & Drop real + preview del archivo seleccionado
+  configurarDragDrop();
+}
 
-  // ==========================================
-  // HANDLER PARA SUBIDA DE DOCUMENTOS
-  // ==========================================
+// ==========================================
+// 🆕 A4: DRAG & DROP REAL + PREVIEW DE ARCHIVO
+// ==========================================
+function configurarDragDrop() {
+  document.querySelectorAll('.form-upload.dropzone').forEach(form => {
+    // Preview al seleccionar desde el input file
+    const input = form.querySelector('input[type="file"]');
+    if (input) {
+      input.removeEventListener('change', mostrarPreviewArchivo);
+      input.addEventListener('change', mostrarPreviewArchivo);
+    }
+
+    // Drag & Drop
+    form.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.style.borderColor = 'var(--color-primario)';
+      form.style.background = 'var(--color-primario-muy-claro)';
+      form.style.boxShadow = '0 0 0 3px var(--color-primario-claro)';
+    });
+
+    form.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.style.borderColor = '';
+      form.style.background = '';
+      form.style.boxShadow = '';
+    });
+
+    form.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.style.borderColor = '';
+      form.style.background = '';
+      form.style.boxShadow = '';
+
+      const files = e.dataTransfer.files;
+      if (!files.length) return;
+
+      const file = files[0];
+      const tipo = form.dataset.tipo;
+
+      // Validación instantánea
+      const validacion = validarArchivoCliente(file, tipo);
+      if (!validacion.valido) {
+        mostrarAlerta(`❌ ${validacion.mensaje}`, 'error');
+        return;
+      }
+
+      // Asignar al input file del formulario
+      const input = form.querySelector('input[type="file"]');
+      if (input) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        // Disparar preview
+        mostrarPreviewArchivo({ target: input });
+      }
+
+      mostrarAlerta(`📎 "${file.name}" listo para subir. Presiona el botón para enviar.`, 'info', 3000);
+    });
+  });
+}
+
+// 🆕 A4: Validación instantánea en el cliente (antes de subir)
+function validarArchivoCliente(file, tipo) {
+  const MAX_SIZE = 15 * 1024 * 1024; // 15 MB
+
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    return { valido: false, mensaje: 'Solo se permiten archivos PDF.' };
+  }
+  if (file.size > MAX_SIZE) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    return { valido: false, mensaje: `El archivo pesa ${mb} MB. Máximo permitido: 15 MB.` };
+  }
+  if (file.size === 0) {
+    return { valido: false, mensaje: 'El archivo está vacío (0 bytes).' };
+  }
+  return { valido: true };
+}
+
+// 🆕 A4: Mostrar preview del archivo seleccionado
+function mostrarPreviewArchivo(e) {
+  const input = e.target;
+  const form = input.closest('.form-upload');
+  if (!form) return;
+
+  // Eliminar preview anterior
+  const prev = form.querySelector('.file-preview');
+  if (prev) prev.remove();
+
+  if (!input.files || !input.files.length) return;
+
+  const file = input.files[0];
+  const validacion = validarArchivoCliente(file, form.dataset.tipo);
+
+  const sizeStr = file.size < 1024 * 1024
+    ? (file.size / 1024).toFixed(0) + ' KB'
+    : (file.size / 1024 / 1024).toFixed(1) + ' MB';
+
+  const preview = document.createElement('div');
+  preview.className = 'file-preview';
+  preview.style.cssText = `
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.8rem; margin-top: 0.5rem;
+    background: ${validacion.valido ? '#f0fdf4' : '#fee2e2'};
+    border: 1px solid ${validacion.valido ? '#86efac' : '#dc2626'};
+    border-radius: 6px; font-size: 0.82rem; flex-basis: 100%;
+  `;
+  preview.innerHTML = `
+    <span>${validacion.valido ? '✅' : '❌'}</span>
+    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      ${escapeHtml(file.name)}
+    </span>
+    <span style="color:#6b7280;white-space:nowrap;">${sizeStr}</span>
+    ${!validacion.valido ? `<span style="color:#dc2626;font-weight:600;">${validacion.mensaje}</span>` : ''}
+  `;
+  form.appendChild(preview);
+
+  // Si no es válido, limpiar el input
+  if (!validacion.valido) {
+    input.value = '';
+    setTimeout(() => preview.remove(), 4000);
+  }
+}
+
+// ==========================================
+// HANDLER PARA SUBIDA DE DOCUMENTOS
+// ==========================================
   async function handleUploadSubmit(e) {
     e.preventDefault();
 

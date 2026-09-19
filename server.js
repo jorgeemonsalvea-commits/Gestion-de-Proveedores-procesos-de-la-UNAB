@@ -510,6 +510,20 @@ if (p.estado_general === 'rechazado') return 'Rechazado';
 return 'Pendiente';
 }
 
+// 🆕 A1: formatear fecha para mostrar en correos (legible)
+function formatearFechaServer(fecha) {
+  if (!fecha) return '—';
+  try {
+    const d = new Date(String(fecha).replace(' ', 'T') + '-05:00');
+    return d.toLocaleString('es-CO', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      timeZone: 'America/Bogota'
+    });
+  } catch (e) {
+    return String(fecha);
+  }
+}
+
 function formatearFechaExcel(fecha) {
   if (!fecha) return '';
   // 🕐 FIX TZ: la BD guarda hora civil de Bogotá; forzamos -05:00 para no desplazar 5h.
@@ -963,6 +977,145 @@ function arrancarVencimientos(opts = {}) {
     if (jobVencimientos.enCurso) return { ok: false, yaEnCurso: true };
     procesarVencimientosCore(opts).catch(err => console.error('❌ Job de vencimientos falló:', err.message));
     return { ok: true, iniciado: true };
+}
+
+// ==========================================
+// 🆕 A1: PRE-AVISO DE VENCIMIENTO (30 y 15 días)
+// ==========================================
+async function procesarPreAvisoVencimientos() {
+  console.log(`\n🔔 [PRE-AVISO] Iniciando verificación de documentos próximos a vencer - ${new Date().toLocaleString()}`);
+  const umbrales = [30, 15];
+  let totalNotificados = 0;
+  let totalDocs = 0;
+
+  for (const dias of umbrales) {
+    try {
+      // Buscar documentos activos aprobados que vencen dentro de X días
+      const docs = db.prepare(`
+        SELECT d.id, d.tipo, d.fecha_vencimiento, d.proveedor_id,
+               p.id as prov_id, p.razon_social, p.tipo_proveedor,
+               u.email, u.nombre_empresa
+        FROM documentos d
+        JOIN proveedores p ON d.proveedor_id = p.id
+        JOIN usuarios u ON p.usuario_id = u.id
+        WHERE d.es_historico = 0
+          AND d.estado = 'aprobado'
+          AND d.fecha_vencimiento IS NOT NULL
+          AND d.fecha_vencimiento > datetime('now', '-5 hours')
+          AND d.fecha_vencimiento <= datetime('now', '-5 hours', '+' || ? || ' days')
+      `).all(dias);
+
+      if (docs.length === 0) continue;
+
+      // Agrupar por proveedor
+      const porProveedor = {};
+      for (const doc of docs) {
+        if (!porProveedor[doc.proveedor_id]) {
+          porProveedor[doc.proveedor_id] = {
+            email: doc.email,
+            nombre: doc.razon_social || doc.nombre_empresa || 'Proveedor',
+            docs: []
+          };
+        }
+        porProveedor[doc.proveedor_id].docs.push(doc);
+      }
+
+      for (const [proveedorId, info] of Object.entries(porProveedor)) {
+        // Anti-duplicado: verificar si ya se notificó este umbral en los últimos 35 días
+        const yaNotificado = db.prepare(`
+          SELECT id FROM historial
+          WHERE proveedor_id = ?
+            AND accion = 'pre_aviso_vencimiento'
+            AND detalle LIKE '%(' || ? || ' días)%'
+            AND creado_en > datetime('now', '-35 days', '-05:00')
+        `).get(proveedorId, dias);
+
+        if (yaNotificado) {
+          console.log(`⏳ Proveedor ${info.nombre}: ya fue pre-notificado a ${dias} días. Saltando.`);
+          continue;
+        }
+
+        // Construir lista de documentos para el correo
+        const listaDocs = info.docs.map(d => {
+          const config = configDocGlobal(d.tipo);
+          const nombre = config ? config.nombre : d.tipo;
+          return `<li style="margin-bottom:0.5rem;">
+            <strong>${escapeHtml(nombre)}</strong> — vence el <strong>${formatearFechaServer(d.fecha_vencimiento)}</strong>
+          </li>`;
+        }).join('');
+
+        const esUrgente = dias <= 15;
+        const colorHeader = esUrgente ? '#dc2626' : '#d97706';
+        const titulo = esUrgente
+          ? `⚠️ URGENTE: Documentos vencen en ${dias} días`
+          : `📅 Recordatorio: Documentos vencen en ${dias} días`;
+
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: ${colorHeader}; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
+              <h2 style="margin: 0;">${titulo}</h2>
+            </div>
+            <div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+              <p>Hola <strong>${escapeHtml(info.nombre)}</strong>,</p>
+              <p>Te informamos que los siguientes documentos están próximos a vencer:</p>
+              <ul style="background: #fef3c7; padding: 15px 15px 15px 30px; border-left: 4px solid ${colorHeader}; margin: 15px 0; border-radius: 4px;">
+                ${listaDocs}
+              </ul>
+              <p><strong>¿Qué debes hacer?</strong></p>
+              <p>Prepara los documentos actualizados con anticipación. Cuando el administrador solicite la renovación, podrás subirlos directamente desde el portal.</p>
+              <div style="background: #f0f9ff; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                <p style="margin: 0; color: #0369a1;">
+                  💡 <strong>Consejo:</strong> ${esUrgente
+                    ? 'Este documento vence pronto. Asegúrate de tener la versión actualizada lista para subir cuando se solicite la renovación.'
+                    : 'Empieza a preparar los documentos actualizados. Tendrás tiempo suficiente para subirlos cuando se solicite la renovación.'}
+                </p>
+              </div>
+              <div style="text-align: center; margin-top: 20px;">
+                <a href="${APP_URL_NORMALIZADO}/proveedor.html"
+                   style="background: ${colorHeader}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                  Ir al Portal
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Enviar correo
+        try {
+          const result = await enviarEmail(info.email, titulo, html);
+          if (result.ok) {
+            console.log(`✅ Pre-aviso (${dias} días) enviado a ${info.email} — ${info.docs.length} doc(s)`);
+          } else {
+            console.error(`❌ Error enviando pre-aviso a ${info.email}: ${result.error}`);
+          }
+        } catch (emailErr) {
+          console.error(`❌ Error enviando pre-aviso a ${info.email}:`, emailErr.message);
+        }
+
+        // Registrar en historial
+        registrarHistorial(
+          parseInt(proveedorId),
+          { id: null, email: 'Sistema' },
+          'pre_aviso_vencimiento',
+          `Pre-aviso: ${info.docs.length} documento(s) vencen en ${dias} días. Correo enviado a ${info.email}`,
+          null, null, null
+        );
+
+        totalNotificados++;
+        totalDocs += info.docs.length;
+      }
+    } catch (err) {
+      console.error(`❌ Error procesando pre-aviso de ${dias} días:`, err.message);
+    }
+  }
+
+  if (totalNotificados > 0) {
+    console.log(`✅ PRE-AVISO completado: ${totalNotificados} proveedor(es) notificados, ${totalDocs} documento(s)`);
+  } else {
+    console.log('✅ PRE-AVISO: no hay documentos próximos a vencer.');
+  }
+
+  return { notificados: totalNotificados, documentos: totalDocs };
 }
 
 async function enviarRecordatoriosFaltantes() {
@@ -5347,15 +5500,25 @@ arrancarVencimientos({ forzar: false });
 timezone: "America/Bogota"
 });
 
-// 🧹 N1: limpieza de logs_seguridad (retención 90 días). Antes nunca se ejecutaba.
-cron.schedule('30 3 * * *', () => {
-  limpiarLogsAntiguos();
+// 🆕 A1: Pre-aviso de vencimiento a 30 y 15 días (7:00 AM Colombia)
+cron.schedule('0 7 * * *', async () => {
+  console.log(`\n🕐 Ejecutando pre-aviso de vencimientos - ${new Date().toLocaleString()}`);
+  await procesarPreAvisoVencimientos();
 }, {
   timezone: "America/Bogota"
+});
+console.log('🔔 Cron de pre-aviso de vencimientos configurado (7:00 AM Colombia, umbrales 30/15 días)');
+
+// 🧹 N1: limpieza de logs_seguridad (retención 90 días). Antes nunca se ejecutaba.
+cron.schedule('30 3 * * *', () => {
+limpiarLogsAntiguos();
+}, {
+timezone: "America/Bogota"
 });
 console.log('🧹 Cron de limpieza de logs configurado (3:30 AM Colombia, retención 90 días)');
 
 console.log('⏰ Cron job de vencimientos configurado para las 12:00 AM (Colombia)');
+
 
 // 💾 Mirror incremental de archivos físicos (PDFs cifrados y plantillas).
 // Los .enc son inmutables: copiar solo lo que falta es seguro y liviano,
