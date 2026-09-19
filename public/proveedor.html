@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Panel - Proveedor</title>
-  <link rel="stylesheet" href="style.css">
+<title>Mi Panel - Proveedor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%238600dd'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='38' font-weight='bold' text-anchor='middle' fill='%23e9a427'>U</text></svg>">
+<link rel="stylesheet" href="style.css">
 
   <style>
     /* Estados de vencimiento */
@@ -66,10 +67,29 @@
       display: none;
       animation: fadeIn 0.5s ease-in-out;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(-10px); }
+to { opacity: 1; transform: translateY(0); }
+}
+/* 🆕 A6.2: resaltar tarjeta al saltar desde el checklist */
+.doc-item.doc-flash {
+border-color: #8600dd !important;
+box-shadow: 0 0 0 4px rgba(134, 0, 221, 0.12), 0 6px 16px rgba(22, 10, 36, 0.12) !important;
+animation: docFlash 1.8s ease-out;
+}
+@keyframes docFlash {
+0%   { background: rgba(134, 0, 221, 0.10); }
+60%  { background: rgba(134, 0, 221, 0.05); }
+100% { background: #ffffff; }
+}
+.chip-faltante:hover {
+transform: translateY(-1px);
+box-shadow: 0 3px 8px rgba(22, 10, 36, 0.12);
+}
+.chip-faltante:focus-visible {
+outline: none;
+box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
+}
   </style>
 </head>
 <body>
@@ -142,12 +162,14 @@
   <!-- Notas -->
   <div id="notas"></div>
 
-  <!-- Tab Documentos -->
-  <div id="tab-docs" class="card">
-    <h3 style="margin-bottom:1rem;">Documentación requerida</h3>
-    <div id="avisoEtapa"></div>
-    <div id="listaDocumentos" class="doc-grid"></div>
-  </div>
+          <!-- Tab Documentos -->
+          <div id="tab-docs" class="card">
+            <h3 style="margin-bottom:1rem;">Documentación requerida</h3>
+            <!-- 🆕 A6: Checklist inteligente siempre visible -->
+            <div id="checklist-faltantes" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:0.8rem 1rem;margin-bottom:1rem;"></div>
+            <div id="avisoEtapa"></div>
+            <div id="listaDocumentos" class="doc-grid"></div>
+          </div>
 
   <!-- Tab Datos -->
   <div id="tab-datos" class="card hidden">
@@ -981,7 +1003,7 @@ const puedeSubir = rechazoTotal
 
       if (ok || noAplica) completados++;
 
-      let html = `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
+      let html = `<div class="doc-item" data-tipo-doc="${escapeAttr(req.tipo)}" style="flex-direction:column;align-items:stretch;">
         <div style="margin-bottom:0.5rem;">
           <h4>${idx + 1}. ${req.nombre}</h4>
           <small style="color:#6b7280;">
@@ -1138,7 +1160,10 @@ html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-
     document.getElementById('docsCompletos').textContent = completados;
     configurarEventosDocumentos();
     actualizarBarraProgreso();
-  }
+
+    // 🆕 A6: Actualizar checklist de faltantes
+    actualizarChecklistFaltantes(completados);
+}
 
   // ==========================================
   // 🎯 CONFIGURAR EVENTOS DE DOCUMENTOS
@@ -1154,6 +1179,100 @@ function configurarEventosDocumentos() {
   });
   // 🆕 A4: Drag & Drop real + preview del archivo seleccionado
   configurarDragDrop();
+}
+
+// ==========================================
+// 🆕 A6: CHECKLIST INTELIGENTE DE FALTANTES (v2.1 — sin template literals anidados)
+// FIX: un documento SUBIDO (pendiente de revisión) ya NO cuenta como faltante.
+// FIX: chips en grid simétrico. Sin backticks anidados → imposible romper el cierre.
+// ==========================================
+function actualizarChecklistFaltantes(completados) {
+  const cont = document.getElementById('checklist-faltantes');
+  if (!cont) return;
+
+  const total = (requeridos || []).length;
+  if (!total) { cont.style.display = 'none'; return; }
+
+  const faltantes = [];
+
+  (requeridos || []).forEach(function (req) {
+    const docs = (documentos || []).filter(function (d) { return d.tipo === req.tipo && d.es_historico !== 1; });
+    const noAplica = docs.some(function (d) { return d.no_aplica === 1; });
+    const validos = docs.filter(function (d) { return d.no_aplica !== 1 && d.estado !== 'rechazado'; }).length;
+    const rechazados = docs.filter(function (d) { return d.estado === 'rechazado' && d.no_aplica === 0; }).length;
+    if (!noAplica && validos < req.cantidadMin) {
+      faltantes.push({
+        tipo: req.tipo,
+        nombre: req.nombre,
+        estado: rechazados > 0 ? 'rechazado' : 'pendiente',
+        subidos: validos,
+        requeridos: req.cantidadMin
+      });
+    }
+  });
+
+  // ---- Caso 0: nada faltante pero aún sin verificar todo → banner azul ----
+  if (faltantes.length === 0 && completados < total) {
+    cont.style.display = 'block';
+    cont.style.background = '#eff6ff';
+    cont.style.borderColor = '#bfdbfe';
+    cont.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
+      '<span style="font-size:1.2rem;">📤</span>' +
+      '<strong style="color:#1e40af;">¡Todos tus documentos están subidos!</strong>' +
+      '<span style="color:#3b82f6;font-size:0.85rem;">El administrador los está revisando. Te avisaremos cuando haya novedades.</span>' +
+      '</div>';
+    return;
+  }
+
+  // ---- Caso 1: todo subido y verificado → celebración verde ----
+  if (faltantes.length === 0) {
+    cont.style.display = 'block';
+    cont.style.background = '#f0fdf4';
+    cont.style.borderColor = '#86efac';
+    cont.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
+      '<span style="font-size:1.2rem;">🎉</span>' +
+      '<strong style="color:#065f46;">¡Todos los documentos están completos y verificados!</strong>' +
+      '<span style="color:#6b7280;font-size:0.85rem;">El administrador continuará con la aprobación de tu documentación.</span>' +
+      '</div>';
+    return;
+  }
+
+  // ---- Caso 2: hay faltantes → banner ámbar con chips simétricos ----
+  const rechazadosCount = faltantes.filter(function (f) { return f.estado === 'rechazado'; }).length;
+
+  let html =
+    '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;flex-wrap:wrap;">' +
+    '<span style="font-size:1.1rem;">📋</span>' +
+    '<strong style="color:#92400e;">Te faltan ' + faltantes.length + ' de ' + total + ' documentos por subir</strong>' +
+    (rechazadosCount > 0
+      ? '<span style="color:#dc2626;font-size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ' — debes reponerlos)</span>'
+      : '') +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.4rem;">';
+
+  faltantes.forEach(function (f) {
+    const color = f.estado === 'rechazado' ? '#dc2626' : '#b45309';
+    const fondo = f.estado === 'rechazado' ? '#fef2f2' : '#ffffff';
+    const borde = f.estado === 'rechazado' ? '#fecaca' : '#fde68a';
+    const icono = f.estado === 'rechazado' ? '❌' : '📄';
+    const contador = f.requeridos > 1 ? ' (' + f.subidos + '/' + f.requeridos + ')' : '';
+      html += `
+        <button type="button" class="chip-faltante" data-tipo="${escapeAttr(f.tipo)}"
+          title="Ir al documento: ${escapeAttr(f.nombre)}"
+          style="display:flex;align-items:center;gap:0.4rem;background:${fondo};border:1px solid ${borde};color:${color};padding:0.4rem 0.6rem;border-radius:6px;font-size:0.75rem;font-weight:600;min-width:0;cursor:pointer;font-family:inherit;text-align:left;transition:transform .15s ease, box-shadow .15s ease;">
+          <span style="flex-shrink:0;">${icono}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.nombre)}${f.requeridos > 1 ? ` (${f.subidos}/${f.requeridos})` : ''}</span>
+        </button>`;
+  });
+
+  html += '</div>';
+
+  cont.style.display = 'block';
+  cont.style.background = '#fffbeb';
+  cont.style.borderColor = '#fcd34d';
+  cont.innerHTML = html;
 }
 
 // ==========================================
@@ -1907,10 +2026,35 @@ return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actua
     if (e.target.id === 'modalVisor') cerrarVisor();
   });
 
-  // ==========================================
-  // 🚀 INICIAR APLICACIÓN
-  // ==========================================
-  console.log('✅ Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
+// ==========================================
+// 🆕 A6.2: CLIC EN CHECKLIST → SALTAR AL DOCUMENTO FALTANTE
+// ==========================================
+document.addEventListener('click', function (e) {
+  const chip = e.target.closest('.chip-faltante');
+  if (!chip) return;
+  irADocumento(chip.dataset.tipo);
+});
+
+function irADocumento(tipo) {
+  if (!tipo) return;
+  const target = document.querySelector('#listaDocumentos .doc-item[data-tipo-doc="' + tipo + '"]');
+  if (!target) {
+    mostrarAlerta('No se encontró ese documento en la lista.', 'warning');
+    return;
+  }
+  // Scroll suave hasta centrar la tarjeta
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Destello de resaltado (reinicia la animación si ya estaba activa)
+  target.classList.remove('doc-flash');
+  void target.offsetWidth;
+  target.classList.add('doc-flash');
+  setTimeout(() => target.classList.remove('doc-flash'), 2200);
+}
+
+// ==========================================
+// 🚀 INICIAR APLICACIÓN
+// ==========================================
+console.log('✅ Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
   init();
 </script>
 </body>
