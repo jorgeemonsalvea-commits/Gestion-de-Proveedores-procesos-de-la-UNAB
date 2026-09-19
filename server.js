@@ -1470,7 +1470,56 @@ const validacion = validarPassword(password);
     );
 
     registrarLogSeguridad(usuarioId, email, 'registro_proveedor', true, nombre_empresa, req);
-
+    // 🆕 G10b: evento en tiempo real al panel admin (toast + refresco de KPIs/listas)
+    // Se emite ANTES del bloque G10 para que el toast llegue aunque el correo falle.
+    emitirAdmin('nuevo_proveedor_registrado', {
+      nombre: nombre_empresa,
+      email: email,
+      proveedorId: proveedorId
+    });
+    emitirAdmin('proveedores_actualizados');
+    emitirAdmin('estadisticas_actualizadas');
+    // 🆕 G10: avisar al admin de un registro público nuevo (email + socket en vivo)
+    try {
+      const fechaRegistro = new Date().toLocaleString('es-CO', {
+        timeZone: 'America/Bogota', dateStyle: 'full', timeStyle: 'short'
+      });
+      const htmlG10 = `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #8600dd; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
+    <h2 style="margin: 0;">📋 Nuevo proveedor registrado</h2>
+  </div>
+  <div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <p>Un nuevo proveedor se ha registrado en el portal y quedó en etapa de <strong>Verificación</strong>:</p>
+    <ul style="background: #f5f3ff; padding: 15px 15px 15px 30px; border-left: 4px solid #8600dd; margin: 15px 0; border-radius: 4px;">
+      <li style="margin-bottom:0.5rem;"><strong>Empresa:</strong> ${escapeHtml(nombre_empresa)}</li>
+      <li style="margin-bottom:0.5rem;"><strong>Correo:</strong> ${escapeHtml(email)}</li>
+      <li style="margin-bottom:0.5rem;"><strong>Fecha:</strong> ${escapeHtml(fechaRegistro)}</li>
+    </ul>
+    <div style="background: #f0f9ff; padding: 15px; border-radius: 6px; margin: 15px 0;">
+      <p style="margin: 0; color: #0369a1;">💡 El proveedor deberá completar sus datos y definir su tipo de persona (Natural/Jurídica) antes de poder subir documentos.</p>
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+      <a href="${APP_URL_NORMALIZADO}/admin.html"
+         style="background: #8600dd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+        Ir al Panel Admin
+      </a>
+    </div>
+  </div>
+</div>
+`;
+      enviarEmail(
+        process.env.ADMIN_EMAIL,
+        `📋 Nuevo proveedor registrado: ${nombre_empresa}`,
+        htmlG10
+      ).then(r => {
+        if (r.ok) console.log(`✅ G10: aviso de nuevo registro enviado al admin (${email})`);
+        else console.error(`❌ G10: no se pudo enviar el aviso: ${r.error}`);
+      }).catch(e => console.error('❌ G10: error enviando aviso:', e.message));
+      emitirAdmin('proveedores_actualizados');
+    } catch (e) {
+      console.error('❌ G10: error interno al notificar:', e.message);
+    }
     res.json({ ok: true, mensaje: 'Cuenta creada exitosamente' });
   } catch (err) {
     console.error('Error registrando:', err.message);

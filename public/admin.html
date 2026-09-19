@@ -435,6 +435,41 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     setTimeout(() => notif.remove(), duracion);
 }
 function cerrarNotificacion() { if (SwalToast) Swal.close(); }
+// ==========================================
+// 🎉 G10b: TOAST SWEETALERT2 — NUEVO PROVEEDOR REGISTRADO (con acción)
+// ==========================================
+function toastNuevoProveedor(data = {}) {
+  const nombre = data.nombre || 'Sin nombre';
+  const SwalToastAccion = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: true,
+    showCloseButton: true,
+    timer: 9000,
+    timerProgressBar: true,
+    confirmButtonText: '🔍 Revisar',
+    confirmButtonColor: '#8600dd',
+    didOpen: (self) => {
+      self.addEventListener('mouseenter', Swal.stopTimer);
+      self.addEventListener('mouseleave', Swal.resumeTimer);
+    }
+  });
+  SwalToastAccion.fire({
+    icon: 'success',
+    title: '🎉 Nuevo proveedor registrado',
+    html: `<strong style="color:#160a24;">${escapeHtml(nombre)}</strong><br><small style="color:#6b7280;">Entró a la etapa de Verificación</small>`
+  }).then((r) => {
+    if (r.isConfirmed && data.proveedorId) {
+      // Salta directo al proveedor en el módulo Verificación
+      moduloActual = 'verificacion';
+      filtroEstadoActual = 'todos';
+      paginaActual = 1;
+      marcarModuloAdmin('verificacion');
+      cargarModulo('verificacion');
+      verProveedor(data.proveedorId, 'verificacion');
+    }
+  });
+}
 function mostrarAlerta(msg, tipo = 'error') {
 const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info' };
 mostrarNotificacion(msg, tiposMap[tipo] || 'info');
@@ -523,6 +558,14 @@ socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', 
 socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarVistaActual(); });
 socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); recargarVistaActual(); });
 socket.on('proveedores_actualizados', () => { console.log('👥 Proveedores actualizados'); recargarVistaActual(); });
+// 🆕 G10b: toast en tiempo real cuando un proveedor se registra desde el portal público
+socket.on('nuevo_proveedor_registrado', (data) => {
+  console.log('🎉 [G10b] Evento recibido:', data);
+  toastNuevoProveedor(data || {});
+  actualizarEstadisticasGlobales();
+  actualizarContadoresSidebar();
+  recargarVistaActual();
+});
 socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas actualizadas'); actualizarEstadisticasGlobales(); });
 socket.on('vencimientos_procesados', (data) => {
 console.log('⏰ Vencimientos procesados:', data);
