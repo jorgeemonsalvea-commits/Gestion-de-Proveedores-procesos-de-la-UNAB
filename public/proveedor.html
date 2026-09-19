@@ -1055,9 +1055,23 @@ const puedeSubir = rechazoTotal
 
       if (ok || noAplica) completados++;
 
-      let html = `<div class="doc-item" data-tipo-doc="${escapeAttr(req.tipo)}" style="flex-direction:column;align-items:stretch;">
-        <div style="margin-bottom:0.5rem;">
-          <h4>${idx + 1}. ${req.nombre}</h4>
+let html = `<div class="doc-item" data-tipo-doc="${escapeAttr(req.tipo)}" style="flex-direction:column;align-items:stretch;">
+<div style="margin-bottom:0.5rem;">
+<h4>${idx + 1}. ${req.nombre}</h4>
+${(req.descripcion || req.requiereFirma || req.requiereHuella) ? `
+<div style="margin-top:0.3rem;">
+<button type="button" data-target="info-${escapeAttr(req.tipo)}" onclick="toggleInfoDoc(this)"
+style="background:none;border:none;color:#8600dd;font-size:0.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.2rem;font-family:inherit;font-weight:600;">
+ℹ️ ¿Qué debe contener?
+</button>
+<div id="info-${escapeAttr(req.tipo)}" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:0.6rem 0.8rem;margin-top:0.4rem;font-size:0.82rem;color:#0369a1;line-height:1.5;">
+${req.descripcion ? escapeHtml(req.descripcion) : ''}
+${req.requiereFirma ? '<br>✍️ <strong>Requiere firma.</strong>' : ''}
+${req.requiereHuella ? ' 👆 <strong>Requiere huella.</strong>' : ''}
+${req.esPlantilla ? '<br>📋 Descarga la plantilla institucional, diligénciala, fírmala y súbela escaneada en PDF.' : ''}
+</div>
+</div>
+` : ''}
           <small style="color:#6b7280;">
             Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}
             ${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
@@ -1217,9 +1231,20 @@ html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-
     actualizarChecklistFaltantes(completados);
 }
 
-  // ==========================================
-  // 🎯 CONFIGURAR EVENTOS DE DOCUMENTOS
-  // ==========================================
+// ==========================================
+// 🆕 A8: TOGGLE DESCRIPCIÓN CONTEXTUAL DE DOCUMENTO
+// ==========================================
+function toggleInfoDoc(btn) {
+  const target = document.getElementById(btn.dataset.target);
+  if (!target) return;
+  const abierto = target.style.display !== 'none';
+  target.style.display = abierto ? 'none' : 'block';
+  btn.textContent = abierto ? 'ℹ️ ¿Qué debe contener?' : '🔼 Ocultar detalle';
+}
+
+// ==========================================
+// 🎯 CONFIGURAR EVENTOS DE DOCUMENTOS
+// ==========================================
 function configurarEventosDocumentos() {
   document.querySelectorAll('.form-upload').forEach(form => {
     form.removeEventListener('submit', handleUploadSubmit);
