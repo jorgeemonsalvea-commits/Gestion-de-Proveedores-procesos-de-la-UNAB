@@ -90,6 +90,7 @@ box-shadow: 0 3px 8px rgba(22, 10, 36, 0.12);
 outline: none;
 box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 }
+
   </style>
 </head>
 <body>
@@ -114,12 +115,16 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <div class="pv-main">
 <div class="pv-topbar">
 <div class="pv-crumb">Inicio <span>›</span> Portal de Proveedores <span>›</span> <b id="bcActual">Documentos</b></div>
+<div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
+<!-- 🆕 B4: indicador de conexión Socket.IO en tiempo real -->
+<span id="socketStatus" style="font-size:.72rem;font-weight:700;color:#059669;white-space:nowrap;" title="Estado de la conexión en tiempo real">🟢 Conectado</span>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
 <span class="user-mail" id="userEmail">—</span>
 <span class="user-rol">Proveedor</span>
 </span>
+</div>
 </div>
 </div>
 <div class="pv-content">
@@ -227,7 +232,10 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
 <div id="listaHistorial"></div>
 </div>
 <div class="pv-actions">
-<span class="hint">Los documentos obligatorios (*) deben adjuntarse en PDF. Puedes guardar y continuar más tarde.</span>
+<span class="hint">
+  💡 <strong>No necesitas subir todo de una vez.</strong> Tu avance se guarda automáticamente con cada documento.
+  Los obligatorios deben ser PDF de máx. 15 MB.
+</span>
 <div style="display:flex;gap:.6rem;">
 </div>
 </div>
@@ -762,42 +770,86 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
   // ==========================================
   // 📡 SOCKET.IO - CONEXIÓN EN TIEMPO REAL
   // ==========================================
-  function conectarSocket() {
-    socket = io({ withCredentials: true });
-
-    socket.on('connect', () => console.log('🔌 Conectado al servidor Socket.IO'));
-    socket.on('disconnect', () => console.log('🔌 Desconectado del servidor Socket.IO'));
-
-    socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarDatosProveedor(); });
-    socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarDatosProveedor(); });
-    socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarDatosProveedor(); });
-    socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarDatosProveedor(); });
-    socket.on('proveedor_registrado', (data) => {
+  // 🆕 B4: pinta el indicador 🟢/🔴 de la topbar
+function actualizarIndicadorSocket(conectado) {
+  const el = document.getElementById('socketStatus');
+  if (!el) return;
+  el.textContent = conectado ? '🟢 Conectado' : '🔴 Reconectando...';
+  el.style.color = conectado ? '#059669' : '#dc2626';
+}
+function conectarSocket() {
+  // 🆕 Reconexión explícita y robusta (antes usaba solo defaults)
+  socket = io({
+    withCredentials: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000
+  });
+  socket.on('connect', () => {
+    console.log('🔌 Conectado al servidor Socket.IO · id=' + socket.id);
+    actualizarIndicadorSocket(true);
+  });
+  // 🆕 El server confirma en qué salas quedó este socket (diagnóstico)
+  socket.on('socket_info', (info) => {
+    console.log('📡 Salas asignadas por el servidor:', info);
+  });
+  socket.on('disconnect', (motivo) => {
+    console.log('🔌 Desconectado del servidor Socket.IO:', motivo);
+    actualizarIndicadorSocket(false);
+  });
+  // 🆕 Errores de conexión visibles (antes eran silenciosos)
+  socket.on('connect_error', (err) => {
+    console.error('❌ Socket connect_error:', err.message);
+    actualizarIndicadorSocket(false);
+  });
+  // 🆕 Red de seguridad: al volver a la pestaña con el socket caído,
+  // refrescamos datos una vez para no quedar desactualizados hasta F5.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && socket && !socket.connected) {
+      console.log('👁️ Pestaña visible con socket caído → recarga de seguridad');
+      recargarDatosProveedor();
+    }
+  });
+  socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarDatosProveedor(); });
+  socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarDatosProveedor(); });
+  socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarDatosProveedor(); });
+  socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarDatosProveedor(); });
+  socket.on('proveedor_registrado', (data) => {
       console.log('🏷️ Proveedor registrado:', data);
       recargarDatosProveedor();
       mostrarNotificacion('🎉 ¡Felicidades! Has sido registrado como proveedor.', 'success');
     });
-    socket.on('nuevo_recordatorio', (data) => {
+  socket.on('nuevo_recordatorio', (data) => {
       console.log('📨 Nuevo recordatorio:', data);
       mostrarNotificacion('📨 Tienes un nuevo recordatorio del administrador', 'info');
       cargarRecordatorios();
     });
-    socket.on('nueva_nota', (data) => {
+  socket.on('nueva_nota', (data) => {
       console.log('📝 Nueva nota:', data);
       mostrarNotificacion('📝 Tienes una nueva nota del administrador', 'info');
       cargarNotas();
     });
-    socket.on('vencimientos_procesados', (data) => {
+  socket.on('vencimientos_procesados', (data) => {
       console.log('⏰ Vencimientos procesados:', data);
       mostrarNotificacion(`📦 Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
       recargarDatosProveedor();
     });
-      socket.on('tipo_persona_actualizado', (data) => {
-      console.log('🧾 Tipo de persona actualizado por admin:', data);
-      mostrarNotificacion('🧾 El administrador definió tu tipo de persona. Recargando...', 'info');
-      location.reload();
-    });
-  }
+socket.on('tipo_persona_actualizado', (data) => {
+console.log('🧾 Tipo de persona actualizado por admin:', data);
+mostrarNotificacion('🧾 El administrador definió tu tipo de persona. Recargando...', 'info');
+location.reload();
+});
+// 🆕 G10c: el admin solicitó actualización anual → el portal se entera en vivo.
+// El server archiva los documentos y deja tipo_proveedor = NULL; tras el reload,
+// verificarYBloquearPerfil() vuelve a bloquear el portal hasta elegir el tipo.
+socket.on('solicitud_actualizacion', (data) => {
+console.log('🔄 Solicitud de actualización recibida:', data);
+mostrarNotificacion('🔄 El administrador solicitó la actualización de tus documentos. Recargando...', 'info', 6000);
+setTimeout(() => location.reload(), 1200);
+});
+}
 
   // ==========================================
   // 🔄 RECARGAR DATOS DEL PROVEEDOR
@@ -831,7 +883,7 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
   // ==========================================
   // 🚀 INICIALIZACIÓN
   // ==========================================
-  async function init() {
+async function init() {
     try {
       const me = await (await fetchAPI('/api/me')).json();
       if (!me.usuario) return window.location.href = 'index.html';
@@ -1216,25 +1268,13 @@ function actualizarChecklistFaltantes(completados) {
     cont.style.display = 'block';
     cont.style.background = '#eff6ff';
     cont.style.borderColor = '#bfdbfe';
+    cont.dataset.estadoCheck = 'revision';
+    cont.classList.remove('celebracion-banner');
     cont.innerHTML =
       '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
       '<span style="font-size:1.2rem;">📤</span>' +
       '<strong style="color:#1e40af;">¡Todos tus documentos están subidos!</strong>' +
       '<span style="color:#3b82f6;font-size:0.85rem;">El administrador los está revisando. Te avisaremos cuando haya novedades.</span>' +
-      '</div>';
-    return;
-  }
-
-  // ---- Caso 1: todo subido y verificado → celebración verde ----
-  if (faltantes.length === 0) {
-    cont.style.display = 'block';
-    cont.style.background = '#f0fdf4';
-    cont.style.borderColor = '#86efac';
-    cont.innerHTML =
-      '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
-      '<span style="font-size:1.2rem;">🎉</span>' +
-      '<strong style="color:#065f46;">¡Todos los documentos están completos y verificados!</strong>' +
-      '<span style="color:#6b7280;font-size:0.85rem;">El administrador continuará con la aprobación de tu documentación.</span>' +
       '</div>';
     return;
   }
@@ -1247,7 +1287,7 @@ function actualizarChecklistFaltantes(completados) {
     '<span style="font-size:1.1rem;">📋</span>' +
     '<strong style="color:#92400e;">Te faltan ' + faltantes.length + ' de ' + total + ' documentos por subir</strong>' +
     (rechazadosCount > 0
-      ? '<span style="color:#dc2626;font-size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ' — debes reponerlos)</span>'
+      ? '<span style="color:#dc2626;font-|size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ' — debes reponerlos)</span>'
       : '') +
     '</div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.4rem;">';
@@ -1272,6 +1312,8 @@ function actualizarChecklistFaltantes(completados) {
   cont.style.display = 'block';
   cont.style.background = '#fffbeb';
   cont.style.borderColor = '#fcd34d';
+  cont.dataset.estadoCheck = 'faltantes';
+  cont.classList.remove('celebracion-banner');
   cont.innerHTML = html;
 }
 

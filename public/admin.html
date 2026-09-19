@@ -549,7 +549,12 @@ reconnectionAttempts: 10,
 reconnectionDelay: 1000
 });
 
-socket.on('connect', () => { console.log('🔌 Conectado a Socket.IO'); });
+socket.on('connect', () => { console.log('🔌 Conectado a Socket.IO · id=' + socket.id); });
+socket.on('socket_info', (info) => { console.log('📡 Salas asignadas por el servidor:', info); });
+socket.on('connect_error', (err) => {
+  console.error('❌ Socket connect_error:', err.message);
+  mostrarNotificacion('❌ Sin conexión en tiempo real: reintentando...', 'warning');
+});
 socket.on('disconnect', () => { console.log('🔌 Desconectado del servidor Socket.IO'); });
 
 socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarVistaActual(); });

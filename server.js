@@ -346,30 +346,40 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   const usuario = socket.usuario;
-  console.log(`🔌 Cliente conectado: ${usuario.email} (${usuario.rol})`);
-
+  console.log(`🔌 Cliente conectado: ${usuario.email} (${usuario.rol}) · socket.id=${socket.id}`);
   if (usuario.rol === 'admin') {
     socket.join('admin');
+    console.log(`📡 [SOCKET] ${usuario.email} entró a la sala 'admin'`);
   } else if (usuario.rol === 'proveedor') {
     const proveedor = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(usuario.id);
     if (proveedor) {
       socket.join(`proveedor_${proveedor.id}`);
+      console.log(`📡 [SOCKET] ${usuario.email} entró a la sala 'proveedor_${proveedor.id}'`);
+    } else {
+      console.warn(`⚠️ [SOCKET] ${usuario.email} tiene rol proveedor pero NO tiene fila en proveedores: no entrará a ninguna sala.`);
     }
   }
-
-  socket.on('disconnect', () => {
-    console.log(`🔌 Cliente desconectado: ${usuario.email}`);
+  // 🆕 Confirmación al cliente de las salas en que quedó (diagnóstico en F12)
+  socket.emit('socket_info', { rol: usuario.rol, salas: Array.from(socket.rooms) });
+  socket.on('disconnect', (motivo) => {
+    console.log(`🔌 Cliente desconectado: ${usuario.email} (${motivo || 'sin motivo'})`);
   });
 });
 
 function emitirAdmin(evento, datos) {
+  const n = io.sockets.adapter.rooms.get('admin')?.size || 0;
+  console.log(`📡 [SOCKET] emit '${evento}' → sala 'admin' (${n} cliente(s))`);
   io.to('admin').emit(evento, datos);
 }
-
 function emitirProveedor(proveedorId, evento, datos) {
-  io.to(`proveedor_${proveedorId}`).emit(evento, datos);
+  const sala = `proveedor_${proveedorId}`;
+  const n = io.sockets.adapter.rooms.get(sala)?.size || 0;
+  console.log(`📡 [SOCKET] emit '${evento}' → sala '${sala}' (${n} cliente(s))`);
+  if (n === 0) {
+    console.warn(`⚠️ [SOCKET] Sala '${sala}' VACÍA: el proveedor no tiene socket conectado o no entró a la sala (¿ambos en el mismo ambiente/servidor?).`);
+  }
+  io.to(sala).emit(evento, datos);
 }
-
 function emitirTodos(proveedorId, evento, datos) {
   emitirAdmin(evento, datos);
   emitirProveedor(proveedorId, evento, datos);
