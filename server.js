@@ -527,6 +527,35 @@ const c = configDocGlobal(tipo);
 return c ? c.nombre : null;
 }
 // ==========================================
+// 📄 E8: NOMBRE DESCRIPTIVO DE DESCARGA
+// Patrón: TIPO_NIT_RazonSocial_FAAA-MM-DD.pdf
+// Solo afecta el header Content-Disposition al descargar; el .enc interno
+// NO se renombra (el dedup por hash y el cifrado dependen de ese nombre).
+// ==========================================
+function sanitizarParteNombre(s, maxLen = 60) {
+const limpio = String(s || '')
+.normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // quita tildes
+.replace(/[^a-zA-Z0-9]+/g, '-')                    // separadores → '-'
+.replace(/-{2,}/g, '-')
+.replace(/^-+|-+$/g, '');
+return limpio.slice(0, maxLen) || 'Documento';
+}
+function nombreDescargaE8(info) {
+if (!info) return null;
+const tipo = sanitizarParteNombre(nombreFormatoServer(info.tipo) || info.tipo || 'Documento', 40);
+const nit = sanitizarParteNombre(info.rfc || 'sin-nit', 20);
+const razon = sanitizarParteNombre(info.razon_social || info.nombre_empresa || 'Proveedor', 40);
+let fecha = '';
+const m = String(info.subido_en || info.fecha || '').match(/^(\d{4}-\d{2}-\d{2})/);
+if (m) fecha = m[1];
+else {
+const d = new Date();
+const pad = n => String(n).padStart(2, '0');
+fecha = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+return `${tipo}_${nit}_${razon}_F${fecha}.pdf`;
+}
+// ==========================================
 // 📞 G11: TELEFONÍA COLOMBIA (normalización + validación)
 // Plan de numeración: celular 3XX XXX XXXX · fijo 60X/70X XXX XXXX (10 dígitos).
 // Acepta +57/57 prefijado y separadores; devuelve formato legible 3-3-4.
@@ -3701,11 +3730,10 @@ app.get('/api/admin/proveedor/:id/evaluacion/download', requiereAdmin, (req, res
   const proveedorId = parseInt(req.params.id);
 
   try {
-    const proveedor = db.prepare('SELECT evaluacion_inicial FROM proveedores WHERE id = ?').get(proveedorId);
-
-    if (!proveedor || !proveedor.evaluacion_inicial) {
-      return res.status(404).json({ error: 'Evaluación no encontrada' });
-    }
+const proveedor = db.prepare('SELECT evaluacion_inicial, evaluacion_fecha, rfc, razon_social FROM proveedores WHERE id = ?').get(proveedorId);
+if (!proveedor || !proveedor.evaluacion_inicial) {
+return res.status(404).json({ error: 'Evaluación no encontrada' });
+}
 
     const rutaArchivo = path.join(uploadsDir, proveedor.evaluacion_inicial);
 
@@ -3724,9 +3752,13 @@ app.get('/api/admin/proveedor/:id/evaluacion/download', requiereAdmin, (req, res
       bufferFinal = bufferArchivo;
     }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="evaluacion_inicial.pdf"`);
-    res.send(bufferFinal);
+res.setHeader('Content-Type', 'application/pdf');
+// 📄 E8: nombre descriptivo también para la Evaluación Inicial
+const nombreEval = nombreDescargaE8({ tipo: 'Evaluacion Inicial', rfc: proveedor.rfc, razon_social: proveedor.razon_social, subido_en: proveedor.evaluacion_fecha }) || 'evaluacion_inicial.pdf';
+const asciiEval = nombreEval.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+const utf8Eval = encodeURIComponent(nombreEval).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+res.setHeader('Content-Disposition', `attachment; filename="${asciiEval}"; filename*=UTF-8''${utf8Eval}`);
+res.send(bufferFinal);
   } catch (err) {
     console.error('Error descargando evaluación:', err);
     res.status(500).json({ error: 'Error al descargar la evaluación' });
@@ -5657,26 +5689,31 @@ const usuario = req.session.usuario;
   let tieneAcceso = false;
   let documentoInfo = null;
 
-  if (usuario.rol === 'admin') {
-    tieneAcceso = true;
-    documentoInfo = db.prepare('SELECT nombre_original, tipo FROM documentos WHERE archivo = ?').get(req.params.path);
-  } else {
-    const prov = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(usuario.id);
-
-    if (prov) {
-      const doc = db.prepare(`
-        SELECT archivo, nombre_original, tipo
-        FROM documentos
-        WHERE proveedor_id = ?
-          AND archivo = ?
-      `).get(prov.id, req.params.path);
-
-      if (doc) {
-        tieneAcceso = true;
-        documentoInfo = doc;
-      }
-    }
-  }
+if (usuario.rol === 'admin') {
+tieneAcceso = true;
+// 📄 E8: se traen NIT, razón social y fecha de subida para el nombre descriptivo
+documentoInfo = db.prepare(`
+SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social
+FROM documentos d
+JOIN proveedores p ON d.proveedor_id = p.id
+WHERE d.archivo = ?
+`).get(req.params.path);
+} else {
+const prov = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(usuario.id);
+if (prov) {
+const doc = db.prepare(`
+SELECT d.archivo, d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social
+FROM documentos d
+JOIN proveedores p ON d.proveedor_id = p.id
+WHERE d.proveedor_id = ?
+AND d.archivo = ?
+`).get(prov.id, req.params.path);
+if (doc) {
+tieneAcceso = true;
+documentoInfo = doc;
+}
+}
+}
 
   if (!tieneAcceso) {
     return res.status(403).json({ error: 'Acceso denegado' });
@@ -5707,7 +5744,10 @@ const usuario = req.session.usuario;
       // extensión, así que el SO guardaba el archivo como "tipo archivo" genérico
       // y no lo abría como PDF. Todos los docs del sistema son PDF (multer solo
       // acepta .pdf), por lo que garantizamos la extensión .pdf si falta.
-      let nombreArchivo = nombreFormatoServer(documentoInfo?.tipo) || documentoInfo?.nombre_original || path.basename(req.params.path);
+      // 📄 E8: nombre descriptivo TIPO_NIT_RazonSocial_FAAA-MM-DD.pdf.
+      // El header Content-Disposition manda sobre el atributo download del <a>,
+      // así que visor y botones de descarga lo heredan sin tocar el front.
+      let nombreArchivo = nombreDescargaE8(documentoInfo) || nombreFormatoServer(documentoInfo?.tipo) || documentoInfo?.nombre_original || path.basename(req.params.path);
       if (!/\.pdf$/i.test(nombreArchivo)) nombreArchivo += '.pdf';
       // Header dual RFC 6266/5987: filename= (ASCII, fallback) + filename*= (UTF-8
       // completo). Así los nombres con espacios/tildes no salen con %20 ni raros.
