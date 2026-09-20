@@ -2731,7 +2731,13 @@ app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
       }
     }
 
-    if (modulo === 'registrados' && filtroVerificacion) {
+    // 🆕 C3: vista de proveedores inactivos (+7 días sin subir documentos)
+if (modulo === 'inactivos') {
+whereConditions.push(`p.etapa = 'verificacion'`);
+whereConditions.push(`NOT EXISTS (SELECT 1 FROM documentos d2 WHERE d2.proveedor_id = p.id AND d2.es_historico = 0)`);
+whereConditions.push(`u.creado_en <= datetime('now', '-7 days', '-05:00')`);
+}
+if (modulo === 'registrados' && filtroVerificacion) {
       if (filtroVerificacion === 'pendiente_verificar') {
         whereConditions.push('p.estado_general = ? AND p.todos_subidos = ? AND p.todos_verificados = ?');
         params.push('pendiente', 1, 0);
@@ -2770,6 +2776,7 @@ const query = `
       p.*,
       u.email,
       u.nombre_empresa,
+      u.creado_en,
       p.etapa,
       p.evaluacion_inicial,
       p.evaluacion_estado,
@@ -3386,19 +3393,29 @@ app.get('/api/admin/stats', requiereAdmin, (req, res) => {
       WHERE etapa = 'inscripcion'
     `).get().count;
 
-    const rechazados = db.prepare(`
-      SELECT COUNT(*) as count
-      FROM proveedores
-      WHERE etapa = 'rechazado'
-    `).get().count;
+const rechazados = db.prepare(`
+SELECT COUNT(*) as count
+FROM proveedores
+WHERE etapa = 'rechazado'
+`).get().count;
+// 🆕 C3: proveedores inactivos (verificación sin documentos y registro > 7 días)
+const inactivos = db.prepare(`
+SELECT COUNT(*) as count
+FROM proveedores p
+JOIN usuarios u ON p.usuario_id = u.id
+WHERE p.etapa = 'verificacion'
+AND NOT EXISTS (SELECT 1 FROM documentos d WHERE d.proveedor_id = p.id AND d.es_historico = 0)
+AND u.creado_en <= datetime('now', '-7 days', '-05:00')
+`).get().count;
+res.json({
+registrados,
+verificacion,
+aprobacion,
+inscripcion,
+rechazados,
+inactivos
+});
 
-    res.json({
-      registrados,
-      verificacion,
-      aprobacion,
-      inscripcion,
-      rechazados
-    });
   } catch (err) {
     console.error('❌ Error obteniendo estadísticas:', err);
     res.status(500).json({ error: 'Error al obtener estadísticas' });
@@ -4250,6 +4267,44 @@ emitirProveedor(prov.id, 'nuevo_recordatorio', { mensaje: mensajeCrudo });
   res.json({ ok: true });
 });
 
+// 🆕 C3: recordatorio masivo a proveedores inactivos (portal + correo)
+app.post('/api/admin/recordatorio-inactivos', requiereAdmin, (req, res) => {
+try {
+const rows = db.prepare(`
+SELECT p.id, p.razon_social, p.tipo_proveedor, p.ultimo_recordatorio_envio,
+u.email, u.nombre_empresa
+FROM proveedores p
+JOIN usuarios u ON p.usuario_id = u.id
+WHERE p.etapa = 'verificacion'
+AND NOT EXISTS (SELECT 1 FROM documentos d WHERE d.proveedor_id = p.id AND d.es_historico = 0)
+AND u.creado_en <= datetime('now', '-7 days', '-05:00')
+`).all();
+const mensaje = '⏰ Aún no has subido ningún documento. Completa tu documentación para continuar con el registro como proveedor.';
+let enviados = 0, omitidos = 0;
+for (const r of rows) {
+// 🛡️ Anti-spam: máx. 1 recordatorio por proveedor cada 24 h
+if (r.ultimo_recordatorio_envio &&
+db.prepare(`SELECT 1 AS x WHERE ? > datetime('now', '-1 day', '-05:00')`).get(r.ultimo_recordatorio_envio)) {
+omitidos++;
+continue;
+}
+db.prepare(`INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje) VALUES (?, ?, ?, ?)`)
+.run(r.id, req.session.usuario.id, req.session.usuario.email, mensaje);
+db.prepare(`UPDATE proveedores SET ultimo_recordatorio_envio = datetime('now', '-05:00') WHERE id = ?`).run(r.id);
+registrarHistorial(r.id, req.session.usuario, 'recordatorio_enviado', `Recordatorio enviado: ${mensaje}`, null, null, req);
+emitirProveedor(r.id, 'nuevo_recordatorio', { mensaje });
+const nombre = r.razon_social || r.nombre_empresa || 'Proveedor';
+const faltantes = requerimientosPara(r.tipo_proveedor).map(x => ({ nombre: x.nombre, estado: 'pendiente' }));
+enviarEmail(r.email, '⏰ Completa tu registro como proveedor', emailRecordatorioDocumentosFaltantes(nombre, faltantes))
+.catch(err => console.error('Error enviando recordatorio inactivos:', err.message));
+enviados++;
+}
+res.json({ ok: true, enviados, omitidos });
+} catch (err) {
+console.error('❌ Error recordatorio masivo:', err);
+res.status(500).json({ error: 'Error al enviar recordatorios' });
+}
+});
 app.post('/api/admin/limpiar-sesiones', requiereAdmin, (req, res) => {
 try {
 limpiarSesionesCorruptas();

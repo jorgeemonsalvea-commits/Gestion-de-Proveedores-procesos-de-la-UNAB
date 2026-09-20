@@ -51,6 +51,10 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 @media (prefers-reduced-motion: reduce) {
 .apps-menu-panel, .apps-menu-trigger, .apps-tile { transition: none !important; }
 }
+/* 🆕 C1-fix: SweetAlert2 SIEMPRE por encima de overlays de alto z-index
+   (Revisión Enfocada = 9600, visor = 9000). Sin esto, el promptSwal de
+   rechazo queda pintado DETRÁS del overlay y parece que no abre. */
+.swal2-container { z-index: 99999 !important; }
 </style>
 </head>
 <body>
@@ -69,6 +73,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
     <button class="ad-item" data-mod="aprobacion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span class="txt">Aprobación</span><span class="ad-badge" id="side-aprobacion">0</span></button>
     <button class="ad-item" data-mod="inscripcion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="txt">Inscripción</span><span class="ad-badge" id="side-inscripcion">0</span></button>
     <button class="ad-item" data-mod="rechazados" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span class="txt">Rechazados</span><span class="ad-badge" id="side-rechazados">0</span></button>
+    <button class="ad-item" data-mod="inactivos" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="txt">Inactivos</span><span class="ad-badge" id="side-inactivos">0</span></button>
     <div class="ad-sep"></div>
     <button class="ad-item" data-mod="historial" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
     <button class="ad-item" data-mod="configuracion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="txt">Configuración</span></button>
@@ -307,6 +312,8 @@ let totalRegistros = 0;
 let adminFormSubmitted = false;
 let noAplicaChanged = false;
 let historicosCache = [];
+let documentosActivosCache = []; // 🆕 C1: docs activos del proveedor abierto en el modal
+let revisionEnfocada = { activa: false, modo: 'verificacion', cola: [], indice: 0 }; // 🆕 C1
 
 // ==========================================
 // 📋 FUNCIONES AUXILIARES
@@ -681,9 +688,9 @@ document.getElementById('card-aprobacion').textContent = stats.aprobacion || 0;
 document.getElementById('card-inscripcion').textContent = stats.inscripcion || 0;
 document.getElementById('card-rechazados').textContent = stats.rechazados || 0;
   const setSide = (mod, v) => { const e = document.getElementById('side-' + mod); if (e) e.textContent = v || 0; };
-  setSide('registrados', stats.registrados); setSide('verificacion', stats.verificacion);
-  setSide('aprobacion', stats.aprobacion); setSide('inscripcion', stats.inscripcion);
-  setSide('rechazados', stats.rechazados);
+setSide('registrados', stats.registrados); setSide('verificacion', stats.verificacion);
+setSide('aprobacion', stats.aprobacion); setSide('inscripcion', stats.inscripcion);
+setSide('rechazados', stats.rechazados); setSide('inactivos', stats.inactivos || 0);
 } catch (err) {
 console.error('❌ Error actualizando estadísticas:', err);
 }
@@ -709,9 +716,9 @@ cargarModulo(tabId);
 // 🧭 NAV SIDEBAR ADMIN (modelo convocatorias)
 // ==========================================
 const MODULOS_TITULO = {
-  registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
-  inscripcion: 'Inscripción', rechazados: 'Rechazados', historial: 'Historial de actualizaciones',
-  configuracion: 'Configuración', plantillas: 'Plantillas'
+registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
+inscripcion: 'Inscripción', rechazados: 'Rechazados', historial: 'Historial de actualizaciones',
+configuracion: 'Configuración', plantillas: 'Plantillas', inactivos: '🕐 Inactivos (+7 días sin documentos)'
 };
 function marcarModuloAdmin(mod) {
     document.querySelectorAll('.ad-item[data-mod]').forEach(b => b.classList.toggle('active', b.dataset.mod === mod));
@@ -734,11 +741,12 @@ function actualizarContadoresSidebar() {
         .then(r => r.json())
         .then(s => {
             const set = (mod, v) => { const e = document.getElementById('side-' + mod); if (e) e.textContent = v || 0; };
-            set('registrados', s.registrados);
-            set('verificacion', s.verificacion);
-            set('aprobacion', s.aprobacion);
-            set('inscripcion', s.inscripcion);
-            set('rechazados', s.rechazados);
+          set('registrados', s.registrados);
+          set('verificacion', s.verificacion);
+          set('aprobacion', s.aprobacion);
+          set('inscripcion', s.inscripcion);
+          set('rechazados', s.rechazados);
+          set('inactivos', s.inactivos || 0);
         })
         .catch(() => {});
 }
@@ -857,7 +865,11 @@ const botonesAccion = modulo === 'registrados' ? `
 </div>
 <button class="btn btn-sm btn-secondary" onclick="exportarHabeasData()">📋 Habeas Data</button>
 </div>
-` : '';
+` : (modulo === 'inactivos' ? `
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+<button class="btn btn-sm" style="background:#d97706;color:#fff;" onclick="recordarInactivos()">📨 Recordar a todos</button>
+</div>
+` : '');
 
 let html = `
 <div class="card">
@@ -947,7 +959,8 @@ const titulos = {
 'verificacion': '✅ Verificación de documentos',
 'aprobacion': '📋 Aprobación y evaluación inicial',
 'inscripcion': '📝 Inscripción y actualización',
-'plant': '📄 Plantillas'
+'plant': '📄 Plantillas',
+'inactivos': '🕐 Proveedores inactivos (más de 7 días sin subir documentos)'
 };
 return titulos[modulo] || 'Módulo';
 }
@@ -1095,6 +1108,8 @@ badgeModulo = `<span class="badge badge-pendiente">⏳ Pendiente verificar</span
 badgeModulo = `<span class="badge badge-pendiente" style="background:#fbbf24;color:#78350f;">📋 En aprobación</span>`;
 } else if (moduloActual === 'inscripcion') {
 badgeModulo = `<span class="badge badge-aprobado">✅ En inscripción</span>`;
+} else if (moduloActual === 'inactivos') {
+badgeModulo = `<span class="badge badge-pendiente" style="background:#fef3c7;color:#92400e;">🕐 Sin documentos</span>`;
 } else {
 badgeModulo = `<span class="badge badge-${p.estado_general}">${p.estado_general}</span>`;
 }
@@ -1117,7 +1132,7 @@ ${p.todos_subidos && p.estado_general === 'pendiente' && moduloActual === 'regis
 : ''}
 </span>
 </h4>
-<small>📧 ${escapeHtml(p.email)} · NIT: ${escapeHtml(p.rfc || '—')} · 📞 ${escapeHtml(p.telefono || '—')}</small>
+<small>📧 ${escapeHtml(p.email)} · NIT: ${escapeHtml(p.rfc || '—')} · 📞 ${escapeHtml(p.telefono || '—')}${moduloActual === 'inactivos' && p.creado_en ? ` · 📅 Registro: ${formatearFecha(p.creado_en)}` : ''}</small>
 </div>
 ${moduloActual !== 'registrados' ? `
 <div style="text-align:center;">
@@ -1155,6 +1170,7 @@ return;
 proveedorActualId = id;
 proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
 data.proveedor.documentos = data.documentos || [];
+documentosActivosCache = data.documentos || []; // 🆕 C1
 actualizarPanelContexto(data.proveedor);
 historicosCache = data.documentos_historicos || [];
 // 🆕 Cargar los requerimientos según el tipo de persona de ESTE proveedor
@@ -1557,6 +1573,10 @@ Puedes rechazar un documento si está mal. También puedes marcar "No aplica" pa
 Cuando todos estén verificados o marcados como "No aplica", el proveedor pasará automáticamente a Aprobación.
 </div>
 `;
+html += `
+<div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
+<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('verificacion')">🔍 Revisión enfocada (uno por uno)</button>
+</div>`;
 html += renderDocumentosConBotones(proveedor, documentos, true, 'verificacion');
 document.getElementById('modalContenidoDocs').innerHTML = html;
 }
@@ -1571,6 +1591,10 @@ let html = `
 Aprueba o rechaza cada documento. Cuando todos estén aprobados (o marcados como "No aplica"), podrás aprobar la Evaluación Inicial.
 </div>
 `;
+html += `
+<div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
+<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('aprobacion')">🔍 Revisión enfocada (aprobar uno por uno)</button>
+</div>`;
 html += renderDocumentosConBotones(proveedor, documentos, false, 'aprobacion');
 
 html += `
@@ -3087,6 +3111,7 @@ cerrarModal();
 return;
 }
 historicosCache = data.documentos_historicos || [];
+documentosActivosCache = data.documentos || []; // 🆕 C1
 // 🆕 Mantener los requerimientos del tipo de persona del proveedor
 try {
 const tipoProv = data.proveedor.tipo_proveedor === 'natural' ? 'natural' : 'juridica';
@@ -3125,6 +3150,244 @@ mostrarAlerta('Error al recargar la vista');
 }
 }
 
+// ==========================================
+// 🔍 C1: REVISIÓN ENFOCADA (un documento a la vez, PDF siempre visible)
+// ==========================================
+// 🧮 Construye la cola: pendientes reales + No aplica + opcionales sin documento
+function construirColaRevision(modo) {
+  const docs = documentosActivosCache || [];
+const cola = docs
+.filter(d => d.estado === 'pendiente' && (
+modo === 'verificacion'
+? (d.no_aplica === 1 || (d.no_aplica === 0 && d.verificado === 0 && d.archivo && d.archivo !== 'no_aplica'))
+// 🩹 FIX: en Aprobación también entran los marcadores "No aplica" verificados,
+// porque la lista normal los muestra con Aprobar y el medidor aprobados/total
+// exige estado 'aprobado' para completar el cupo del tipo.
+: (d.verificado === 1 && (d.no_aplica === 1 || (d.archivo && d.archivo !== 'no_aplica')))
+))
+.map(d => ({ ...d, esNoAplica: d.no_aplica === 1 }));
+  // Requisitos opcionales sin ningún registro → permitir marcar No aplica desde el modo enfocado
+  if (modo === 'verificacion') {
+    (requeridos || []).forEach(r => {
+      if (!r.opcional) return;
+      if (!docs.some(d => d.tipo === r.tipo)) {
+        cola.push({ id: 0, tipo: r.tipo, nombre: r.nombre, sinDocumento: true, estado: 'pendiente', verificado: 0, no_aplica: 0 });
+      }
+    });
+  }
+  return cola;
+}
+function iniciarRevisionEnfocada(modo) {
+  const cola = construirColaRevision(modo);
+  if (!cola.length) {
+    mostrarAlerta(modo === 'verificacion'
+      ? 'ℹ️ No hay documentos pendientes por verificar ni opcionales por definir en este proveedor.'
+      : 'ℹ️ No hay documentos verificados pendientes de aprobación.', 'info');
+    return;
+  }
+  revisionEnfocada = { activa: true, modo, cola, indice: 0 };
+  montarOverlayRevision();
+  pintarRevisionActual();
+}
+function montarOverlayRevision() {
+  let ov = document.getElementById('modalRevisionEnfocada');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.className = 'modal-overlay active';
+  ov.id = 'modalRevisionEnfocada';
+  ov.style.zIndex = '9600';
+  ov.innerHTML = `
+  <div class="modal" style="max-width:96%;width:1250px;height:94vh;padding:0.8rem;display:flex;flex-direction:column;gap:0.6rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.8rem;flex-wrap:wrap;">
+      <h3 style="margin:0;font-size:1.05rem;" id="revTitulo">Documento</h3>
+      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <span id="revContador" class="badge-count"></span>
+        <button class="btn btn-sm btn-secondary" onclick="cerrarRevisionEnfocada()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div id="revMeta" style="font-size:0.85rem;color:#6b7280;"></div>
+    <div style="flex:1;min-height:0;background:#525659;border-radius:8px;overflow:hidden;position:relative;">
+      <iframe id="revIframe" style="width:100%;height:100%;border:none;display:block;"></iframe>
+      <div id="revPlaceholder" style="display:none;position:absolute;inset:0;background:#f9fafb;color:#374151;align-items:center;justify-content:center;flex-direction:column;gap:0.6rem;text-align:center;padding:2rem;font-size:0.95rem;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(-1)">← Anterior</button>
+        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(1)">Saltar →</button>
+      </div>
+      <div id="revAcciones" style="display:flex;gap:0.5rem;flex-wrap:wrap;"></div>
+    </div>
+    <small style="color:#9ca3af;">Atajos: ← anterior · → saltar · V verificar/aprobar · R rechazar · Esc cerrar</small>
+  </div>`;
+  document.body.appendChild(ov);
+}
+function pintarRevisionActual() {
+  const r = revisionEnfocada;
+  if (!r.activa) return;
+  if (!r.cola.length || r.indice >= r.cola.length) { finalizarRevisionEnfocada(true); return; }
+  const doc = r.cola[r.indice];
+  const titulo = document.getElementById('revTitulo');
+  const contador = document.getElementById('revContador');
+  const meta = document.getElementById('revMeta');
+  const iframe = document.getElementById('revIframe');
+  const placeholder = document.getElementById('revPlaceholder');
+  const acciones = document.getElementById('revAcciones');
+  const tieneArchivo = !doc.sinDocumento && doc.archivo && doc.archivo !== 'no_aplica';
+  if (titulo) titulo.textContent = `${proveedorActualNombre} — ${nombreFormato(doc.tipo)}`;
+  if (contador) contador.textContent = `Elemento ${r.indice + 1} de ${r.cola.length}`;
+  if (meta) {
+    meta.innerHTML = doc.esNoAplica
+      ? `📋 <strong>NO APLICA</strong> · ${escapeHtml((doc.comentario || 'Marcado sin archivo').replace('No aplica - ', ''))}`
+      : doc.sinDocumento
+        ? `📭 <strong>Sin documento</strong> · requisito opcional aún sin cargar`
+        : `Estado: <strong>${doc.estado}</strong> · ${doc.verificado === 1 ? '✅ Verificado' : '⏳ Sin verificar'} · Subido: ${formatearFecha(doc.subido_en)}`;
+  }
+  if (tieneArchivo) {
+    if (iframe) { iframe.style.display = 'block'; iframe.src = `/uploads/${doc.archivo}`; }
+    if (placeholder) placeholder.style.display = 'none';
+  } else {
+    if (iframe) { iframe.style.display = 'none'; iframe.src = 'about:blank'; }
+    if (placeholder) {
+      placeholder.style.display = 'flex';
+      placeholder.innerHTML = doc.esNoAplica
+        ? `<div style="font-size:2.2rem;">📋</div><strong>Documento marcado como NO APLICA</strong><small style="color:#6b7280;">Confirma el marcado o desmárcalo para exigir la carga del PDF.</small>`
+        : `<div style="font-size:2.2rem;">📭</div><strong>Requisito opcional sin documento</strong><small style="color:#6b7280;">Puedes marcarlo como NO APLICA o dejarlo pendiente de carga.</small>`;
+    }
+  }
+if (acciones) {
+if (doc.esNoAplica && r.modo === 'verificacion') {
+acciones.innerHTML = `
+<button class="btn btn-sm btn-secondary" onclick="accionRevision('desmarcar_noaplica')">↩️ Desmarcar No aplica</button>
+<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">✅ Confirmar No aplica y seguir</button>`;
+} else if (doc.esNoAplica && r.modo === 'aprobacion') {
+// 🩹 FIX: en Aprobación el marcador No aplica se aprueba/rechaza como en la lista normal
+acciones.innerHTML = `
+<button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">❌ Rechazar</button>
+<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">✅ Aprobar y siguiente</button>`;
+} else if (doc.sinDocumento) {
+      acciones.innerHTML = `
+        <button class="btn btn-sm" style="background:#0284c7;" onclick="accionRevision('marcar_noaplica')">📋 Marcar No aplica</button>
+        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(1)">⏭ Dejar pendiente y seguir</button>`;
+    } else {
+      acciones.innerHTML = `
+        <button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">❌ Rechazar</button>
+        <button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${r.modo === 'verificacion' ? '✅ Verificar y siguiente' : '✅ Aprobar y siguiente'}</button>`;
+    }
+  }
+}
+function navegarRevision(delta) {
+  const r = revisionEnfocada;
+  if (!r.activa) return;
+  const nuevo = r.indice + delta;
+  if (nuevo < 0) return;
+  if (nuevo >= r.cola.length) { finalizarRevisionEnfocada(false); return; }
+  r.indice = nuevo;
+  pintarRevisionActual();
+}
+async function accionRevision(accion) {
+  const r = revisionEnfocada;
+  if (!r.activa) return;
+  const doc = r.cola[r.indice];
+  if (!doc) return;
+  try {
+// 📋 NO APLICA en VERIFICACIÓN: confirmar el marcado no toca servidor, solo avanza
+if (accion === 'principal' && doc.esNoAplica && r.modo === 'verificacion') {
+r.cola.splice(r.indice, 1);
+if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
+pintarRevisionActual();
+return;
+}
+// 🩹 FIX: NO APLICA en APROBACIÓN: se aprueba por servidor (igual que el botón Aprobar de la lista)
+if (accion === 'principal' && doc.esNoAplica && r.modo === 'aprobacion') {
+const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, {
+method: 'POST', headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ estado: 'aprobado' })
+});
+if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al aprobar'), 'error'); return; }
+mostrarAlerta('✅ No aplica aprobado', 'success');
+r.cola.splice(r.indice, 1);
+if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
+pintarRevisionActual();
+return;
+}
+    // ↩️ Desmarcar No aplica → el documento vuelve a requerir carga
+    if (accion === 'desmarcar_noaplica') {
+      const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/documento/${doc.id}/no-aplica`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ no_aplica: false, tipo: doc.tipo })
+      });
+      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al desmarcar'), 'error'); return; }
+      mostrarAlerta('↩️ No aplica desmarcado: el documento vuelve a requerir carga', 'success');
+      await refrescarColaRevision();
+      return;
+    }
+    // 📋 Marcar No aplica sobre un requisito opcional sin documento
+    if (accion === 'marcar_noaplica') {
+      const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/documento/0/no-aplica`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ no_aplica: true, tipo: doc.tipo })
+      });
+      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al marcar'), 'error'); return; }
+      mostrarAlerta('📋 Documento marcado como No aplica', 'success');
+      await refrescarColaRevision();
+      return;
+    }
+    if (accion === 'rechazar') {
+      if (doc.sinDocumento) { // 🩹 FIX: los marcadores No aplica SÍ pueden rechazarse (como en la lista normal)
+        mostrarAlerta('️ Este elemento no tiene archivo para rechazar. Usa Desmarcar o Marcar No aplica.', 'warning');
+        return;
+      }
+      const motivo = await promptSwal({ titulo: 'Motivo del rechazo', texto: 'El proveedor verá este motivo en su portal y por correo.', placeholder: 'Ej: Documento ilegible…', obligatorio: false });
+      if (motivo === null) return;
+      const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'rechazado', comentario: motivo }) });
+      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al rechazar'), 'error'); return; }
+      mostrarAlerta('❌ Documento rechazado', 'success');
+    } else if (r.modo === 'verificacion') {
+      const res = await fetchAPI(`/api/admin/documento/${doc.id}/verificar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verificado: true }) });
+      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al verificar'), 'error'); return; }
+      mostrarAlerta('✅ Documento verificado', 'success');
+    } else {
+      const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'aprobado' }) });
+      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al aprobar'), 'error'); return; }
+      mostrarAlerta('✅ Documento aprobado', 'success');
+    }
+    r.cola.splice(r.indice, 1);
+    if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
+    pintarRevisionActual();
+  } catch (err) {
+    console.error('Error en revisión enfocada:', err);
+    mostrarAlerta('❌ Error de conexión', 'error');
+  }
+}
+// 🔄 Reconstruye la cola desde la caché fresca tras marcar/desmarcar No aplica
+async function refrescarColaRevision() {
+  const modo = revisionEnfocada.modo;
+  const idx = revisionEnfocada.indice;
+  await recargarVistaProveedor();
+  const cola = construirColaRevision(modo);
+  if (!cola.length) {
+    cerrarRevisionEnfocada();
+    mostrarAlerta('✅ Revisión enfocada completada: no quedan elementos en la cola.', 'success');
+    return;
+  }
+  revisionEnfocada.cola = cola;
+  revisionEnfocada.indice = Math.min(idx, cola.length - 1);
+  pintarRevisionActual();
+}
+function finalizarRevisionEnfocada(completada) {
+  const ov = document.getElementById('modalRevisionEnfocada');
+  if (ov) ov.remove();
+  revisionEnfocada.activa = false;
+  mostrarAlerta(completada ? '✅ Revisión enfocada completada: no quedan documentos en la cola.' : '👌 Sesión de revisión finalizada.', completada ? 'success' : 'info');
+  recargarVistaProveedor();
+  cargarProveedoresPorModulo(moduloActual, paginaActual);
+  actualizarEstadisticasGlobales();
+}
+function cerrarRevisionEnfocada() {
+  const iframe = document.getElementById('revIframe');
+  if (iframe) iframe.src = 'about:blank';
+  finalizarRevisionEnfocada(false);
+}
 // ==========================================
 // 👁️ VISOR DE DOCUMENTOS
 // ==========================================
@@ -3268,6 +3531,23 @@ document.getElementById('mensajeRecordatorio').value = '';
 await cargarRecordatoriosEnviados();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else { const r = await res.json(); mostrarAlerta(r.error); }
+}
+
+// ==========================================
+// 🕐 C3: RECORDATORIO MASIVO A INACTIVOS
+// ==========================================
+async function recordarInactivos() {
+if (!await confirmarSwal({ titulo: '📨 Recordar a proveedores inactivos', texto: 'Se enviará un recordatorio por correo y en el portal a todos los proveedores con más de 7 días sin subir documentos (máx. 1 por día por proveedor).', peligro: false, textoConfirmar: 'Sí, enviar' })) return;
+try {
+const res = await fetchAPI('/api/admin/recordatorio-inactivos', { method: 'POST' });
+const r = await res.json();
+if (res.ok) mostrarAlerta(`✅ Recordatorios enviados: ${r.enviados}${r.omitidos ? ` · omitidos (ya recordados hoy): ${r.omitidos}` : ''}`, 'success');
+else mostrarAlerta('❌ ' + (r.error || 'Error al enviar'), 'error');
+await cargarProveedoresPorModulo(moduloActual, paginaActual);
+} catch (err) {
+console.error('Error recordatorio masivo:', err);
+mostrarAlerta('❌ Error de conexión', 'error');
+}
 }
 
 // ==========================================
@@ -3590,6 +3870,21 @@ if (tgt === 'rec') cargarRecordatoriosEnviados();
 if (tgt === 'notas') cargarNotas();
 if (tgt === 'historicos') renderHistoricosProveedor({ id: proveedorActualId }, historicosCache);
 }
+});
+
+// ==========================================
+// 🔍 C1: ATAJOS DE TECLADO DE LA REVISIÓN ENFOCADA
+// ==========================================
+document.addEventListener('keydown', function(e) {
+  const r = revisionEnfocada;
+  if (!r || !r.activa) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); navegarRevision(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); navegarRevision(1); }
+  else if (e.key.toLowerCase() === 'v') { e.preventDefault(); accionRevision('principal'); }
+  else if (e.key.toLowerCase() === 'r') { e.preventDefault(); accionRevision('rechazar'); }
+  else if (e.key === 'Escape') { cerrarRevisionEnfocada(); }
 });
 
 // ==========================================
