@@ -292,19 +292,21 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
   <div class="modal" style="max-width:95%;width:1100px;height:92vh;padding:1rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
       <h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+<button type="button" class="btn-visor" onclick="toggleVisorPantallaCompleta()" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)">⛶</button>
+<a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
         <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary">🔗 Abrir en pestaña</a>
         <button class="btn btn-sm btn-danger" onclick="cerrarVisor()">✕ Cerrar</button>
       </div>
     </div>
-    <div style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">
-      <div id="visorCargando" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:white;">
-        <div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
-        <p>Cargando documento...</p>
-      </div>
-      <iframe id="visorIframe" style="width:100%;height:100%;border:none;display:none;"></iframe>
-    </div>
+<div id="visorMarco" style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">
+<div id="visorCargando" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:white;">
+<div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+<p>Cargando documento...</p>
+</div>
+<iframe id="visorIframe" style="width:100%;height:100%;border:none;display:none;"></iframe>
+</div>
   </div>
 </div>
 
@@ -2019,15 +2021,28 @@ mostrarAlerta(`⚠️ Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning
     iframe.src = url;
     iframe.onload = () => { cargando.style.display = 'none'; iframe.style.display = 'block'; };
     setTimeout(() => {
-      if (cargando.style.display !== 'none') { cargando.style.display = 'none'; iframe.style.display = 'block'; }
+      iframe.onload = () => { cargando.style.display = 'none'; iframe.style.display = 'block'; };
     }, 8000);
     document.getElementById('modalVisor').classList.add('active');
   }
 
-  function cerrarVisor() {
-    document.getElementById('visorIframe').src = 'about:blank';
-    document.getElementById('modalVisor').classList.remove('active');
-  }
+function cerrarVisor() {
+document.getElementById('visorIframe').src = 'about:blank';
+document.getElementById('modalVisor').classList.remove('active');
+document.getElementById('modalVisor').classList.remove('visor-fullscreen'); // 🔍 E4: cerrar restaura el tamaño
+}
+// ==========================================
+// 🔍 E4 (REDEFINIDO): EXPANDIR VISOR A PANTALLA COMPLETA
+// Decisión de diseño: el zoom y la rotación REALES los aporta el visor
+// nativo del navegador dentro del iframe (PDFium). Lo que el nativo NO
+// puede hacer es agrandar el modal que lo contiene. Este toggle lleva
+// el modal a ~100vw/100vh para que el PDF trabaje con toda el área.
+// ==========================================
+function toggleVisorPantallaCompleta() {
+const m = document.getElementById('modalVisor');
+if (!m) return;
+m.classList.toggle('visor-fullscreen');
+}
 
   // ==========================================
   // 📊 ACTUALIZAR ESTADO (etapa + banner + badges)
