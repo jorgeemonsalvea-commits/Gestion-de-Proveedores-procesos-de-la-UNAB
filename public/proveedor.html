@@ -109,7 +109,7 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
   </style>
 </head>
 <body>
-
+<a class="skip-link" href="#contenido-principal">Saltar al contenido principal</a>
 <!-- Contenedor de notificaciones push -->
 <div id="notificationContainer" class="notification-container"></div>
 
@@ -143,7 +143,7 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 </div>
 </div>
 </div>
-<div class="pv-content">
+<div class="pv-content" id="contenido-principal">
 <div class="pv-grid">
 <div class="pv-col-main">
   <div id="alerta"></div>
@@ -539,6 +539,9 @@ for (const n of m.addedNodes) {
 if (!n || n.nodeType !== 1) continue;
 if (esCampoBlindable(n)) blindarCampo(n);
 if (n.querySelectorAll) n.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
+// ♿ D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
+if (n.classList && n.classList.contains('modal-overlay')) { n.setAttribute('role', 'dialog'); n.setAttribute('aria-modal', 'true'); }
+if (n.querySelectorAll) n.querySelectorAll('.modal-overlay').forEach(ov => { ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); });
 }
 }
 });
@@ -1170,6 +1173,13 @@ if (perfilCompleto) {
 // 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
 const btnSonido = document.getElementById('btnSonidoD4');
 if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
+// ♿ D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
+const bSonD2 = document.getElementById('btnSonidoD4');
+if (bSonD2 && !bSonD2.getAttribute('aria-label')) bSonD2.setAttribute('aria-label', 'Activar o silenciar sonido de notificaciones');
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+ov.setAttribute('role', 'dialog');
+ov.setAttribute('aria-modal', 'true');
+});
 conectarSocket();
 } catch (err) {
 console.error('Error en init:', err);

@@ -64,6 +64,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </style>
 </head>
 <body>
+<a class="skip-link" href="#contenedor-modulos">Saltar al contenido principal</a>
 <!-- Contenedor de notificaciones push -->
 <div id="notificationContainer" class="notification-container"></div>
 
@@ -424,6 +425,9 @@ for (const n of m.addedNodes) {
 if (!n || n.nodeType !== 1) continue;
 if (esBuscadorBlindable(n)) blindarBuscador(n);
 if (n.querySelectorAll) n.querySelectorAll('input').forEach((i) => { if (esBuscadorBlindable(i)) blindarBuscador(i); });
+// ♿ D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
+if (n.classList && n.classList.contains('modal-overlay')) { n.setAttribute('role', 'dialog'); n.setAttribute('aria-modal', 'true'); }
+if (n.querySelectorAll) n.querySelectorAll('.modal-overlay').forEach(ov => { ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); });
 }
 }
 });
@@ -923,6 +927,16 @@ actualizarContadoresSidebar();
 configurarTabs();
 const cardInicial = document.querySelector('.kpi-tab[data-modulo="registrados"]:not([data-estado])');
 if (cardInicial) cardInicial.classList.add('kpi-active');
+// ♿ D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
+const bCamD2 = document.getElementById('btnCampanaD4');
+if (bCamD2 && !bCamD2.getAttribute('aria-label')) bCamD2.setAttribute('aria-label', 'Eventos en tiempo real');
+const bSonD2 = document.getElementById('btnSonidoD4');
+if (bSonD2 && !bSonD2.getAttribute('aria-label')) bSonD2.setAttribute('aria-label', 'Activar o silenciar sonido de notificaciones');
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+ov.setAttribute('role', 'dialog');
+ov.setAttribute('aria-modal', 'true');
+});
+
 // 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
 const btnSonido = document.getElementById('btnSonidoD4');
 if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';

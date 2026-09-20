@@ -1951,6 +1951,45 @@ display: flex; align-items: center; gap: .3rem;
 .pass-checklist li.ok { color: var(--color-exito); }
 .pass-checklist li.ok::before { content: "●"; }
 /* ==========================================
+♿ D2: CAPA DE ACCESIBILIDAD WCAG 2.1 AA
+========================================== */
+/* Anillo de foco visible en TODO control interactivo (navegación por teclado) */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+outline: 3px solid var(--color-primario);
+outline-offset: 2px;
+border-radius: 4px;
+}
+/* Excepción: controles que ya tienen anillo propio por box-shadow */
+.btn:focus-visible,
+.kpi-tab:focus-visible,
+.btn-sonido:focus-visible,
+.apps-menu-trigger:focus-visible,
+.apps-tile:focus-visible { outline: none; }
+/* Enlace "saltar al contenido": invisible hasta tabular */
+.skip-link {
+position: absolute; left: -9999px; top: 0;
+background: var(--color-primario); color: #fff;
+padding: .6rem 1rem; border-radius: 0 0 8px 0;
+font-weight: 700; z-index: 10000; text-decoration: none;
+}
+.skip-link:focus { left: 0; }
+/* Texto exclusivo para lectores de pantalla */
+.sr-only {
+position: absolute; width: 1px; height: 1px;
+padding: 0; margin: -1px; overflow: hidden;
+clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+/* 🎨 Contraste AA: #9ca3af sobre blanco = 2.8:1 (falla). Se oscurece a
+#6b7280 = 4.8:1 sin tocar el HTML (gana por especificidad + !important). */
+[style*="#9ca3af"] { color: #6b7280 !important; }
+/* Placeholders con contraste suficiente (antes heredaban gris claro) */
+::placeholder { color: #6b7280; opacity: 1; }
+/* ==========================================
 🔍 E4: CONTROLES DE ZOOM/ROTACIÓN DEL VISOR PDF
 ========================================== */
 .btn-visor {
