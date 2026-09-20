@@ -2785,7 +2785,8 @@ const query = `
       p.tipo_gestion,
       p.notas_gestion,
       p.fecha_gestion,
-  (SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
+      CAST(julianday(datetime('now','-05:00')) - julianday(COALESCE((SELECT MAX(h.creado_en) FROM historial h WHERE h.proveedor_id = p.id AND h.accion IN ('cambio_etapa','registro','solicitud_actualizacion','rechazo_limpiado','etapa_normalizada','evaluacion_rechazada_con_retroceso','evaluacion_rechazada_actualizacion','vencimiento_automatico','vencimiento_forzado','proceso_reiniciado')), u.creado_en)) AS INTEGER) AS dias_en_etapa,
+(SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
   (SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
   FROM proveedores p
   JOIN usuarios u ON p.usuario_id = u.id
@@ -4034,12 +4035,13 @@ console.log(`✅ Correo de ${esRenovacion ? 'actualización aprobada' : 'felicit
 });
 
 app.get('/api/admin/proveedor/:id', requiereAdmin, (req, res) => {
-  const p = db.prepare(`
-    SELECT p.*, u.email, u.nombre_empresa, p.numero_registro, p.tipo_gestion, p.notas_gestion, p.fecha_gestion
-    FROM proveedores p
-    JOIN usuarios u ON p.usuario_id = u.id
-    WHERE p.id = ?
-  `).get(req.params.id);
+const p = db.prepare(`
+SELECT p.*, u.email, u.nombre_empresa, p.numero_registro, p.tipo_gestion, p.notas_gestion, p.fecha_gestion,
+CAST(julianday(datetime('now','-05:00')) - julianday(COALESCE((SELECT MAX(h.creado_en) FROM historial h WHERE h.proveedor_id = p.id AND h.accion IN ('cambio_etapa','registro','solicitud_actualizacion','rechazo_limpiado','etapa_normalizada','evaluacion_rechazada_con_retroceso','evaluacion_rechazada_actualizacion','vencimiento_automatico','vencimiento_forzado','proceso_reiniciado')), u.creado_en)) AS INTEGER) AS dias_en_etapa
+FROM proveedores p
+JOIN usuarios u ON p.usuario_id = u.id
+WHERE p.id = ?
+`).get(req.params.id);
 
   if (!p) {
     return res.status(404).json({ error: 'Proveedor no encontrado' });

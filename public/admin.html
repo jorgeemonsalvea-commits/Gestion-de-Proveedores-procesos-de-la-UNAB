@@ -412,6 +412,14 @@ if (p.estado_general === 'rechazado') return 'Rechazado';
 return 'Pendiente';
 }
 
+// 🆕 C4: badge de días en la etapa actual (verde <3, ámbar 3-7, rojo >7)
+function badgeDiasEtapa(dias) {
+if (dias == null || isNaN(dias)) return '';
+const d = Math.max(0, parseInt(dias, 10));
+const color = d > 7 ? '#dc2626' : d >= 3 ? '#d97706' : '#059669';
+const fondo = d > 7 ? '#fee2e2' : d >= 3 ? '#fef3c7' : '#d1fae5';
+return `<span style="background:${fondo};color:${color};border-radius:10px;padding:0.1rem 0.5rem;font-size:0.7rem;font-weight:700;white-space:nowrap;">⏱️ ${d}d en etapa</span>`;
+}
 // ==========================================
 // 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
 // ==========================================
@@ -791,8 +799,8 @@ const aprobados = (requeridos || []).filter(r => {
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div><span class="lbl">NIT / RUT</span><span class="val">${escapeHtml(p.rfc || '—')}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><div><span class="lbl">Tipo de persona</span><span class="val">${p.tipo_proveedor === 'natural' ? 'Persona Natural' : p.tipo_proveedor === 'juridica' ? 'Persona Jurídica' : 'Sin definir'}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div><span class="lbl">Estado general</span><span class="val">${escapeHtml(p.estado_general || 'pendiente')}</span></div></div>
-      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg><div><span class="lbl">Etapa</span><span class="val">${escapeHtml(p.etapa || 'verificacion')}</span></div></div>
-      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><span class="lbl">Docs aprobados</span><span class="val">${aprobados}/${requeridos.length || 0}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><div><span class="lbl">Etapa</span><span class="val">${escapeHtml(p.etapa || 'verificacion')}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div><span class="lbl">Tiempo en etapa</span><span class="val">${p.dias_en_etapa != null ? p.dias_en_etapa + ' días' : '—'}</span></div></div>      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><span class="lbl">Docs aprobados</span><span class="val">${aprobados}/${requeridos.length || 0}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><div><span class="lbl">Correo</span><span class="val">${escapeHtml(p.email || '—')}</span></div></div>
     </div>`;
 }
