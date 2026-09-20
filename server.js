@@ -523,8 +523,26 @@ function configDocGlobal(tipo) {
     || null;
 }
 function nombreFormatoServer(tipo) {
-  const c = configDocGlobal(tipo);
-  return c ? c.nombre : null;
+const c = configDocGlobal(tipo);
+return c ? c.nombre : null;
+}
+// ==========================================
+// 📞 G11: TELEFONÍA COLOMBIA (normalización + validación)
+// Plan de numeración: celular 3XX XXX XXXX · fijo 60X/70X XXX XXXX (10 dígitos).
+// Acepta +57/57 prefijado y separadores; devuelve formato legible 3-3-4.
+// Vacío = opcional (no bloquea). Inválido = { ok:false } para que el endpoint decida.
+// ==========================================
+const TEL_CO_CEL = /^3\d{9}$/;
+const TEL_CO_FIJO = /^(60|70)\d{8}$/;
+function normalizarTelefonoCO(valor) {
+if (valor === null || valor === undefined) return { ok: true, telefono: '', mensaje: null };
+let d = String(valor).replace(/\D+/g, '');
+if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
+if (d === '') return { ok: true, telefono: '', mensaje: null };
+if (!TEL_CO_CEL.test(d) && !TEL_CO_FIJO.test(d)) {
+return { ok: false, telefono: String(valor).trim(), mensaje: 'Teléfono colombiano inválido: usa 10 dígitos (celular 3XX XXX XXXX o fijo 60X XXX XXXX).' };
+}
+return { ok: true, telefono: d.replace(/^(.{3})(.{3})(.{4})$/, '$1 $2 $3'), mensaje: null };
 }
 
 // 🏷️ Estado legible para exportaciones (diferencia las etapas reales)
@@ -1954,15 +1972,21 @@ app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
             return res.status(400).json({ error: 'No puedes cambiar el tipo de persona porque ya tienes documentos subidos. Contacta al administrador.' });
         }
     }
-    db.prepare(`
-        UPDATE proveedores
-        SET razon_social = ?, rfc = ?, representante = ?, telefono = ?, direccion = ?,
-            tipo_proveedor = COALESCE(?, tipo_proveedor)
-        WHERE usuario_id = ?
-    `).run(
-        razon_social.trim(), rfc.trim(), representante.trim(), telefono.trim(), direccion.trim(),
-        tipoPersona, req.session.usuario.id
-    );
+// 📞 G11: valida el teléfono SOLO si cambió respecto al guardado (legacy tolerado)
+const tel = normalizarTelefonoCO(telefono);
+if (!tel.ok && String(telefono).trim() !== String(prov.telefono || '').trim()) {
+return res.status(400).json({ error: tel.mensaje });
+}
+const telefonoFinal = tel.ok ? tel.telefono : telefono.trim();
+db.prepare(`
+UPDATE proveedores
+SET razon_social = ?, rfc = ?, representante = ?, telefono = ?, direccion = ?,
+tipo_proveedor = COALESCE(?, tipo_proveedor)
+WHERE usuario_id = ?
+`).run(
+razon_social.trim(), rfc.trim(), representante.trim(), telefonoFinal, direccion.trim(),
+tipoPersona, req.session.usuario.id
+);
     registrarHistorial(
         prov.id, req.session.usuario, 'datos_actualizados',
         `Datos de empresa completados. Razón social: ${razon_social}. Tipo de persona: ${tipoPersona || prov.tipo_proveedor || 'sin definir'}`,
@@ -5164,6 +5188,9 @@ const hash = bcrypt.hashSync(passwordFinal, 12);
       VALUES (?, ?, 'proveedor', ?, 1)
     `).run(email, hash, nombre_empresa);
 
+// 📞 G11: en creación el teléfono (si viene) debe ser válido desde ya
+const tel = normalizarTelefonoCO(telefono || '');
+if (!tel.ok) return res.status(400).json({ error: tel.mensaje });
 const provResult = db.prepare(`
 INSERT INTO proveedores (usuario_id, razon_social, rfc, representante, telefono, direccion, tipo_proveedor)
 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -5172,7 +5199,7 @@ result.lastInsertRowid,
 razon_social || nombre_empresa,
 rfc || '',
 representante || '',
-telefono || '',
+tel.telefono,
 direccion || '',
 ['natural', 'juridica'].includes(tipo_proveedor) ? tipo_proveedor : null
 );

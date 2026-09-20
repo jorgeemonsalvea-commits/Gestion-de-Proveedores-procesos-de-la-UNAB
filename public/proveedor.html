@@ -2241,14 +2241,76 @@ m.classList.toggle('visor-fullscreen');
   }
 
 // ==========================================
+// 📞 G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
+// Legacy: un teléfono antiguo guardado se tolera (ámbar) hasta que se edite.
+// ==========================================
+const TEL_CO_RE = { cel: /^3\d{9}$/, fijo: /^(60|70)\d{8}$/ };
+function normalizarDigitosCO(v) {
+let d = String(v || '').replace(/\D+/g, '');
+if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
+return d;
+}
+function formatearTelefonoCO(v) {
+const d = normalizarDigitosCO(v).slice(0, 10);
+return d.replace(/^(.{3})(.{0,3})(.{0,4})$/, (m, a, b, c) => [a, b, c].filter(Boolean).join(' '));
+}
+function validarTelefonoCO(v) {
+const d = normalizarDigitosCO(v);
+if (!d) return { valido: true, mensaje: '' };
+if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: '📱 Celular válido' };
+if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: '☎️ Fijo válido' };
+return { valido: false, mensaje: 'Formato CO: 3XX XXX XXXX (celular) o 60X XXX XXXX (fijo) · 10 dígitos' };
+}
+function conectarMascaraTelefono(input) {
+if (!input) return;
+// Legacy sin editar: se tolera hasta la primera edición
+let tolerado = !!input.value && !validarTelefonoCO(input.value).valido;
+let hint = document.getElementById(input.id + '_hint');
+if (!hint) {
+hint = document.createElement('small');
+hint.id = input.id + '_hint';
+hint.style.cssText = 'display:block;margin-top:0.3rem;font-size:0.78rem;';
+const grp = input.closest('.form-group');
+if (grp) grp.appendChild(hint);
+}
+const pintar = () => {
+const r = validarTelefonoCO(input.value);
+if (tolerado) {
+hint.textContent = '⚠️ Formato antiguo: se validará cuando lo edites';
+hint.style.color = '#d97706';
+input.dataset.telOk = '1';
+return;
+}
+hint.textContent = input.value ? r.mensaje : 'Ej: 310 123 4567 · 601 123 4567';
+hint.style.color = !input.value ? '#6b7280' : (r.valido ? '#059669' : '#dc2626');
+input.dataset.telOk = r.valido ? '1' : '0';
+};
+input.addEventListener('input', () => {
+tolerado = false;
+input.value = formatearTelefonoCO(input.value);
+pintar();
+});
+input.addEventListener('blur', pintar);
+pintar();
+}
+conectarMascaraTelefono(document.getElementById('telefono'));
+
+// ==========================================
 // 🏢 GUARDAR DATOS
 // ==========================================
 document.getElementById('form-datos').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button');
-    const textoOriginal = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Guardando...';
+e.preventDefault();
+// 📞 G11: no enviar si el teléfono editado es inválido (evita round-trip)
+const telInput = document.getElementById('telefono');
+if (telInput && telInput.dataset.telOk === '0') {
+mostrarAlerta('❌ Teléfono inválido: ' + validarTelefonoCO(telInput.value).mensaje, 'error');
+telInput.focus();
+return;
+}
+const btn = e.target.querySelector('button');
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Guardando...';
     try {
         const data = Object.fromEntries(new FormData(e.target));
         const res = await fetchAPI('/api/proveedor/datos', {

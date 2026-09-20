@@ -4157,6 +4157,51 @@ if (d) d.style.display = d.style.display === 'block' ? 'none' : 'block';
 }
 
 // ==========================================
+// 📞 G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
+// ==========================================
+const TEL_CO_RE = { cel: /^3\d{9}$/, fijo: /^(60|70)\d{8}$/ };
+function normalizarDigitosCO(v) {
+let d = String(v || '').replace(/\D+/g, '');
+if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
+return d;
+}
+function formatearTelefonoCO(v) {
+const d = normalizarDigitosCO(v).slice(0, 10);
+return d.replace(/^(.{3})(.{0,3})(.{0,4})$/, (m, a, b, c) => [a, b, c].filter(Boolean).join(' '));
+}
+function validarTelefonoCO(v) {
+const d = normalizarDigitosCO(v);
+if (!d) return { valido: true, mensaje: '' };
+if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: '📱 Celular válido' };
+if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: '☎️ Fijo válido' };
+return { valido: false, mensaje: 'Formato CO: 3XX XXX XXXX (celular) o 60X XXX XXXX (fijo) · 10 dígitos' };
+}
+function conectarMascaraTelefono(input) {
+if (!input) return;
+let hint = document.getElementById(input.id + '_hint') || input.closest('.form-group')?.querySelector('.tel-hint-g11');
+if (!hint) {
+hint = document.createElement('small');
+hint.className = 'tel-hint-g11';
+hint.id = 'telCrearHint';
+hint.style.cssText = 'display:block;margin-top:0.3rem;font-size:0.78rem;color:#6b7280;';
+const grp = input.closest('.form-group');
+if (grp) grp.appendChild(hint);
+}
+const pintar = () => {
+const r = validarTelefonoCO(input.value);
+hint.textContent = input.value ? r.mensaje : 'Ej: 310 123 4567 · 601 123 4567';
+hint.style.color = !input.value ? '#6b7280' : (r.valido ? '#059669' : '#dc2626');
+input.dataset.telOk = r.valido ? '1' : '0';
+};
+input.addEventListener('input', () => {
+input.value = formatearTelefonoCO(input.value);
+pintar();
+});
+input.addEventListener('blur', pintar);
+pintar();
+}
+conectarMascaraTelefono(document.querySelector('#formCrearProveedor input[name="telefono"]'));
+// ==========================================
 // 🔐 CREAR PROVEEDOR
 // ==========================================
 function mostrarModalCrearProveedor() {
@@ -4172,6 +4217,13 @@ e.preventDefault();
 const alertaEl = document.getElementById('alertaCrearProveedor');
 const formData = new FormData(e.target);
 const data = Object.fromEntries(formData);
+// 📞 G11: bloqueo local si el teléfono es inválido (el server también valida)
+const telInput = e.target.querySelector('input[name="telefono"]');
+if (telInput && telInput.dataset.telOk === '0') {
+alertaEl.innerHTML = `<div class="alert alert-error">❌ Teléfono inválido: ${escapeHtml(validarTelefonoCO(telInput.value).mensaje)}</div>`;
+telInput.focus();
+return;
+}
 try {
 const res = await fetchAPI('/api/admin/proveedor', {
 method: 'POST',
