@@ -262,7 +262,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </div>
 <div class="form-group">
 <label>Tipo de persona</label>
-<select name="tipo_proveedor">
+<select name="tipo_proveedor" onchange="sincronizarTipoDocCrear(this.value)">
 <option value="">— El proveedor lo elegirá después —</option>
 <option value="juridica">🏢 Persona Jurídica</option>
 <option value="natural">🧍 Persona Natural</option>
@@ -271,7 +271,19 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <h4 style="margin:1.5rem 0 0.8rem 0;color:#1e40af;">🏢 Datos de la empresa (Obligatorios)</h4>
 <div class="grid-2">
 <div class="form-group"><label>Razón social</label><input type="text" name="razon_social" placeholder="Razón social"></div>
-<div class="form-group"><label>NIT / RUT</label><input type="text" name="rfc" placeholder="NIT o RUT"></div>
+<div class="form-group">
+<label>Tipo y número de documento</label>
+<div style="display:flex;gap:0.5rem;">
+<select name="tipo_documento" style="width:38%;padding:0.65rem 0.8rem;border:1px solid var(--color-borde-input);border-radius:6px;">
+<option value="nit">🏢 NIT</option>
+<option value="cc">🧍 C.C.</option>
+<option value="ce">🛂 C.E.</option>
+<option value="pas">🛂 Pasaporte</option>
+</select>
+<input type="text" name="rfc" placeholder="Número sin puntos ni guion">
+</div>
+<small id="hintDocCrear" style="color:#6b7280;font-size:0.8rem;">NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos</small>
+</div>
 <div class="form-group"><label>Representante legal</label><input type="text" name="representante" placeholder="Nombre completo"></div>
 <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" placeholder="Número de contacto"></div>
 </div>
@@ -1081,7 +1093,7 @@ return aps >= r.cantidadMin;
     <div class="ad-panel">
       <h4>Proveedor seleccionado</h4>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg><div><span class="lbl">Razón social</span><span class="val">${escapeHtml(p.razon_social || p.nombre_empresa || '—')}</span></div></div>
-      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div><span class="lbl">NIT / RUT</span><span class="val">${escapeHtml(p.rfc || '—')}</span></div></div>
+      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div><span class="lbl">${labelTipoDoc(p)}</span><span class="val">${escapeHtml(p.rfc || '—')}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><div><span class="lbl">Tipo de persona</span><span class="val">${p.tipo_proveedor === 'natural' ? 'Persona Natural' : p.tipo_proveedor === 'juridica' ? 'Persona Jurídica' : 'Sin definir'}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div><span class="lbl">Estado general</span><span class="val">${escapeHtml(p.estado_general || 'pendiente')}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><div><span class="lbl">Etapa</span><span class="val">${escapeHtml(p.etapa || 'verificacion')}</span></div></div>
@@ -1455,7 +1467,7 @@ ${p.todos_subidos && p.estado_general === 'pendiente' && moduloActual === 'regis
 : ''}
 </span>
 </h4>
-<small>📧 ${escapeHtml(p.email)} · NIT: ${escapeHtml(p.rfc || '—')} · 📞 ${escapeHtml(p.telefono || '—')}${moduloActual === 'inactivos' && p.creado_en ? ` · 📅 Registro: ${formatearFecha(p.creado_en)}` : ''}</small>
+<small>📧 ${escapeHtml(p.email)} · ${labelTipoDoc(p)}: ${escapeHtml(p.rfc || '—')} · 📞 ${escapeHtml(p.telefono || '—')}${moduloActual === 'inactivos' && p.creado_en ? ` · 📅 Registro: ${formatearFecha(p.creado_en)}` : ''}</small>
 </div>
 ${moduloActual !== 'registrados' ? `
 <div style="text-align:center;">
@@ -4202,6 +4214,89 @@ pintar();
 }
 conectarMascaraTelefono(document.querySelector('#formCrearProveedor input[name="telefono"]'));
 // ==========================================
+// 🪪 G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
+// ==========================================
+const TIPOS_DOCUMENTO_CO = ['nit', 'cc', 'ce', 'pas'];
+function normalizarNumeroDocumento(v) { return String(v || '').replace(/[\s.\-]/g, '').toUpperCase(); }
+function validarDocumentoCO(tipo, numero) {
+const t = String(tipo || 'nit').toLowerCase();
+const n = normalizarNumeroDocumento(numero);
+if (!TIPOS_DOCUMENTO_CO.includes(t)) return { valido: false, mensaje: 'Tipo de documento inválido.' };
+if (!n) return { valido: true, numero: '' }; // vacío = opcional al crear
+if (t === 'nit' && !/^\d{7,15}$/.test(n)) return { valido: false, mensaje: 'NIT: 7 a 15 dígitos sin puntos ni guion.' };
+if (t === 'cc' && !/^\d{6,12}$/.test(n)) return { valido: false, mensaje: 'Cédula: 6 a 12 dígitos.' };
+if (t === 'ce' && !/^\d{6,15}$/.test(n)) return { valido: false, mensaje: 'C.E.: 6 a 15 dígitos.' };
+if (t === 'pas' && !/^[A-Z0-9]{6,15}$/.test(n)) return { valido: false, mensaje: 'Pasaporte: 6 a 15 caracteres alfanuméricos.' };
+return { valido: true, numero: n };
+}
+function labelTipoDoc(p) {
+const map = { nit: 'NIT', cc: 'C.C.', ce: 'C.E.', pas: 'Pasaporte' };
+return map[(p && p.tipo_documento) || 'nit'] || 'NIT';
+}
+(function conectarValidacionDocCrear() {
+const form = document.getElementById('formCrearProveedor');
+if (!form) return;
+const sel = form.querySelector('select[name="tipo_documento"]');
+const inp = form.querySelector('input[name="rfc"]');
+const hint = document.getElementById('hintDocCrear');
+if (!sel || !inp) return;
+const pintar = () => {
+const r = validarDocumentoCO(sel.value, inp.value);
+if (hint) {
+hint.textContent = r.valido
+? (inp.value ? '✅ Formato ' + sel.value.toUpperCase() + ' válido' : 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos')
+: '❌ ' + r.mensaje;
+hint.style.color = r.valido ? '#059669' : '#dc2626';
+}
+inp.dataset.docOk = r.valido ? '1' : '0';
+};
+sel.addEventListener('change', pintar);
+inp.addEventListener('input', pintar);
+window.pintarDocAdmin = pintar; // 🩹 repintado externo (guía G7-b)
+pintar();
+})();
+// 🪪 G7-b: guía contextual en creación (jurídica→NIT empresa; natural→C.C.)
+function sincronizarTipoDocCrear(valor) {
+const sel = document.querySelector('#formCrearProveedor select[name="tipo_documento"]');
+const hint = document.getElementById('hintDocCrear');
+if (valor === 'juridica') {
+if (sel) sel.value = 'nit';
+if (hint) { hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'; hint.style.color = '#1e40af'; }
+} else if (valor === 'natural') {
+if (sel) sel.value = 'cc';
+if (hint) { hint.textContent = '🧍 Persona natural: su NIT es su misma cédula. Recomendado: C.C. (equivalentes anti-duplicados).'; hint.style.color = '#1e40af'; }
+} else if (hint) {
+hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
+hint.style.color = '#6b7280';
+}
+if (window.pintarDocAdmin) window.pintarDocAdmin();
+if (hint && (valor === 'juridica' || valor === 'natural')) {
+// reaplica la guía tras el repintado de validación
+hint.textContent = valor === 'juridica'
+? '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'
+: '🧍 Persona natural: su NIT es su misma cédula. Recomendado: C.C. (equivalentes anti-duplicados).';
+hint.style.color = '#1e40af';
+}
+}
+const selTipoCrear = document.querySelector('#formCrearProveedor select[name="tipo_proveedor"]');
+if (selTipoCrear) selTipoCrear.addEventListener('change', () => sincronizarTipoDocCrear(selTipoCrear.value));
+// 🪪 G7-b: guía contextual del tipo de documento (no bloquea, informa)
+function sincronizarTipoDocCrear(valor) {
+const sel = document.querySelector('#formCrearProveedor select[name="tipo_documento"]');
+const hint = document.getElementById('hintDocCrear');
+if (valor === 'juridica') {
+if (sel) sel.value = 'nit';
+if (sel) sel.dispatchEvent(new Event('change'));
+if (hint) { hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'; hint.style.color = '#1e40af'; }
+} else if (valor === 'natural') {
+if (sel) sel.dispatchEvent(new Event('change'));
+if (hint) { hint.textContent = '🧍 Persona natural: tu NIT es tu misma cédula. Puedes registrarlo como C.C. o NIT; extranjeros con C.E./Pasaporte.'; hint.style.color = '#1e40af'; }
+} else if (hint) {
+hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
+hint.style.color = '#6b7280';
+}
+}
+// ==========================================
 // 🔐 CREAR PROVEEDOR
 // ==========================================
 function mostrarModalCrearProveedor() {
@@ -4222,6 +4317,13 @@ const telInput = e.target.querySelector('input[name="telefono"]');
 if (telInput && telInput.dataset.telOk === '0') {
 alertaEl.innerHTML = `<div class="alert alert-error">❌ Teléfono inválido: ${escapeHtml(validarTelefonoCO(telInput.value).mensaje)}</div>`;
 telInput.focus();
+return;
+}
+// 🪪 G7: bloqueo local si el documento es inválido (el server también valida)
+const docInput = e.target.querySelector('input[name="rfc"]');
+if (docInput && docInput.value.trim() && docInput.dataset.docOk === '0') {
+alertaEl.innerHTML = `<div class="alert alert-error">❌ Documento inválido: revisa el formato del tipo seleccionado.</div>`;
+docInput.focus();
 return;
 }
 try {

@@ -527,6 +527,27 @@ const c = configDocGlobal(tipo);
 return c ? c.nombre : null;
 }
 // ==========================================
+// 🪪 G7: TIPO DE DOCUMENTO + VALIDACIÓN FLEXIBLE POR TIPO
+// Nota de diseño: el dígito de verificación DIAN (mod-11) NO se exige aquí
+// porque registros reales del sistema no lo pasan; se difiere a F22 (Sprint 9).
+// G7 valida FORMATO (clase y longitud) y normaliza separadores.
+// ==========================================
+const TIPOS_DOCUMENTO_CO = ['nit', 'cc', 'ce', 'pas'];
+function normalizarNumeroDocumento(valor) {
+return String(valor || '').replace(/[\s.\-]/g, '').toUpperCase();
+}
+function validarDocumentoCO(tipo, numero) {
+const t = String(tipo || 'nit').toLowerCase();
+const n = normalizarNumeroDocumento(numero);
+if (!TIPOS_DOCUMENTO_CO.includes(t)) return { valido: false, mensaje: 'Tipo de documento inválido.' };
+if (!n) return { valido: false, mensaje: 'El número de documento es obligatorio.' };
+if (t === 'nit' && !/^\d{7,15}$/.test(n)) return { valido: false, mensaje: 'NIT inválido: 7 a 15 dígitos sin puntos ni guion.' };
+if (t === 'cc' && !/^\d{6,12}$/.test(n)) return { valido: false, mensaje: 'Cédula inválida: 6 a 12 dígitos.' };
+if (t === 'ce' && !/^\d{6,15}$/.test(n)) return { valido: false, mensaje: 'Cédula de extranjería inválida: 6 a 15 dígitos.' };
+if (t === 'pas' && !/^[A-Z0-9]{6,15}$/.test(n)) return { valido: false, mensaje: 'Pasaporte inválido: 6 a 15 caracteres alfanuméricos.' };
+return { valido: true, numero: n };
+}
+// ==========================================
 // 📄 E8: NOMBRE DESCRIPTIVO DE DESCARGA
 // Patrón: TIPO_NIT_RazonSocial_FAAA-MM-DD.pdf
 // Solo afecta el header Content-Disposition al descargar; el .enc interno
@@ -1959,7 +1980,7 @@ todos_verificados
 });
 
 app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
-    const { razon_social, rfc, representante, telefono, direccion, tipo_persona, email } = req.body;
+    const { razon_social, rfc, representante, telefono, direccion, tipo_persona, email, tipo_documento } = req.body;
     if (!razon_social || !rfc || !representante || !telefono || !direccion ||
         !razon_social.trim() || !rfc.trim() || !representante.trim() || !telefono.trim() || !direccion.trim()) {
         return res.status(400).json({ error: 'Todos los datos de la empresa son obligatorios para desbloquear el portal.' });
@@ -2007,13 +2028,26 @@ if (!tel.ok && String(telefono).trim() !== String(prov.telefono || '').trim()) {
 return res.status(400).json({ error: tel.mensaje });
 }
 const telefonoFinal = tel.ok ? tel.telefono : telefono.trim();
+// 🪪 G7: tipo de documento + validación flexible + unicidad por par (tipo, número).
+// Legacy tolerado: las filas antiguas ('nit' sin normalizar) solo se validan al editar.
+const tipoDocumento = String(tipo_documento || prov.tipo_documento || 'nit').toLowerCase();
+const docVal = validarDocumentoCO(tipoDocumento, rfc);
+if (!docVal.valido) return res.status(400).json({ error: docVal.mensaje });
+// 🪪 G7-b: en persona NATURAL el NIT y la C.C. son el mismo número (la DIAN
+// adopta la cédula como NIT): el anti-duplicados los trata como un solo grupo
+// para impedir que la misma persona se registre dos veces con tipos distintos.
+const tipoEfectivo = (tipoPersona || prov.tipo_proveedor || '').toLowerCase();
+const grupoDocs = (tipoEfectivo === 'natural' && (tipoDocumento === 'cc' || tipoDocumento === 'nit'))
+? `IN ('cc','nit')` : `= '${tipoDocumento}'`;
+const dupDoc = db.prepare(`SELECT id FROM proveedores WHERE rfc = ? AND tipo_documento ${grupoDocs} AND id != ?`).get(docVal.numero, prov.id);
+if (dupDoc) return res.status(409).json({ error: `Ya existe un proveedor registrado con ese ${tipoDocumento.toUpperCase()} (${docVal.numero}).` });
 db.prepare(`
 UPDATE proveedores
-SET razon_social = ?, rfc = ?, representante = ?, telefono = ?, direccion = ?,
+SET razon_social = ?, rfc = ?, tipo_documento = ?, representante = ?, telefono = ?, direccion = ?,
 tipo_proveedor = COALESCE(?, tipo_proveedor)
 WHERE usuario_id = ?
 `).run(
-razon_social.trim(), rfc.trim(), representante.trim(), telefonoFinal, direccion.trim(),
+razon_social.trim(), docVal.numero, tipoDocumento, representante.trim(), telefonoFinal, direccion.trim(),
 tipoPersona, req.session.usuario.id
 );
     registrarHistorial(
@@ -5191,7 +5225,7 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
 });
 
 app.post('/api/admin/proveedor', requiereAdmin, async (req, res) => {
-const { email, password, nombre_empresa, razon_social, rfc, representante, telefono, direccion, tipo_proveedor } = req.body;
+const { email, password, nombre_empresa, razon_social, rfc, representante, telefono, direccion, tipo_proveedor, tipo_documento } = req.body;
 if (!email || !nombre_empresa) {
 return res.status(400).json({ error: 'Email y nombre de empresa son obligatorios' });
 }
@@ -5223,13 +5257,28 @@ const hash = bcrypt.hashSync(passwordFinal, 12);
 // 📞 G11: en creación el teléfono (si viene) debe ser válido desde ya
 const tel = normalizarTelefonoCO(telefono || '');
 if (!tel.ok) return res.status(400).json({ error: tel.mensaje });
+// 🪪 G7: tipo de documento + validación + unicidad por par (tipo, número)
+const tipoDocumento = String(tipo_documento || 'nit').toLowerCase();
+let numeroDoc = '';
+if (rfc && String(rfc).trim()) {
+const docVal = validarDocumentoCO(tipoDocumento, rfc);
+if (!docVal.valido) return res.status(400).json({ error: docVal.mensaje });
+numeroDoc = docVal.numero;
+// 🪪 G7-b: natural → cc/nit equivalen (misma persona, mismo número)
+const tipoProvBody = String(tipo_proveedor || '').toLowerCase();
+const grupoDocs = (tipoProvBody === 'natural' && (tipoDocumento === 'cc' || tipoDocumento === 'nit'))
+? `IN ('cc','nit')` : `= '${tipoDocumento}'`;
+const dupDoc = db.prepare(`SELECT id FROM proveedores WHERE rfc = ? AND tipo_documento ${grupoDocs}`).get(numeroDoc);
+if (dupDoc) return res.status(409).json({ error: `Ya existe un proveedor registrado con ese ${tipoDocumento.toUpperCase()} (${numeroDoc}).` });
+}
 const provResult = db.prepare(`
-INSERT INTO proveedores (usuario_id, razon_social, rfc, representante, telefono, direccion, tipo_proveedor)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO proveedores (usuario_id, razon_social, rfc, tipo_documento, representante, telefono, direccion, tipo_proveedor)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `).run(
 result.lastInsertRowid,
 razon_social || nombre_empresa,
-rfc || '',
+numeroDoc,
+tipoDocumento,
 representante || '',
 tel.telefono,
 direccion || '',

@@ -293,7 +293,10 @@ const migraciones = [
   { tabla: 'notas_proveedor', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
 
   // Recordatorios
-  { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' }
+  { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
+// 🪪 G7: tipo de documento del proveedor (nit | cc | ce | pas).
+// El DEFAULT 'nit' hace backfill automático de todos los registros existentes.
+{ tabla: 'proveedores', campo: 'tipo_documento', tipo: "TEXT DEFAULT 'nit'" }
 ];
 
 let migracionesAplicadas = 0;
