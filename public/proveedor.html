@@ -322,9 +322,21 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
         <input type="password" name="password_actual" required>
       </div>
       <div class="form-group">
-        <label>Nueva contraseña</label>
-        <input type="password" name="password_nueva" minlength="8" required>
-        <small style="color:#6b7280;font-size:0.8rem;">Mín. 8, mayúscula, minúscula, número y especial</small>
+      <label>Nueva contraseña</label>
+      <input type="password" name="password_nueva" minlength="8" required>
+      <div id="passMeterWrap" style="display:none;">
+      <div class="pass-meter" id="passMeter" data-score="0" aria-hidden="true">
+      <span class="pass-seg"></span><span class="pass-seg"></span><span class="pass-seg"></span><span class="pass-seg"></span><span class="pass-seg"></span>
+      </div>
+      <div class="pass-meter-label" id="passMeterLabel">Seguridad: —</div>
+      <ul class="pass-checklist" id="passChecklist">
+      <li data-k="len">Mínimo 8 caracteres</li>
+      <li data-k="may">Una mayúscula</li>
+      <li data-k="min">Una minúscula</li>
+      <li data-k="num">Un número</li>
+      <li data-k="esp">Un carácter especial</li>
+      </ul>
+      </div>
       </div>
       <div class="form-group">
         <label>Confirmar nueva contraseña</label>
@@ -2275,10 +2287,51 @@ document.getElementById('form-datos').addEventListener('submit', async e => {
     }
 });
 
-  // ==========================================
-  // 🔑 CAMBIAR CONTRASEÑA
-  // ==========================================
-  document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
+// ==========================================
+// 🔐 G2: MEDIDOR DE FORTALEZA DE CONTRASEÑA (solo aviso)
+// Espejo exacto de validarPassword() en security.js: 8+ caracteres,
+// mayúscula, minúscula, número y especial. El server sigue siendo la
+// autoridad: este medidor NUNCA bloquea el envío, solo orienta.
+// ==========================================
+const PASS_REGLAS = {
+len: v => v.length >= 8,
+may: v => /[A-ZÁÉÍÓÚÑ]/.test(v),
+min: v => /[a-záéíóúñ]/.test(v),
+num: v => /\d/.test(v),
+esp: v => /[^A-Za-z0-9\s]/.test(v)
+};
+const PASS_ETIQUETAS = { 0: '—', 1: 'Muy débil', 2: 'Débil', 3: 'Aceptable', 4: 'Buena', 5: 'Fuerte' };
+function medidorFortaleza(v) {
+return Object.keys(PASS_REGLAS).filter(k => PASS_REGLAS[k](v || '')).length;
+}
+function actualizarMedidorPass(input) {
+const wrap = document.getElementById('passMeterWrap');
+const meter = document.getElementById('passMeter');
+const label = document.getElementById('passMeterLabel');
+const list = document.getElementById('passChecklist');
+if (!wrap || !meter) return;
+const v = input.value || '';
+wrap.style.display = v ? 'block' : 'none';
+const score = medidorFortaleza(v);
+meter.setAttribute('data-score', String(score));
+if (label) label.textContent = 'Seguridad: ' + PASS_ETIQUETAS[score];
+if (list) list.querySelectorAll('li').forEach(li => {
+const fn = PASS_REGLAS[li.dataset.k];
+li.classList.toggle('ok', !!fn && fn(v));
+});
+}
+(function conectarMedidorPass() {
+const inp = document.querySelector('#form-cambiar-password input[name="password_nueva"]');
+if (!inp) return;
+inp.addEventListener('input', () => actualizarMedidorPass(inp));
+inp.addEventListener('blur', () => {
+if (!inp.value) { const w = document.getElementById('passMeterWrap'); if (w) w.style.display = 'none'; }
+});
+})();
+// ==========================================
+// 🔑 CAMBIAR CONTRASEÑA
+// ==========================================
+document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
     e.preventDefault();
 
 const data = Object.fromEntries(new FormData(e.target));

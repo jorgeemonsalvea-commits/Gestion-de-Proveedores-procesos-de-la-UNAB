@@ -1923,6 +1923,34 @@ animation: unabSparkDraw 0.8s ease-out forwards;
 to { stroke-dashoffset: 0; }
 }
 /* ==========================================
+🔐 G2: MEDIDOR DE FORTALEZA DE CONTRASEÑA
+Barra de 5 segmentos + checklist en vivo. Colores por data-score.
+Usa variables de marca → compatible con el futuro modo oscuro (D1).
+========================================== */
+.pass-meter { display: flex; gap: 4px; margin-top: .45rem; }
+.pass-seg {
+flex: 1; height: 6px; border-radius: 999px;
+background: var(--color-borde-input);
+transition: background .2s ease;
+}
+.pass-meter[data-score="1"] .pass-seg:nth-child(-n+1),
+.pass-meter[data-score="2"] .pass-seg:nth-child(-n+2) { background: var(--color-peligro); }
+.pass-meter[data-score="3"] .pass-seg:nth-child(-n+3) { background: var(--color-advertencia); }
+.pass-meter[data-score="4"] .pass-seg:nth-child(-n+4) { background: var(--color-acento); }
+.pass-meter[data-score="5"] .pass-seg { background: var(--color-exito); }
+.pass-meter-label { font-size: .75rem; font-weight: 700; margin-top: .3rem; color: var(--color-texto-suave); }
+.pass-checklist {
+list-style: none; display: grid; grid-template-columns: 1fr 1fr;
+gap: .15rem .8rem; margin-top: .4rem; padding: 0;
+}
+.pass-checklist li {
+font-size: .72rem; color: var(--color-texto-suave);
+display: flex; align-items: center; gap: .3rem;
+}
+.pass-checklist li::before { content: "○"; font-size: .7rem; flex-shrink: 0; }
+.pass-checklist li.ok { color: var(--color-exito); }
+.pass-checklist li.ok::before { content: "●"; }
+/* ==========================================
 🔍 E4: CONTROLES DE ZOOM/ROTACIÓN DEL VISOR PDF
 ========================================== */
 .btn-visor {
