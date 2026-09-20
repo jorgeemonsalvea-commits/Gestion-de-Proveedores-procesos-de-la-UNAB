@@ -474,6 +474,52 @@ function limpiarMotivoRechazo(comentario) {
     return texto || 'Sin motivo especificado';
 }
 
+// ==========================================
+// 🛡️ ANTI-AUTOCOMPLETAR (portal proveedor): evita el desplegable
+// "Información guardada" del navegador en campos de texto y textareas.
+// readonly hasta el foco: Chrome no despliega autofill sobre readonly.
+// ==========================================
+function esCampoBlindable(el) {
+if (!el || !el.tagName) return false;
+if (el.tagName === 'TEXTAREA') return true;
+if (el.tagName !== 'INPUT') return false;
+if (['password','checkbox','radio','file','date','datetime-local','month','number','hidden','button','submit'].includes(el.type)) return false;
+return true; // text, email, search, tel, url
+}
+function blindarCampo(el) {
+if (!el || el.dataset.autofillBlind === '1') return;
+el.dataset.autofillBlind = '1';
+el.setAttribute('autocomplete', 'off');
+el.setAttribute('autocorrect', 'off');
+el.setAttribute('autocapitalize', 'off');
+el.setAttribute('spellcheck', 'false');
+el.setAttribute('readonly', 'readonly');
+if (document.activeElement === el) el.removeAttribute('readonly');
+}
+// 🆕 Libera readonly ANTES del foco (capture): teclados móviles sin retardo
+document.addEventListener('pointerdown', (e) => {
+if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.removeAttribute('readonly');
+}, true);
+document.addEventListener('focusin', (e) => {
+if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.removeAttribute('readonly');
+});
+document.addEventListener('focusout', (e) => {
+if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.setAttribute('readonly', 'readonly');
+});
+// Cubre campos existentes y los que se creen después (Swal, re-renders)
+const obsBlindajeProv = new MutationObserver((muts) => {
+for (const m of muts) {
+for (const n of m.addedNodes) {
+if (!n || n.nodeType !== 1) continue;
+if (esCampoBlindable(n)) blindarCampo(n);
+if (n.querySelectorAll) n.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
+}
+}
+});
+if (document.body) obsBlindajeProv.observe(document.body, { childList: true, subtree: true });
+document.addEventListener('DOMContentLoaded', () => {
+document.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
+});
 // 🎨 Iconografía de línea UNAB v5 — reemplaza emojis en botones de acción
 const ICONOS = {
 check: '<svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',

@@ -2741,13 +2741,31 @@ if (modulo === 'registrados' && filtroVerificacion) {
       if (filtroVerificacion === 'pendiente_verificar') {
         whereConditions.push('p.estado_general = ? AND p.todos_subidos = ? AND p.todos_verificados = ?');
         params.push('pendiente', 1, 0);
-      } else if (filtroVerificacion === 'verificado_pendiente_aprobacion') {
-        whereConditions.push('p.estado_general = ? AND p.todos_subidos = ? AND p.todos_verificados = ?');
-        params.push('pendiente', 1, 1);
-      }
-    }
-
-    if (busqueda) {
+} else if (filtroVerificacion === 'verificado_pendiente_aprobacion') {
+whereConditions.push('p.estado_general = ? AND p.todos_subidos = ? AND p.todos_verificados = ?');
+params.push('pendiente', 1, 1);
+}
+}
+// 🆕 A2: filtro por tipo de persona
+const tipoPersona = req.query.tipoPersona || null;
+if (tipoPersona === 'sindefinir') {
+whereConditions.push(`(p.tipo_proveedor IS NULL OR p.tipo_proveedor = '')`);
+} else if (tipoPersona && tipoPersona !== 'todos') {
+whereConditions.push('p.tipo_proveedor = ?');
+params.push(tipoPersona);
+}
+// 🆕 A2: filtro por documento faltante (sin documento activo de ese tipo)
+const docFaltante = req.query.docFaltante || null;
+if (docFaltante && docFaltante !== 'todos') {
+whereConditions.push(`NOT EXISTS (
+SELECT 1 FROM documentos df
+WHERE df.proveedor_id = p.id
+AND df.tipo = ?
+AND df.es_historico = 0
+)`);
+params.push(docFaltante);
+}
+if (busqueda) {
       whereConditions.push(`(
         p.razon_social LIKE ? OR
         u.nombre_empresa LIKE ? OR
