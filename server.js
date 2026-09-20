@@ -381,8 +381,28 @@ function emitirProveedor(proveedorId, evento, datos) {
   io.to(sala).emit(evento, datos);
 }
 function emitirTodos(proveedorId, evento, datos) {
-  emitirAdmin(evento, datos);
-  emitirProveedor(proveedorId, evento, datos);
+emitirAdmin(evento, datos);
+emitirProveedor(proveedorId, evento, datos);
+}
+// 🔔 D4-b: enriquece los payloads Socket de documentos con proveedor,
+// actor (quién ejecutó) y nombre del formato, para que la campana/feed
+// del admin muestre QUIÉN hizo QUÉ sin consultas extra en el front.
+function payloadEventoDoc(proveedorId, tipo, actorEmail, extra = {}) {
+let proveedorNombre = 'Proveedor ' + proveedorId;
+let tipoNombre = tipo;
+try {
+const p = db.prepare(`SELECT razon_social FROM proveedores WHERE id = ?`).get(proveedorId);
+if (p && p.razon_social) proveedorNombre = p.razon_social;
+const cfg = configDocGlobal(tipo);
+if (cfg && cfg.nombre) tipoNombre = cfg.nombre;
+} catch (e) { /* sin enriquecimiento: se emite igual */ }
+return Object.assign({
+proveedorId: proveedorId,
+tipo: tipo,
+tipoNombre: tipoNombre,
+proveedorNombre: proveedorNombre,
+actor: actorEmail || 'Sistema'
+}, extra);
 }
 
 app.use((err, req, res, next) => {
@@ -2303,12 +2323,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
 
     notificarAdminDocumento(proveedor.id, req.session.usuario, config, req.file.originalname, accion);
 
-    emitirTodos(proveedor.id, 'documento_subido', {
-      tipo: tipo,
-      proveedorId: proveedor.id,
-      accion: accion,
-      documentoId: docId
-    });
+    emitirTodos(proveedor.id, 'documento_subido', payloadEventoDoc(proveedor.id, tipo, req.session.usuario.email, { accion, documentoId: docId }));
 
     emitirAdmin('estadisticas_actualizadas');
 
@@ -3434,11 +3449,69 @@ inscripcion,
 rechazados,
 inactivos
 });
+} catch (err) {
+console.error('❌ Error obteniendo estadísticas:', err);
+res.status(500).json({ error: 'Error al obtener estadísticas' });
+}
+});
 
-  } catch (err) {
-    console.error('❌ Error obteniendo estadísticas:', err);
-    res.status(500).json({ error: 'Error al obtener estadísticas' });
-  }
+// ==========================================
+// 🆕 C5: TENDENCIA 14 DÍAS (sparklines + distribución por etapa)
+// ==========================================
+app.get('/api/admin/stats/tendencia', requiereAdmin, (req, res) => {
+try {
+const dias = [];
+const nuevosPorDia = [];
+const etapas = ['verificacion', 'aprobacion', 'inscripcion', 'registrado', 'rechazado'];
+const porEtapaDia = {};
+etapas.forEach(e => { porEtapaDia[e] = []; });
+
+for (let i = 13; i >= 0; i--) {
+// 🕐 FIX TZ: fecha civil Bogotá sin toISOString (que desplaza 5h en UTC)
+const row = db.prepare(`SELECT date(datetime('now', '-' || ? || ' days', '-05:00')) as dia`).get(i);
+const dia = row.dia;
+dias.push(dia);
+
+// Nuevos proveedores registrados ese día
+const nuevos = db.prepare(`
+SELECT COUNT(*) as cnt
+FROM usuarios u
+JOIN proveedores p ON u.id = p.usuario_id
+WHERE date(u.creado_en) = ?
+`).get(dia).cnt;
+nuevosPorDia.push(nuevos);
+
+// 🔧 FIX: creado_en está en usuarios, no en proveedores.
+// Snapshot de etapa: proveedores cuya última transición fue ese día o antes.
+// Usa fecha_gestion (proveedores) con fallback a creado_en (usuarios vía JOIN).
+etapas.forEach(etapa => {
+const cnt = db.prepare(`
+SELECT COUNT(*) as cnt
+FROM proveedores p
+JOIN usuarios u ON p.usuario_id = u.id
+WHERE p.etapa = ?
+AND date(COALESCE(p.fecha_gestion, u.creado_en)) <= ?
+`).get(etapa, dia).cnt;
+porEtapaDia[etapa].push(cnt);
+});
+}
+
+// Distribución actual por etapa (para donut global)
+const porEtapa = {};
+etapas.forEach(etapa => {
+porEtapa[etapa] = db.prepare(`SELECT COUNT(*) as cnt FROM proveedores WHERE etapa = ?`).get(etapa).cnt;
+});
+
+res.json({
+dias,
+nuevos_por_dia: nuevosPorDia,
+por_etapa: porEtapa,
+por_etapa_dia: porEtapaDia
+});
+} catch (err) {
+console.error('❌ Error obteniendo tendencia:', err);
+res.status(500).json({ error: 'Error al obtener tendencia' });
+}
 });
 
 app.get('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
@@ -4238,11 +4311,7 @@ const config = configDocumento(doc.tipo, proveedorUsuario.tipo_proveedor);
     console.log(`✅ Documento aprobado individualmente (no se envía email): ${doc.nombre_original}`);
   }
 
-  emitirTodos(doc.proveedor_id, 'documento_actualizado', {
-    documentoId: doc.id,
-    estado: estado,
-    proveedorId: doc.proveedor_id
-  });
+emitirTodos(doc.proveedor_id, 'documento_actualizado', payloadEventoDoc(doc.proveedor_id, doc.tipo, req.session.usuario.email, { documentoId: doc.id, estado: estado }));
 
   emitirAdmin('estadisticas_actualizadas');
 
@@ -4377,6 +4446,31 @@ const backups = fs.readdirSync(dir)
 .sort((a, b) => b.nombre.localeCompare(a.nombre));
 res.json({ backups });
 });
+// ==========================================
+// 💾 FUNCIÓN: Mirror incremental de archivos
+// ==========================================
+// Mueve la definición aquí para que esté disponible cuando el endpoint la llame
+function respaldarArchivosNuevos() {
+try {
+let copiados = 0;
+const caminar = (origen, destino) => {
+if (!fs.existsSync(origen)) return;
+if (!fs.existsSync(destino)) fs.mkdirSync(destino, { recursive: true });
+for (const entry of fs.readdirSync(origen, { withFileTypes: true })) {
+const o = path.join(origen, entry.name);
+const d = path.join(destino, entry.name);
+if (entry.isDirectory()) caminar(o, d);
+else if (entry.isFile() && !fs.existsSync(d)) { fs.copyFileSync(o, d); copiados++; }
+}
+};
+caminar(uploadsDir, path.join(dataDir, 'backups', 'uploads_mirror'));
+caminar(plantillasDir, path.join(dataDir, 'backups', 'plantillas_mirror'));
+if (copiados > 0) console.log(`💾 Mirror: ${copiados} archivo(s) nuevo(s) respaldado(s)`);
+} catch (e) {
+console.error('❌ Error respaldando archivos:', e.message);
+}
+}
+
 app.post('/api/admin/backups/crear', requiereAdmin, async (req, res) => {
 try {
 const dir = path.join(dataDir, 'backups');
@@ -4658,12 +4752,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
       `).run(provActual.numero_registro, docId);
     }
 
-    emitirTodos(proveedorId, 'documento_subido', {
-      tipo: tipo,
-      proveedorId: proveedorId,
-      accion: accion,
-      documentoId: docId
-    });
+    emitirTodos(proveedorId, 'documento_subido', payloadEventoDoc(proveedorId, tipo, req.session.usuario.email, { accion, documentoId: docId }));
 
     emitirAdmin('estadisticas_actualizadas');
 
@@ -5474,11 +5563,7 @@ app.post('/api/admin/documento/:id/verificar', requiereAdmin, (req, res) => {
     req
   );
 
-  emitirTodos(doc.proveedor_id, 'documento_verificado', {
-    documentoId: doc.id,
-    verificado: verificado,
-    proveedorId: doc.proveedor_id
-  });
+emitirTodos(doc.proveedor_id, 'documento_verificado', payloadEventoDoc(doc.proveedor_id, doc.tipo, req.session.usuario.email, { documentoId: doc.id, verificado: verificado }));
 
   return res.json({ ok: true, verificado });
 });
@@ -5615,8 +5700,158 @@ const usuario = req.session.usuario;
 });
 
 // ==========================================
+// 📜 AUDITORÍA — LOG DE ACCIONES DEL SISTEMA
+// ==========================================
+app.get('/api/admin/audit-log', requiereAdmin, (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
+        const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+        const accion = req.query.accion || null;
+        const usuario = req.query.usuario || null;
+
+        let whereConditions = [];
+        let params = [];
+
+        if (busqueda) {
+            whereConditions.push(`(
+                h.detalle LIKE ? OR
+                h.usuario_nombre LIKE ? OR
+                h.accion LIKE ? OR
+                h.documento_tipo LIKE ?
+            )`);
+            for (let i = 0; i < 4; i++) params.push(busqueda);
+        }
+        if (accion) {
+            whereConditions.push(`h.accion = ?`);
+            params.push(accion);
+        }
+        if (usuario) {
+            whereConditions.push(`h.usuario_nombre LIKE ?`);
+            params.push(`%${usuario}%`);
+        }
+
+        const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        const total = db.prepare(`
+            SELECT COUNT(*) as count FROM historial h ${whereClause}
+        `).get(...params).count;
+
+        const registros = db.prepare(`
+            SELECT
+                h.id,
+                h.proveedor_id,
+                h.usuario_id,
+                h.usuario_nombre,
+                h.accion,
+                h.detalle,
+                h.documento_tipo,
+                h.documento_id,
+                h.ip_origen,
+                h.creado_en,
+                p.razon_social,
+                p.rfc,
+                u.email as proveedor_email
+            FROM historial h
+            LEFT JOIN proveedores p ON h.proveedor_id = p.id
+            LEFT JOIN usuarios u ON p.usuario_id = u.id
+            ${whereClause}
+            ORDER BY h.creado_en DESC
+            LIMIT ? OFFSET ?
+        `).all(...params, limit, offset);
+
+        const totalPages = Math.ceil(total / limit);
+
+        res.json({
+            data: registros,
+            total,
+            page,
+            limit,
+            totalPages
+        });
+    } catch (err) {
+        console.error('❌ Error cargando auditoría:', err.message);
+        res.status(500).json({ error: 'Error al cargar el log de auditoría: ' + err.message });
+    }
+});
+
+// 📜 Exportar auditoría a CSV
+app.get('/api/admin/audit-log/export', requiereAdmin, (req, res) => {
+    try {
+        const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+        const accion = req.query.accion || null;
+        const usuario = req.query.usuario || null;
+
+        let whereConditions = [];
+        let params = [];
+
+        if (busqueda) {
+            whereConditions.push(`(h.detalle LIKE ? OR h.usuario_nombre LIKE ? OR h.accion LIKE ?)`);
+            for (let i = 0; i < 3; i++) params.push(busqueda);
+        }
+        if (accion) {
+            whereConditions.push(`h.accion = ?`);
+            params.push(accion);
+        }
+        if (usuario) {
+            whereConditions.push(`h.usuario_nombre LIKE ?`);
+            params.push(`%${usuario}%`);
+        }
+
+        const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        const registros = db.prepare(`
+            SELECT
+                h.id,
+                h.usuario_nombre,
+                h.accion,
+                h.detalle,
+                h.documento_tipo,
+                h.ip_origen,
+                h.creado_en,
+                p.razon_social,
+                p.rfc,
+                u.email as proveedor_email
+            FROM historial h
+            LEFT JOIN proveedores p ON h.proveedor_id = p.id
+            LEFT JOIN usuarios u ON p.usuario_id = u.id
+            ${whereClause}
+            ORDER BY h.creado_en DESC
+            LIMIT 10000
+        `).all(...params);
+
+        const headers = ['ID', 'Usuario', 'Acción', 'Detalle', 'Tipo Documento', 'IP Origen', 'Fecha', 'Proveedor', 'NIT', 'Email Proveedor'];
+        const rows = registros.map(r => [
+            r.id,
+            csvEscapar(r.usuario_nombre || ''),
+            csvEscapar(r.accion || ''),
+            csvEscapar(r.detalle || ''),
+            csvEscapar(r.documento_tipo || ''),
+            csvEscapar(r.ip_origen || ''),
+            csvEscapar(r.creado_en || ''),
+            csvEscapar(r.razon_social || ''),
+            csvEscapar(r.rfc || ''),
+            csvEscapar(r.proveedor_email || '')
+        ]);
+
+        const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename=auditoria_${fechaArchivo()}.csv`);
+        res.send(csv);
+    } catch (err) {
+        console.error('❌ Error exportando auditoría:', err.message);
+        res.status(500).json({ error: 'Error al exportar: ' + err.message });
+    }
+});
+
+// ==========================================
 // 10. ERROR HANDLER Y SERVIDOR
 // ==========================================
+// 🛡️ TEST-SAFE: los cron jobs solo se programan fuera del ambiente de test.
+// En Jest mantenían timers abiertos (35 open handles) y causaban timeouts.
+if (process.env.NODE_ENV !== 'test') {
 cron.schedule('0 8 * * *', async () => {
   console.log(`\n🕐 Ejecutando recordatorios automáticos - ${new Date().toLocaleString()}`);
   await enviarRecordatoriosFaltantes();
@@ -5653,29 +5888,6 @@ console.log('🧹 Cron de limpieza de logs configurado (3:30 AM Colombia, retenc
 console.log('⏰ Cron job de vencimientos configurado para las 12:00 AM (Colombia)');
 
 
-// 💾 Mirror incremental de archivos físicos (PDFs cifrados y plantillas).
-// Los .enc son inmutables: copiar solo lo que falta es seguro y liviano,
-// y el mirror conserva todo lo que haya existido (incluye reemplazados/borrados).
-function respaldarArchivosNuevos() {
-try {
-let copiados = 0;
-const caminar = (origen, destino) => {
-if (!fs.existsSync(origen)) return;
-if (!fs.existsSync(destino)) fs.mkdirSync(destino, { recursive: true });
-for (const entry of fs.readdirSync(origen, { withFileTypes: true })) {
-const o = path.join(origen, entry.name);
-const d = path.join(destino, entry.name);
-if (entry.isDirectory()) caminar(o, d);
-else if (entry.isFile() && !fs.existsSync(d)) { fs.copyFileSync(o, d); copiados++; }
-}
-};
-caminar(uploadsDir, path.join(dataDir, 'backups', 'uploads_mirror'));
-caminar(plantillasDir, path.join(dataDir, 'backups', 'plantillas_mirror'));
-if (copiados > 0) console.log(`💾 Mirror: ${copiados} archivo(s) nuevo(s) respaldado(s)`);
-} catch (e) {
-console.error('❌ Error respaldando archivos:', e.message);
-}
-}
 // 💾 Backup automático cada 12 h: BD consistente + mirror de archivos.
 cron.schedule('0 2,14 * * *', async () => {
 const backupsDir = path.join(dataDir, 'backups');
@@ -5695,6 +5907,7 @@ console.error('❌ Error generando backup:', e.message);
 }
 }, { timezone: 'America/Bogota' });
 console.log('💾 Cron de backup configurado (2 AM y 2 PM Colombia, 14 copias + mirror de archivos)');
+} // 🛡️ fin NODE_ENV !== 'test' (cron jobs)
 
 app.post('/api/admin/proveedor/:id/reiniciar-proceso', requiereAdmin, (req, res) => {
   const proveedorId = parseInt(req.params.id);
@@ -5960,7 +6173,8 @@ const nombreOriginal = archivo.replace('.enc', '.pdf');
   }
 }
 
-recuperarDocumentosHuérfanos();
+// 🛡️ TEST-SAFE: el escaneo de huérfanos no se ejecuta en tests (ahorra I/O y bloqueos)
+if (process.env.NODE_ENV !== 'test') recuperarDocumentosHuérfanos();
 // 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
 // evaluaciones iniciales huérfanas asignándolas a su ciclo por fecha. Idempotente.
 // 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
@@ -6030,7 +6244,8 @@ movidos++;
         console.error('❌ Error reorganizando históricos:', err.message);
     }
 }
-reorganizarHistoricosPorCiclo();
+// 🛡️ TEST-SAFE: la reorganización de históricos no se ejecuta en tests
+if (process.env.NODE_ENV !== 'test') reorganizarHistoricosPorCiclo();
 
 function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOriginal, accion) {
   console.log(`🔔 [notificarAdminDocumento] Ejecutando para proveedor ${proveedorId}, accion: ${accion}`);

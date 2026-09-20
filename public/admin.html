@@ -90,26 +90,33 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
   </div>
 </aside>
 <div class="ad-main">
-  <div class="ad-topbar">
-    <div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b> <span class="badge-count" style="cursor:pointer;margin-left:0.5rem;" onclick="abrirCtrlK()" title="Búsqueda global (Ctrl+K)">🔍 Ctrl+K</span></div>
-    <div class="user-chip">
-      <span class="user-avatar" id="userAvatar">UN</span>
-      <span class="user-meta">
-        <span class="user-mail" id="userEmail">—</span>
-        <span class="user-rol">Administrador</span>
-      </span>
-    </div>
-  </div>
-  <div class="ad-content">
+<div class="ad-topbar">
+<div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b> <span class="badge-count" style="cursor:pointer;margin-left:0.5rem;" onclick="abrirCtrlK()" title="Búsqueda global (Ctrl+K)">🔍 Ctrl+K</span></div>
+<div style="display:flex;align-items:center;gap:.6rem;">
+<div class="feed-wrap">
+<button id="btnCampanaD4" class="btn-sonido btn-campana" onclick="togglePanelEventosD4()" title="Eventos en tiempo real">🔔<span id="campanaBadgeD4" class="campana-badge" style="display:none;">0</span></button>
+<div id="panelEventosD4" class="feed-panel"></div>
+</div>
+<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real">🔊</button>
+<div class="user-chip">
+<span class="user-avatar" id="userAvatar">UN</span>
+<span class="user-meta">
+<span class="user-mail" id="userEmail">—</span>
+<span class="user-rol">Administrador</span>
+</span>
+</div>
+</div>
+</div>
+<div class="ad-content">
     <div id="alerta"></div>
 
 <!-- DASHBOARD CARDS = NAVEGACIÓN PRINCIPAL (las tarjetas funcionan como pestañas) -->
 <div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.5rem;">
-<div class="kpi kpi--azul kpi-tab" data-modulo="registrados" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores registrados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="kpi-label">Registrados</div><div class="kpi-num" id="card-registrados">0</div></div></div>
-<div class="kpi kpi--ambar kpi-tab" data-modulo="verificacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Verificación de documentos"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><div class="kpi-label">Verificación</div><div class="kpi-num" id="card-verificacion">0</div></div></div>
-<div class="kpi kpi--morado kpi-tab" data-modulo="aprobacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Aprobación y evaluación"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div><div><div class="kpi-label">Aprobación</div><div class="kpi-num" id="card-aprobacion">0</div></div></div>
-<div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div></div></div>
-<div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div></div></div>
+<div class="kpi kpi--azul kpi-tab" data-modulo="registrados" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores registrados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="kpi-label">Registrados</div><div class="kpi-num" id="card-registrados">0</div><div class="kpi-spark" id="spark-registrados"></div></div></div>
+<div class="kpi kpi--ambar kpi-tab" data-modulo="verificacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Verificación de documentos"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><div class="kpi-label">Verificación</div><div class="kpi-num" id="card-verificacion">0</div><div class="kpi-spark" id="spark-verificacion"></div></div></div>
+<div class="kpi kpi--morado kpi-tab" data-modulo="aprobacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Aprobación y evaluación"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div><div><div class="kpi-label">Aprobación</div><div class="kpi-num" id="card-aprobacion">0</div><div class="kpi-spark" id="spark-aprobacion"></div></div></div>
+<div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div><div class="kpi-spark" id="spark-inscripcion"></div></div></div>
+<div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div><div class="kpi-spark" id="spark-rechazados"></div></div></div>
 </div>
 <div class="ad-grid">
   <div class="ad-col-main">
@@ -297,6 +304,9 @@ Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel=
 // 🔧 FUNCIÓN HELPER: fetchAPI
 // ==========================================
 function fetchAPI(url, options = {}) {
+// 🔔 D4: toda mutación propia (POST/PUT/DELETE) marca una ventana de 1.5s
+// para SUPRIMIR el sonido/contador de los eventos Socket que nosotros mismos causamos.
+if (options && options.method && options.method !== 'GET') marcarAccionPropia();
 return fetch(url, { ...options, credentials: 'include' });
 }
 
@@ -420,6 +430,184 @@ zip: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7
 plus: '<svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
 save: '<svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
 };
+// ==========================================
+// 🔔 D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
+// ==========================================
+let sonidoActivado = localStorage.getItem('unab_sonido') !== 'off';
+let audioCtxD4 = null;
+let pendienesD4 = 0;
+const tituloBaseD4 = document.title;
+let accionPropiaHasta = 0;
+function marcarAccionPropia() { accionPropiaHasta = Date.now() + 1500; }
+function esAccionPropia() { return Date.now() < accionPropiaHasta; }
+// Beep sintetizado con WebAudio (sin archivos externos): 3 tonos por severidad.
+function reproducirSonidoD4(tipo = 'info') {
+if (!sonidoActivado) return;
+try {
+if (!audioCtxD4) audioCtxD4 = new (window.AudioContext || window.webkitAudioContext)();
+if (audioCtxD4.state === 'suspended') audioCtxD4.resume();
+const secuencia = { info: [660], success: [880, 1174], warning: [440, 440] }[tipo] || [660];
+secuencia.forEach((freq, i) => {
+const osc = audioCtxD4.createOscillator();
+const gain = audioCtxD4.createGain();
+osc.type = 'sine';
+osc.frequency.value = freq;
+const t0 = audioCtxD4.currentTime + (i * 0.12);
+gain.gain.setValueAtTime(0.0001, t0);
+gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+osc.connect(gain); gain.connect(audioCtxD4.destination);
+osc.start(t0); osc.stop(t0 + 0.2);
+});
+} catch (e) { /* sin audio disponible: silencio */ }
+}
+// Punto único de notificación: sonido siempre + contador de pestaña si está oculta.
+function notificarD4(tipo = 'info') {
+if (esAccionPropia()) return; // 🔇 no sonar por acciones propias
+reproducirSonidoD4(tipo);
+if (document.hidden) {
+pendienesD4++;
+document.title = `(${pendienesD4}) 🔔 ${tituloBaseD4}`;
+}
+}
+function resetearTituloD4() {
+// 🩹 D4-b: UN solo toast resumen al regresar (nunca uno por evento):
+// "3 eventos mientras no estabas · último: X subió Y"
+if (pendienesD4 > 0 && feedEventosD4.length) {
+const ultimo = feedEventosD4[0];
+mostrarNotificacion(`🔔 ${pendienesD4} evento(s) mientras no estabas · último: ${ultimo.titulo}`, 'info', 6000);
+}
+pendienesD4 = 0;
+document.title = tituloBaseD4;
+}
+document.addEventListener('visibilitychange', () => {
+if (!document.hidden) resetearTituloD4();
+});
+function toggleSonidoD4() {
+sonidoActivado = !sonidoActivado;
+localStorage.setItem('unab_sonido', sonidoActivado ? 'on' : 'off');
+const btn = document.getElementById('btnSonidoD4');
+if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
+if (sonidoActivado) reproducirSonidoD4('success'); // beep de prueba + desbloquea AudioContext
+}
+// ==========================================
+// 🔔 D4-b: FEED DE EVENTOS (campana con contador, bajo demanda, sin spam)
+// ==========================================
+const feedEventosD4 = [];
+let feedNoLeidos = 0;
+const FEED_MAX = 25;
+function registrarEventoD4(ico, titulo, detalle) {
+feedEventosD4.unshift({ ico, titulo, detalle, hora: new Date() });
+if (feedEventosD4.length > FEED_MAX) feedEventosD4.pop();
+feedNoLeidos++;
+const badge = document.getElementById('campanaBadgeD4');
+if (badge) { badge.style.display = 'flex'; badge.textContent = feedNoLeidos > 9 ? '9+' : String(feedNoLeidos); }
+const btn = document.getElementById('btnCampanaD4');
+if (btn) btn.title = `Último: ${titulo} — ${detalle}`;
+const panel = document.getElementById('panelEventosD4');
+if (panel && panel.classList.contains('open')) renderFeedD4();
+}
+function renderFeedD4() {
+const panel = document.getElementById('panelEventosD4');
+if (!panel) return;
+if (!feedEventosD4.length) { panel.innerHTML = '<div class="feed-vacio">Sin eventos recientes.</div>'; return; }
+panel.innerHTML = feedEventosD4.map(ev => `
+<div class="feed-item">
+<span class="feed-ico">${ev.ico}</span>
+<div>
+<div class="feed-titulo">${escapeHtml(ev.titulo)}</div>
+<div class="feed-detalle">${escapeHtml(ev.detalle)}</div>
+<div class="feed-detalle" style="font-size:.7rem;">🕐 ${ev.hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+</div>
+</div>`).join('');
+}
+function togglePanelEventosD4() {
+const panel = document.getElementById('panelEventosD4');
+if (!panel) return;
+const abrir = !panel.classList.contains('open');
+panel.classList.toggle('open', abrir);
+if (abrir) {
+renderFeedD4();
+feedNoLeidos = 0; // al leer el feed se limpia el contador
+const badge = document.getElementById('campanaBadgeD4');
+if (badge) badge.style.display = 'none';
+}
+}
+// Cierra el panel al hacer clic fuera
+document.addEventListener('click', (e) => {
+const panel = document.getElementById('panelEventosD4');
+if (!panel) return;
+if (panel.classList.contains('open') && !e.target.closest('.feed-wrap')) togglePanelEventosD4();
+});
+// ==========================================
+// 🆕 C5: RENDERIZADORES DE MINI-GRÁFICOS SVG
+// ==========================================
+/**
+* Sparkline: polyline SVG de tendencia (14 puntos).
+* @param {string} containerId - id del div contenedor
+* @param {number[]} datos - array de valores numéricos
+* @param {string} color - color del trazo
+*/
+function renderSparkline(containerId, datos, color) {
+const el = document.getElementById(containerId);
+if (!el || !datos || datos.length < 2) return;
+const w = 90, h = 24, pad = 3;
+const max = Math.max(...datos, 1);
+const min = Math.min(...datos, 0);
+const range = (max - min) || 1;
+const points = datos.map((v, i) => {
+const x = pad + (i / (datos.length - 1)) * (w - 2 * pad);
+const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+return `${x.toFixed(1)},${y.toFixed(1)}`;
+}).join(' ');
+el.innerHTML = `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+/**
+* Mini bar-chart segmentado: aprobado (verde) sobre verificado (ámbar) sobre fondo gris.
+* @param {number} aprobados - tipos aprobados
+* @param {number} verificados - tipos verificados (incluye no-aplica)
+* @param {number} total - tipos requeridos
+* @returns {string} SVG inline
+*/
+function renderMiniBarSVG(aprobados, verificados, total) {
+const w = 60, h = 6, r = 3;
+const wVerif = total ? Math.round((verificados / total) * w) : 0;
+const wAprob = total ? Math.round((aprobados / total) * w) : 0;
+return `<svg class="minibar-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+<rect x="0" y="0" width="${w}" height="${h}" rx="${r}" fill="#e5e7eb"/>
+${wVerif > 0 ? `<rect x="0" y="0" width="${wVerif}" height="${h}" rx="${r}" fill="#f59e0b"/>` : ''}
+${wAprob > 0 ? `<rect x="0" y="0" width="${wAprob}" height="${h}" rx="${r}" fill="#059669"/>` : ''}
+</svg>`;
+}
+/**
+* Donut chart: anillos SVG por segmento con total al centro.
+* @param {Array<{label:string, value:number, color:string}>} segments
+* @param {number} size - diámetro del SVG
+* @returns {string} SVG inline
+*/
+function renderDonutSVG(segments, size = 52) {
+const total = segments.reduce((s, seg) => s + seg.value, 0);
+if (!total) return '';
+const cx = size / 2, cy = size / 2, r = (size / 2) - 5;
+const circ = 2 * Math.PI * r;
+let offset = 0;
+let circles = '';
+segments.forEach(seg => {
+if (!seg.value) return;
+const dash = (seg.value / total) * circ;
+circles += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="5" stroke-dasharray="${dash.toFixed(2)} ${(circ - dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+offset += dash;
+});
+return `<svg class="donut-svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">${circles}<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${Math.round(size / 4)}" font-weight="700" fill="#1f1830">${total}</text></svg>`;
+}
+/**
+* Genera la leyenda del donut.
+*/
+function renderDonutLegend(segments) {
+return `<div class="donut-legend">` + segments.filter(s => s.value > 0).map(s =>
+`<span class="donut-legend-item"><span class="donut-legend-dot" style="background:${s.color};"></span>${s.label}: <strong>${s.value}</strong></span>`
+).join('') + `</div>`;
+}
 
 // 🛡️ Escapa celdas CSV y neutraliza inyección de fórmulas (= + - @) para Excel.
 function celdaCSV(c) {
@@ -627,13 +815,28 @@ socket.on('disconnect', () => { console.log('🔌 Desconectado del servidor Sock
 
 socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarVistaActual(); });
 socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarVistaActual(); });
-socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarVistaActual(); });
-socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarVistaActual(); });
-socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); recargarVistaActual(); });
+socket.on('documento_subido', (data) => {
+console.log('📤 Documento subido:', data);
+notificarD4('info');
+registrarEventoD4('📤', `${data.proveedorNombre || 'Un proveedor'} subió ${data.tipoNombre || data.tipo || 'un documento'}`, `Por: ${data.actor || 'el proveedor'}`);
+recargarVistaActual();
+});
+socket.on('documento_verificado', (data) => {
+console.log('✅ Documento verificado:', data);
+registrarEventoD4('✅', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'}`, `Verificado por: ${data.actor || 'admin'}`);
+});
+socket.on('documento_actualizado', (data) => {
+console.log('📄 Documento actualizado:', data);
+registrarEventoD4(data.estado === 'rechazado' ? '❌' : '✅', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'} → ${data.estado || 'actualizado'}`, `Por: ${data.actor || 'admin'}`);
+});
+socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); notificarD4('info'); recargarVistaActual(); });
+socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); notificarD4('success'); recargarVistaActual(); });
 socket.on('proveedores_actualizados', () => { console.log('👥 Proveedores actualizados'); recargarVistaActual(); });
 // 🆕 G10b: toast en tiempo real cuando un proveedor se registra desde el portal público
 socket.on('nuevo_proveedor_registrado', (data) => {
-  console.log('🎉 [G10b] Evento recibido:', data);
+console.log('🎉 [G10b] Evento recibido:', data);
+notificarD4('success');
+registrarEventoD4('🎉', `Nuevo proveedor: ${data.nombre || 'Sin nombre'}`, data.email || '');
   toastNuevoProveedor(data || {});
   actualizarEstadisticasGlobales();
   actualizarContadoresSidebar();
@@ -642,6 +845,7 @@ socket.on('nuevo_proveedor_registrado', (data) => {
 socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas actualizadas'); actualizarEstadisticasGlobales(); });
 socket.on('vencimientos_procesados', (data) => {
 console.log('⏰ Vencimientos procesados:', data);
+notificarD4('warning');
 mostrarNotificacion(`📦 Vencimientos: ${data.movidos} movidos, ${data.notificados} notificados`, 'info');
 recargarVistaActual();
 });
@@ -706,6 +910,9 @@ actualizarContadoresSidebar();
 configurarTabs();
 const cardInicial = document.querySelector('.kpi-tab[data-modulo="registrados"]:not([data-estado])');
 if (cardInicial) cardInicial.classList.add('kpi-active');
+// 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
+const btnSonido = document.getElementById('btnSonidoD4');
+if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
 conectarSocket();
 
 document.addEventListener('click', function(e) {
@@ -740,18 +947,39 @@ async function actualizarContadorPlantillas() {
 // ==========================================
 async function actualizarEstadisticasGlobales() {
 try {
-const response = await fetchAPI('/api/admin/stats');
-if (!response.ok) return;
-const stats = await response.json();
+// 🆕 C5: stats y tendencia en paralelo (una sola espera)
+const [statsRes, tendRes] = await Promise.all([
+fetchAPI('/api/admin/stats'),
+fetchAPI('/api/admin/stats/tendencia')
+]);
+if (!statsRes.ok) return;
+const stats = await statsRes.json();
 document.getElementById('card-registrados').textContent = stats.registrados || 0;
 document.getElementById('card-verificacion').textContent = stats.verificacion || 0;
 document.getElementById('card-aprobacion').textContent = stats.aprobacion || 0;
 document.getElementById('card-inscripcion').textContent = stats.inscripcion || 0;
 document.getElementById('card-rechazados').textContent = stats.rechazados || 0;
-  const setSide = (mod, v) => { const e = document.getElementById('side-' + mod); if (e) e.textContent = v || 0; };
+const setSide = (mod, v) => { const e = document.getElementById('side-' + mod); if (e) e.textContent = v || 0; };
 setSide('registrados', stats.registrados); setSide('verificacion', stats.verificacion);
 setSide('aprobacion', stats.aprobacion); setSide('inscripcion', stats.inscripcion);
 setSide('rechazados', stats.rechazados); setSide('inactivos', stats.inactivos || 0);
+// 🆕 C5: sparklines de tendencia por etapa (14 días)
+if (tendRes.ok) {
+const tend = await tendRes.json();
+const colores = {
+verificacion: '#d97706',
+aprobacion: '#8600dd',
+inscripcion: '#059669',
+registrado: '#2563eb',
+rechazado: '#dc2626'
+};
+if (tend.por_etapa_dia) {
+Object.keys(tend.por_etapa_dia).forEach(etapa => {
+const sparkId = 'spark-' + etapa;
+renderSparkline(sparkId, tend.por_etapa_dia[etapa], colores[etapa] || '#6b7280');
+});
+}
+}
 } catch (err) {
 console.error('❌ Error actualizando estadísticas:', err);
 }
@@ -839,11 +1067,14 @@ function actualizarPanelContexto(p) {
 // Contar archivos crudos daba 16/14 porque experiencia aporta 3 certificados.
 const mapDocs = {};
 (p.documentos || []).forEach(d => { (mapDocs[d.tipo] = mapDocs[d.tipo] || []).push(d); });
+// 🩹 C5-fix: mismo criterio que /api/admin/proveedores (p.aprobados):
+// el tipo cuenta si sus docs aprobados >= cantidadMin. Los marcadores
+// "No aplica" aprobados en Revisión Enfocada tienen estado='aprobado',
+// por lo que entran aquí igual que en la fila del listado.
 const aprobados = (requeridos || []).filter(r => {
-    const docs = mapDocs[r.tipo] || [];
-    const aps = docs.filter(d => d.estado === 'aprobado').length;
-    const noAplica = docs.some(d => d.no_aplica === 1);
-    return (r.opcional && noAplica) || aps >= r.cantidadMin;
+const docs = mapDocs[r.tipo] || [];
+const aps = docs.filter(d => d.estado === 'aprobado').length;
+return aps >= r.cantidadMin;
 }).length;
   side.innerHTML = `
     <div class="ad-panel">
@@ -854,6 +1085,20 @@ const aprobados = (requeridos || []).filter(r => {
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div><span class="lbl">Estado general</span><span class="val">${escapeHtml(p.estado_general || 'pendiente')}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><div><span class="lbl">Etapa</span><span class="val">${escapeHtml(p.etapa || 'verificacion')}</span></div></div>
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div><span class="lbl">Tiempo en etapa</span><span class="val">${p.dias_en_etapa != null ? p.dias_en_etapa + ' días' : '—'}</span></div></div>      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><span class="lbl">Docs aprobados</span><span class="val">${aprobados}/${requeridos.length || 0}</span></div></div>
+${(() => {
+const docs = p.documentos || [];
+// 🩹 C5-fix: segmentos MUTUAMENTE EXCLUYENTES. Antes un "No aplica"
+// aprobado contaba en Aprobados Y en No aplica → centro inflado (20).
+const segs = [
+{ label: 'Aprobados', value: docs.filter(d => d.estado === 'aprobado' && d.no_aplica !== 1).length, color: '#059669' },
+{ label: 'No aplica', value: docs.filter(d => d.no_aplica === 1).length, color: '#8b5cf6' },
+{ label: 'Pendientes', value: docs.filter(d => d.estado === 'pendiente' && d.no_aplica !== 1).length, color: '#f59e0b' },
+{ label: 'Rechazados', value: docs.filter(d => d.estado === 'rechazado' && d.no_aplica !== 1).length, color: '#dc2626' }
+];
+const hayDocs = segs.some(s => s.value > 0);
+if (!hayDocs) return '';
+return `<div class="donut-wrap">${renderDonutSVG(segs, 52)}${renderDonutLegend(segs)}</div>`;
+})()}
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><div><span class="lbl">Correo</span><span class="val">${escapeHtml(p.email || '—')}</span></div></div>
     </div>`;
 }
@@ -1215,9 +1460,7 @@ ${moduloActual !== 'registrados' ? `
 <div style="text-align:center;">
 <div style="font-size:0.85rem;color:#6b7280;">${labelDocs}</div>
 <strong>${progresoDocs}/${p.total}</strong>
-<div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;margin-top:0.3rem;overflow:hidden;">
-<div style="width:${(progresoDocs/p.total)*100}%;height:100%;background:${p.estado_general === 'aprobado' ? '#059669' : p.estado_general === 'rechazado' ? '#dc2626' : '#f59e0b'};"></div>
-</div>
+<div style="margin-top:0.3rem;">${renderMiniBarSVG(p.aprobados || 0, p.verificados || 0, p.total || 1)}</div>
 </div>
 ` : ''}
 ${badgeModulo}
@@ -1264,7 +1507,6 @@ proveedorActualId = id;
 proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
 data.proveedor.documentos = data.documentos || [];
 documentosActivosCache = data.documentos || []; // 🆕 C1
-actualizarPanelContexto(data.proveedor);
 historicosCache = data.documentos_historicos || [];
 // 🆕 Cargar los requerimientos según el tipo de persona de ESTE proveedor
 try {
@@ -1279,6 +1521,9 @@ if (listaTipo.length) requeridos = listaTipo;
 requeridos = requeridosDefault.slice(); // 🆕 tipo sin definir → lista estándar
 }
 } catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
+// 🩹 C5-fix: el panel se pinta DESPUÉS de refrescar requeridos.
+// Antes calculaba con la lista del proveedor anterior (12/14 erróneo).
+actualizarPanelContexto(data.proveedor);
 document.getElementById('modalTitulo').textContent = proveedorActualNombre;
 const contenedorDinamico = document.getElementById('modalContenidoDinamico');
 const subTabsContainer = document.getElementById('subTabsContainer');

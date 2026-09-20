@@ -1805,9 +1805,120 @@ y el rol dorado claro queda sin contraste. Espeja el tratamiento del portal prov
   border-radius: 6px;
 }
 .upload-progress-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--color-primario), var(--color-acento));
-  border-radius: 999px;
-  transition: width 0.2s ease;
+height: 100%;
+width: 0%;
+background: linear-gradient(90deg, var(--color-primario), var(--color-acento));
+border-radius: 999px;
+transition: width 0.2s ease;
+}
+/* ==========================================
+🔔 D4-b: CAMPANA CON CONTADOR + FEED DE EVENTOS (topbar admin)
+========================================== */
+.btn-campana { position: relative; }
+.btn-campana .campana-badge {
+position: absolute; top: -6px; right: -6px;
+min-width: 18px; height: 18px; padding: 0 4px;
+border-radius: 999px; background: var(--color-peligro); color: #fff;
+font-size: .68rem; font-weight: 800;
+display: flex; align-items: center; justify-content: center;
+box-shadow: 0 0 0 2px #fff;
+}
+.feed-wrap { position: relative; }
+.feed-panel {
+position: absolute; right: 0; top: calc(100% + 10px);
+width: 340px; max-height: 380px; overflow-y: auto;
+background: #fff; border: 1px solid var(--color-borde); border-radius: 12px;
+box-shadow: var(--sombra-3); padding: .6rem; display: none; z-index: 120;
+}
+.feed-panel.open { display: block; }
+.feed-item { display: flex; gap: .5rem; padding: .5rem .4rem; border-bottom: 1px solid var(--color-fondo-suave); font-size: .8rem; }
+.feed-item:last-child { border-bottom: none; }
+.feed-item .feed-ico { flex-shrink: 0; }
+.feed-item .feed-titulo { font-weight: 700; color: var(--color-texto); }
+.feed-item .feed-detalle { color: var(--color-texto-suave); }
+.feed-vacio { color: var(--color-texto-suave); font-size: .8rem; text-align: center; padding: 1rem; }
+/* ==========================================
+🔔 D4: BOTÓN DE SONIDO EN TOPBAR (admin y proveedor)
+========================================== */
+.btn-sonido {
+background: transparent;
+border: 1px solid var(--color-borde-input);
+border-radius: 8px;
+width: 36px;
+height: 36px;
+font-size: 1rem;
+cursor: pointer;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+transition: background .2s ease, border-color .2s ease;
+flex-shrink: 0;
+}
+.btn-sonido:hover { background: var(--color-fondo-suave); border-color: var(--color-primario); }
+.btn-sonido:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-primario-claro); }
+
+/* ==========================================
+🆕 C5: MINI-GRÁFICOS SVG
+========================================== */
+/* Sparkline dentro de KPI cards */
+.kpi-spark {
+margin-top: 0.35rem;
+height: 24px;
+width: 100%;
+max-width: 90px;
+}
+.sparkline-svg {
+width: 100%;
+height: 24px;
+display: block;
+}
+.sparkline-svg polyline {
+vector-effect: non-scaling-stroke;
+}
+/* Mini bar-chart en filas de proveedor */
+.minibar-svg {
+display: block;
+width: 60px;
+height: 6px;
+border-radius: 3px;
+overflow: hidden;
+}
+/* Donut en panel contexto */
+.donut-wrap {
+display: flex;
+align-items: center;
+gap: 0.7rem;
+padding: 0.6rem 0;
+}
+.donut-svg {
+flex-shrink: 0;
+}
+.donut-legend {
+display: flex;
+flex-direction: column;
+gap: 0.2rem;
+font-size: 0.72rem;
+color: var(--color-texto-suave);
+}
+.donut-legend-item {
+display: flex;
+align-items: center;
+gap: 0.35rem;
+}
+.donut-legend-dot {
+width: 8px;
+height: 8px;
+border-radius: 50%;
+flex-shrink: 0;
+}
+/* Animación sutil de entrada para sparklines */
+@media (prefers-reduced-motion: no-preference) {
+.sparkline-svg polyline {
+stroke-dasharray: 300;
+stroke-dashoffset: 300;
+animation: unabSparkDraw 0.8s ease-out forwards;
+}
+}
+@keyframes unabSparkDraw {
+to { stroke-dashoffset: 0; }
 }

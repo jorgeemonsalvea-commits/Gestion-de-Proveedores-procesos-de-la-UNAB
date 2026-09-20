@@ -14,6 +14,10 @@ const path = require('path');
 const os = require('os');
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
+// ⏱️ Timeout global: server.js tarda en inicializar (BD + migraciones + normalización + admin).
+// Sin esto, el beforeAll falla con "Exceeded timeout of 15000 ms" y los tests individuales
+// también pueden fallar en máquinas lentas o con I/O de disco cifrado.
+jest.setTimeout(30000);
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'proveedores-gestion-test-'));
 process.env.RAILWAY_VOLUME_MOUNT_PATH = dataDir;
@@ -44,9 +48,9 @@ beforeAll(async () => {
   provNoAprobacion = crearProveedorDB('prov-noaprob@test.com', 'verificacion');
   db.prepare(`INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, es_historico)
     VALUES (?, 'rut', 'x.enc', 'rut.pdf', 'pendiente', 0)`).run(provConDocs);
-  db.prepare(`INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, es_historico)
-    VALUES (?, 'rut', 'y.enc', 'rut.pdf', 'pendiente', 0)`).run(provEval);
-});
+  db.prepare(`INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, es_historico) VALUES (?, 'rut', 'y.enc', 'rut.pdf', 'pendiente', 0)`).run(provEval);
+  }, 30000); // ⏱️ 30s para inicialización completa del servidor
+
 
 afterAll(async () => {
   try { if (db && typeof db.close === 'function') db.close(); } catch (e) {}

@@ -133,6 +133,7 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
 <!-- 🆕 B4: indicador de conexión Socket.IO en tiempo real -->
 <span id="socketStatus" style="font-size:.72rem;font-weight:700;color:#059669;white-space:nowrap;" title="Estado de la conexión en tiempo real">🟢 Conectado</span>
+<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real">🔊</button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
@@ -346,9 +347,11 @@ Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel=
 // ==========================================
 // 🔧 FUNCIÓN HELPER: fetchAPI
   // ==========================================
-  function fetchAPI(url, options = {}) {
-    return fetch(url, { ...options, credentials: 'include' });
-  }
+function fetchAPI(url, options = {}) {
+// 🔔 D4: suprime sonido de eventos Socket causados por mis propias acciones
+if (options && options.method && options.method !== 'GET') marcarAccionPropia();
+return fetch(url, { ...options, credentials: 'include' });
+}
 
 // ==========================================
 // 📬 NOTIFICACIONES PUSH (TOASTS)
@@ -532,7 +535,58 @@ zip: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7
 plus: '<svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
 save: '<svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
 };
-
+// ==========================================
+// 🔔 D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
+// ==========================================
+let sonidoActivado = localStorage.getItem('unab_sonido') !== 'off';
+let audioCtxD4 = null;
+let pendienesD4 = 0;
+const tituloBaseD4 = document.title;
+let accionPropiaHasta = 0;
+function marcarAccionPropia() { accionPropiaHasta = Date.now() + 1500; }
+function esAccionPropia() { return Date.now() < accionPropiaHasta; }
+function reproducirSonidoD4(tipo = 'info') {
+if (!sonidoActivado) return;
+try {
+if (!audioCtxD4) audioCtxD4 = new (window.AudioContext || window.webkitAudioContext)();
+if (audioCtxD4.state === 'suspended') audioCtxD4.resume();
+const secuencia = { info: [660], success: [880, 1174], warning: [440, 440] }[tipo] || [660];
+secuencia.forEach((freq, i) => {
+const osc = audioCtxD4.createOscillator();
+const gain = audioCtxD4.createGain();
+osc.type = 'sine';
+osc.frequency.value = freq;
+const t0 = audioCtxD4.currentTime + (i * 0.12);
+gain.gain.setValueAtTime(0.0001, t0);
+gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+osc.connect(gain); gain.connect(audioCtxD4.destination);
+osc.start(t0); osc.stop(t0 + 0.2);
+});
+} catch (e) { /* sin audio disponible: silencio */ }
+}
+function notificarD4(tipo = 'info') {
+if (esAccionPropia()) return;
+reproducirSonidoD4(tipo);
+if (document.hidden) {
+pendienesD4++;
+document.title = `(${pendienesD4}) 🔔 ${tituloBaseD4}`;
+}
+}
+function resetearTituloD4() {
+pendienesD4 = 0;
+document.title = tituloBaseD4;
+}
+document.addEventListener('visibilitychange', () => {
+if (!document.hidden) resetearTituloD4();
+});
+function toggleSonidoD4() {
+sonidoActivado = !sonidoActivado;
+localStorage.setItem('unab_sonido', sonidoActivado ? 'on' : 'off');
+const btn = document.getElementById('btnSonidoD4');
+if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
+if (sonidoActivado) reproducirSonidoD4('success');
+}
 // 🛡️ A1: abre el visor leyendo datos desde data-attributes
 function verDocumentoBtn(btn) {
 verDocumento(btn.dataset.url, btn.dataset.nombre || 'Documento');
@@ -918,20 +972,23 @@ function conectarSocket() {
   socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarDatosProveedor(); });
   socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarDatosProveedor(); });
   socket.on('proveedor_registrado', (data) => {
-      console.log('🏷️ Proveedor registrado:', data);
-      recargarDatosProveedor();
-      mostrarNotificacion('🎉 ¡Felicidades! Has sido registrado como proveedor.', 'success');
-    });
+  console.log('🏷️ Proveedor registrado:', data);
+  notificarD4('success');
+  recargarDatosProveedor();
+  mostrarNotificacion('🎉 ¡Felicidades! Has sido registrado como proveedor.', 'success');
+  });
   socket.on('nuevo_recordatorio', (data) => {
-      console.log('📨 Nuevo recordatorio:', data);
-      mostrarNotificacion('📨 Tienes un nuevo recordatorio del administrador', 'info');
-      cargarRecordatorios();
-    });
+  console.log('📨 Nuevo recordatorio:', data);
+  notificarD4('info');
+  mostrarNotificacion('📨 Tienes un nuevo recordatorio del administrador', 'info');
+  cargarRecordatorios();
+  });
   socket.on('nueva_nota', (data) => {
-      console.log('📝 Nueva nota:', data);
-      mostrarNotificacion('📝 Tienes una nueva nota del administrador', 'info');
-      cargarNotas();
-    });
+  console.log('📝 Nueva nota:', data);
+  notificarD4('info');
+  mostrarNotificacion('📝 Tienes una nueva nota del administrador', 'info');
+  cargarNotas();
+  });
   socket.on('vencimientos_procesados', (data) => {
       console.log('⏰ Vencimientos procesados:', data);
       mostrarNotificacion(`📦 Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
@@ -947,6 +1004,7 @@ location.reload();
 // verificarYBloquearPerfil() vuelve a bloquear el portal hasta elegir el tipo.
 socket.on('solicitud_actualizacion', (data) => {
 console.log('🔄 Solicitud de actualización recibida:', data);
+notificarD4('warning');
 mostrarNotificacion('🔄 El administrador solicitó la actualización de tus documentos. Recargando...', 'info', 6000);
 setTimeout(() => location.reload(), 1200);
 });
@@ -1079,12 +1137,14 @@ if (perfilCompleto) {
         actualizarBarraProgreso();
       }
 
-      conectarSocket();
-
-    } catch (err) {
-      console.error('Error en init:', err);
-      mostrarAlerta('Error al cargar: ' + err.message);
-    }
+// 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
+const btnSonido = document.getElementById('btnSonidoD4');
+if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
+conectarSocket();
+} catch (err) {
+console.error('Error en init:', err);
+mostrarAlerta('Error al cargar: ' + err.message);
+}
   }
 
   // ==========================================
