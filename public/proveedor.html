@@ -76,15 +76,9 @@ to { opacity: 1; transform: translateY(0); }
 ========================================== */
 /* 1) La columna de información pasa a flex-column con gap mínimo:
    los <br> sobrantes dejan de generar líneas vacías. */
-#listaDocumentos .doc-row div[style*="flex:1"] { display: flex; flex-direction: column; gap: 0.15rem; }
-#listaDocumentos .doc-row div[style*="flex:1"] br { display: none; }
-/* 2) Todo nodo SIN contenido se colapsa: no aporta alto, margen ni padding. */
-#listaDocumentos .doc-row div[style*="flex:1"] > *:empty { display: none !important; margin: 0 !important; padding: 0 !important; }
-/* 3) Filas más apretadas verticalmente */
+/* 🧹 F10: la compactación de filas ahora vive en .doc-row-info (style.css global,
+aplica igual en admin). Aquí solo queda el apretado vertical específico del portal. */
 #listaDocumentos .doc-row { margin-bottom: 0.4rem; padding: 0.5rem 0.6rem; }
-/* 4) El motivo y la fecha quedan pegados al nombre, sin huecos */
-#listaDocumentos .doc-row div[style*="flex:1"] > small,
-#listaDocumentos .doc-row div[style*="flex:1"] > div { margin: 0 !important; }
 
 /* 🆕 A6.2: resaltar tarjeta al saltar desde el checklist */
 .doc-item.doc-flash {

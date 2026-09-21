@@ -1496,8 +1496,8 @@ const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidad
 const puedeSubir = permiteMultiples
 ? true
 : (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica));
-html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
-<div style="margin-bottom:0.5rem;">
+html += `<div class="doc-item doc-item-col">
+<div class="doc-item-head">
 <h4>${idx+1}. ${req.nombre}</h4>
 <small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
 ${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
@@ -1796,8 +1796,8 @@ const sub = map[req.tipo] || [];
 const todosAprobados = sub.length > 0 && sub.every(d => d.estado === 'aprobado' || d.no_aplica === 1);
 const tieneArchivos = sub.length > 0;
 
-html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
-<div style="margin-bottom:0.5rem;">
+html += `<div class="doc-item doc-item-col">
+<div class="doc-item-head">
 <h4>${req.nombre}</h4>
 <small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
 ${todosAprobados && tieneArchivos ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">✅ Aprobado</span>' : ''}
@@ -1992,8 +1992,8 @@ const puedeSubir = !soloLectura && (permiteMultiples
 ? true
 : (sub.length === 0 || (sub[0]?.estado === 'rechazado' && !noAplica)));
 
-html += `<div class="doc-item" style="flex-direction:column;align-items:stretch;">
-<div style="margin-bottom:0.5rem;">
+html += `<div class="doc-item doc-item-col">
+<div class="doc-item-head">
 <h4>${idx+1}. ${req.nombre}</h4>
 <small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
 ${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}

@@ -132,17 +132,17 @@ badgeEstado = '<span class="badge badge-verificado-pendiente">✅ Verificado</sp
 badgeEstado = `<span class="badge badge-${doc.estado || 'pendiente'}">${doc.estado || 'pendiente'}</span>`;
 }
 const motivo = doc.comentario
-? `<div style="color:#991b1b;font-size:0.95rem;font-weight:600;margin:0.35rem 0;line-height:1.4;">💬 Motivo: ${escapeHtml(limpiarMotivoRechazo(doc.comentario))}</div>`
+? `<div class="doc-motivo">💬 Motivo: ${escapeHtml(limpiarMotivoRechazo(doc.comentario))}</div>`
 : '';
 const vencimiento = doc.fecha_vencimiento ? `
-<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(doc.fecha_vencimiento)}</small>
-<span class="badge badge-${obtenerEstadoVencimiento(doc.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
+<small class="txt-suave">📅 Vence: ${formatearFecha(doc.fecha_vencimiento)}</small>
+<span class="badge badge-${obtenerEstadoVencimiento(doc.fecha_vencimiento).clase} badge-mini">
 ${obtenerEstadoVencimiento(doc.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(doc.fecha_vencimiento).texto}
 </span>` : '';
-return `<div style="flex:1;min-width:180px;">
+return `<div class="doc-row-info">
 <small>📎 ${escapeHtml(nombreFormato(doc.tipo))} ${badgeEstado}</small>
 ${motivo}
-<br><small style="color:#9ca3af;">📅 ${formatearFecha(doc.subido_en)}</small>
+<small class="txt-muted">📅 ${formatearFecha(doc.subido_en)}</small>
 ${vencimiento}
 ${extra}
 </div>`;

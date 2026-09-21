@@ -837,8 +837,8 @@ const puedeSubir = rechazoTotal
 
       if (ok || noAplica) completados++;
 
-let html = `<div class="doc-item" data-tipo-doc="${escapeAttr(req.tipo)}" style="flex-direction:column;align-items:stretch;">
-<div style="margin-bottom:0.5rem;">
+let html = `<div class="doc-item doc-item-col" data-tipo-doc="${escapeAttr(req.tipo)}">
+<div class="doc-item-head">
 <h4>${idx + 1}. ${req.nombre}</h4>
 ${(req.descripcion || req.requiereFirma || req.requiereHuella) ? `
 <div style="margin-top:0.3rem;">
