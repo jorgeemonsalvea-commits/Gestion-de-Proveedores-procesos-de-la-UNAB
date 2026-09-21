@@ -98,6 +98,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <button id="btnCampanaD4" class="btn-sonido btn-campana" onclick="togglePanelEventosD4()" title="Eventos en tiempo real">🔔<span id="campanaBadgeD4" class="campana-badge" style="display:none;">0</span></button>
 <div id="panelEventosD4" class="feed-panel"></div>
 </div>
+<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema">🌙</button>
 <button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real">🔊</button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
@@ -318,11 +319,38 @@ Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel=
 // 🔧 FUNCIÓN HELPER: fetchAPI
 // ==========================================
 function fetchAPI(url, options = {}) {
-// 🔔 D4: toda mutación propia (POST/PUT/DELETE) marca una ventana de 1.5s
-// para SUPRIMIR el sonido/contador de los eventos Socket que nosotros mismos causamos.
-if (options && options.method && options.method !== 'GET') marcarAccionPropia();
 return fetch(url, { ...options, credentials: 'include' });
 }
+// ==========================================
+// 🌙 D1: MODO OSCURO — tema persistido + fallback al sistema operativo
+// Sin valor guardado sigue prefers-color-scheme (y reacciona a sus cambios).
+// ==========================================
+const TEMA_KEY = 'unab_tema';
+function aplicarTemaD1(tema) {
+document.documentElement.setAttribute('data-tema', tema);
+const btn = document.getElementById('btnTemaD1');
+if (btn) {
+btn.textContent = tema === 'oscuro' ? '☀️' : '🌙';
+btn.setAttribute('aria-label', tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+btn.title = tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro';
+}
+}
+function toggleTemaD1() {
+const actual = document.documentElement.getAttribute('data-tema') === 'oscuro' ? 'oscuro' : 'claro';
+const nuevo = actual === 'oscuro' ? 'claro' : 'oscuro';
+localStorage.setItem(TEMA_KEY, nuevo);
+aplicarTemaD1(nuevo);
+}
+(function initTemaD1() {
+const guardado = localStorage.getItem(TEMA_KEY);
+const sistema = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'oscuro' : 'claro';
+aplicarTemaD1(guardado || sistema);
+if (window.matchMedia) {
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro');
+});
+}
+})();
 
 // ==========================================
 // 📋 VARIABLES GLOBALES

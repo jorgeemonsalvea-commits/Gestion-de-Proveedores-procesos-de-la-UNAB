@@ -133,6 +133,7 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
 <!-- 🆕 B4: indicador de conexión Socket.IO en tiempo real -->
 <span id="socketStatus" style="font-size:.72rem;font-weight:700;color:#059669;white-space:nowrap;" title="Estado de la conexión en tiempo real">🟢 Conectado</span>
+<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema">🌙</button>
 <button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real">🔊</button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
@@ -371,10 +372,37 @@ Vigilada Mineducación · <a href="https://www.unab.edu.co" target="_blank" rel=
 // 🔧 FUNCIÓN HELPER: fetchAPI
   // ==========================================
 function fetchAPI(url, options = {}) {
-// 🔔 D4: suprime sonido de eventos Socket causados por mis propias acciones
-if (options && options.method && options.method !== 'GET') marcarAccionPropia();
 return fetch(url, { ...options, credentials: 'include' });
 }
+// ==========================================
+// 🌙 D1: MODO OSCURO — tema persistido + fallback al sistema operativo
+// ==========================================
+const TEMA_KEY = 'unab_tema';
+function aplicarTemaD1(tema) {
+document.documentElement.setAttribute('data-tema', tema);
+const btn = document.getElementById('btnTemaD1');
+if (btn) {
+btn.textContent = tema === 'oscuro' ? '☀️' : '🌙';
+btn.setAttribute('aria-label', tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+btn.title = tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro';
+}
+}
+function toggleTemaD1() {
+const actual = document.documentElement.getAttribute('data-tema') === 'oscuro' ? 'oscuro' : 'claro';
+const nuevo = actual === 'oscuro' ? 'claro' : 'oscuro';
+localStorage.setItem(TEMA_KEY, nuevo);
+aplicarTemaD1(nuevo);
+}
+(function initTemaD1() {
+const guardado = localStorage.getItem(TEMA_KEY);
+const sistema = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'oscuro' : 'claro';
+aplicarTemaD1(guardado || sistema);
+if (window.matchMedia) {
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro');
+});
+}
+})();
 
 // ==========================================
 // 📬 NOTIFICACIONES PUSH (TOASTS)

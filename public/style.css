@@ -1990,6 +1990,147 @@ clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 /* Placeholders con contraste suficiente (antes heredaban gris claro) */
 ::placeholder { color: #6b7280; opacity: 1; }
 /* ==========================================
+🌙 D1: MODO OSCURO (admin + proveedor; login/registro fuera de alcance)
+Activación: <html data-tema="oscuro">. Persiste en localStorage 'unab_tema';
+sin guardado, sigue prefers-color-scheme. color-scheme:dark arregla
+scrollbars, selects e inputs nativos sin tocarlos.
+========================================== */
+html[data-tema="oscuro"] {
+color-scheme: dark;
+--color-fondo: #14101c;
+--color-fondo-suave: #1e1828;
+--color-blanco: #221b30;
+--color-negro: #0d0912;
+--color-texto: #ece9f2;
+--color-texto-suave: #a79fb5;
+--color-borde: #372e47;
+--color-borde-input: #463b5a;
+--color-primario-claro: rgba(168, 85, 247, 0.25);
+--color-primario-muy-claro: rgba(168, 85, 247, 0.10);
+--color-acento-claro: rgba(233, 164, 39, 0.20);
+--color-acento-texto: #fcd34d;
+--sombra-1: 0 1px 2px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
+--sombra-2: 0 6px 16px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.45);
+--sombra-3: 0 16px 40px rgba(0,0,0,.65), 0 6px 14px rgba(0,0,0,.5);
+}
+/* Superficies estructurales con #fff duro en clase */
+html[data-tema="oscuro"] .card,
+html[data-tema="oscuro"] .modal,
+html[data-tema="oscuro"] .kpi,
+html[data-tema="oscuro"] .pv-panel,
+html[data-tema="oscuro"] .ad-panel,
+html[data-tema="oscuro"] .ad-topbar,
+html[data-tema="oscuro"] .pv-topbar,
+html[data-tema="oscuro"] .pv-wizard,
+html[data-tema="oscuro"] .pv-actions,
+html[data-tema="oscuro"] .doc-item,
+html[data-tema="oscuro"] .proveedor-row,
+html[data-tema="oscuro"] .nota-item,
+html[data-tema="oscuro"] .filtro-estado,
+html[data-tema="oscuro"] .feed-panel,
+html[data-tema="oscuro"] .prod-card,
+html[data-tema="oscuro"] .form-upload.dropzone {
+background: var(--color-blanco);
+color: var(--color-texto);
+}
+html[data-tema="oscuro"] .kpi { background: linear-gradient(165deg, var(--kpi-tint) 0%, var(--color-blanco) 55%); }
+/* Tints KPI en clave oscura */
+html[data-tema="oscuro"] .kpi--azul   { --kpi-tint:#182742; border-color:#2c3e63; }
+html[data-tema="oscuro"] .kpi--ambar  { --kpi-tint:#33270f; border-color:#5b4519; }
+html[data-tema="oscuro"] .kpi--morado { --kpi-tint:#2a1b45; border-color:#463075; }
+html[data-tema="oscuro"] .kpi--verde  { --kpi-tint:#12291f; border-color:#1f4d38; }
+html[data-tema="oscuro"] .kpi--rojo   { --kpi-tint:#341a1a; border-color:#5c2626; }
+html[data-tema="oscuro"] .kpi--gris   { --kpi-tint:#24202b; border-color:#3a3444; }
+/* Inputs y controles */
+html[data-tema="oscuro"] input,
+html[data-tema="oscuro"] select,
+html[data-tema="oscuro"] textarea {
+background: #2a2238; color: var(--color-texto); border-color: var(--color-borde-input);
+}
+html[data-tema="oscuro"] ::placeholder { color: #8d859c; }
+/* Grises inline frecuentes en plantillas JS */
+html[data-tema="oscuro"] [style*="background:#f9fafb"],
+html[data-tema="oscuro"] [style*="background: #f9fafb"],
+html[data-tema="oscuro"] [style*="background:#f3f4f6"],
+html[data-tema="oscuro"] [style*="background:#f5f5f5"] { background: #2a2238 !important; }
+html[data-tema="oscuro"] [style*="background:#fff;"],
+html[data-tema="oscuro"] [style*="background:#fff"] { background: #241b36 !important; }
+html[data-tema="oscuro"] [style*="color:#6b7280"] { color: #a79fb5 !important; }
+html[data-tema="oscuro"] [style*="color:#374151"] { color: #cfc9da !important; }
+html[data-tema="oscuro"] [style*="color:#1f2937"] { color: #e4e0ec !important; }
+/* Pasteles semánticos inline: fondo oscuro + texto claro (pareados) */
+html[data-tema="oscuro"] [style*="background:#fef3c7"],
+html[data-tema="oscuro"] [style*="background:#fffbeb"] { background: #33290f !important; border-color: #6b5518 !important; }
+html[data-tema="oscuro"] [style*="background:#fef3c7"] :is(span, small, strong, label, p, h4),
+html[data-tema="oscuro"] [style*="background:#fffbeb"] :is(span, small, strong, label, p, h4) { color: #fcd34d !important; }
+html[data-tema="oscuro"] [style*="background:#fee2e2"] { background: #381919 !important; border-color: #7f2c2c !important; }
+html[data-tema="oscuro"] [style*="background:#fee2e2"] :is(span, small, strong, label, p, h2, h4, li) { color: #fca5a5 !important; }
+html[data-tema="oscuro"] [style*="background:#f0fdf4"],
+html[data-tema="oscuro"] [style*="background:#ecfdf5"],
+html[data-tema="oscuro"] [style*="background:#d1fae5"] { background: #12291f !important; border-color: #1f5c40 !important; }
+html[data-tema="oscuro"] [style*="background:#f0fdf4"] :is(span, small, strong, p, h2, h4),
+html[data-tema="oscuro"] [style*="background:#ecfdf5"] :is(span, small, strong, p, h2, h4),
+html[data-tema="oscuro"] [style*="background:#d1fae5"] :is(span, small, strong, p, h2, h4) { color: #86efac !important; }
+html[data-tema="oscuro"] [style*="background:#eff6ff"],
+html[data-tema="oscuro"] [style*="background:#f0f9ff"],
+html[data-tema="oscuro"] [style*="background:#dbeafe"] { background: #16233a !important; border-color: #2c4a75 !important; }
+html[data-tema="oscuro"] [style*="background:#eff6ff"] :is(span, small, strong, label, p, h4),
+html[data-tema="oscuro"] [style*="background:#f0f9ff"] :is(span, small, strong, label, p, h4),
+html[data-tema="oscuro"] [style*="background:#dbeafe"] :is(span, small, strong, label, p, h4) { color: #93c5fd !important; }
+html[data-tema="oscuro"] [style*="background:#f5f3ff"] { background: #241b36 !important; border-color: #463075 !important; }
+/* Clases semánticas: alertas, badges, tablas, varios */
+html[data-tema="oscuro"] .alert-error { background: #381919; color: #fca5a5; border-color: #7f2c2c; }
+html[data-tema="oscuro"] .alert-success { background: #12291f; color: #86efac; border-color: #1f5c40; }
+html[data-tema="oscuro"] .alert-info { background: #241b36; color: #d8b4fe; border-color: #463075; }
+html[data-tema="oscuro"] .badge-aprobado { background: #12291f; color: #86efac; }
+html[data-tema="oscuro"] .badge-rechazado { background: #381919; color: #fca5a5; }
+html[data-tema="oscuro"] .badge-pendiente { background: #33290f; color: #fcd34d; }
+html[data-tema="oscuro"] .badge-faltante,
+html[data-tema="oscuro"] .badge-count { background: #2a2238; color: #cfc9da; }
+html[data-tema="oscuro"] .badge-verificado-pendiente { background: #33290f; color: #fcd34d; border-color: #6b5518; }
+html[data-tema="oscuro"] .badge-pendiente-verificar { background: #3a2213; color: #fdba74; border-color: #7c3f18; }
+html[data-tema="oscuro"] .badge-vigente { background: #12291f; color: #86efac; }
+html[data-tema="oscuro"] .badge-proximo-a-vencer { background: #33290f; color: #fcd34d; }
+html[data-tema="oscuro"] .badge-vencido { background: #381919; color: #fca5a5; }
+html[data-tema="oscuro"] .badge-sin-fecha { background: #2a2238; color: #a79fb5; }
+html[data-tema="oscuro"] #listaHistorialCiclos thead th,
+html[data-tema="oscuro"] .modal table thead th { background: #2a2238; color: var(--color-texto); }
+html[data-tema="oscuro"] #listaHistorialCiclos tbody tr:nth-child(even) { background: var(--color-fondo-suave); }
+html[data-tema="oscuro"] .upload-progress { background: #16233a; border-color: #2c4a75; }
+html[data-tema="oscuro"] .step-dot,
+html[data-tema="oscuro"] .pv-wizard .step-dot { background: #2a2238; border-color: var(--color-borde); }
+html[data-tema="oscuro"] .pv-wizard .step.done .step-dot,
+html[data-tema="oscuro"] .pv-wizard .step.current .step-dot,
+html[data-tema="oscuro"] .pv-wizard .step.rejected .step-dot { border-color: transparent; }
+/* SweetAlert2 en oscuro */
+html[data-tema="oscuro"] .swal2-popup { background: #241b36; color: #ece9f2; }
+html[data-tema="oscuro"] .swal2-title,
+html[data-tema="oscuro"] .swal2-html-container,
+html[data-tema="oscuro"] .swal2-label { color: #ece9f2; }
+html[data-tema="oscuro"] .swal2-input,
+html[data-tema="oscuro"] .swal2-select,
+html[data-tema="oscuro"] .swal2-textarea { background: #2a2238; color: #ece9f2; border-color: var(--color-borde-input); }
+/* Chip de usuario en topbars oscuras */
+html[data-tema="oscuro"] .ad-topbar .user-mail,
+html[data-tema="oscuro"] .pv-topbar .user-mail { color: var(--color-texto); }
+/* Nota: el lienzo del visor PDF (#525659) y los sidebars ya oscuros se mantienen */
+/* ==========================================
+🌙 D1-fix: ISLAS CLARAS RESIDUALES (banner checklist + dropdown exportar)
+El banner del checklist se pinta en runtime vía CSSOM (serializa rgb()),
+por eso los selectores [style*="#hex"] no lo alcanzan. Usamos el atributo
+data-estado-check que el propio JS ya escribe en el contenedor.
+========================================== */
+html[data-tema="oscuro"] #checklist-faltantes[data-estado-check="faltantes"] { background: #33290f !important; border-color: #6b5518 !important; }
+html[data-tema="oscuro"] #checklist-faltantes[data-estado-check="faltantes"] strong { color: #fcd34d !important; }
+html[data-tema="oscuro"] #checklist-faltantes[data-estado-check="faltantes"] span[style*="color:#dc2626"] { color: #fca5a5 !important; }
+html[data-tema="oscuro"] #checklist-faltantes[data-estado-check="revision"] { background: #16233a !important; border-color: #2c4a75 !important; }
+html[data-tema="oscuro"] #checklist-faltantes[data-estado-check="revision"] strong { color: #93c5fd !important; }
+html[data-tema="oscuro"] #checklist-faltantes[data-estado-check="revision"] span[style*="color:#3b82f6"] { color: #93c5fd !important; }
+/* Dropdown Exportar (background:white en markup) */
+html[data-tema="oscuro"] [style*="background:white"] { background: #241b36 !important; color: var(--color-texto) !important; }
+html[data-tema="oscuro"] [style*="background:white"] button { color: var(--color-texto) !important; }
+html[data-tema="oscuro"] [style*="background:white"] button:hover { background: var(--color-fondo-suave) !important; }
+/* ==========================================
 🔍 E4: CONTROLES DE ZOOM/ROTACIÓN DEL VISOR PDF
 ========================================== */
 .btn-visor {
