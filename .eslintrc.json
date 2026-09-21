@@ -1,0 +1,47 @@
+{
+  "root": true,
+  "env": { "browser": true, "es2021": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "script" },
+  "globals": {
+    "Swal": "readonly",
+    "io": "readonly",
+    "formatearFecha": "readonly",
+    "escapeHtml": "readonly",
+    "escapeAttr": "readonly",
+    "obtenerEstadoVencimiento": "readonly",
+    "nombreFormato": "readonly",
+    "verDocumentoBtn": "readonly",
+    "TIPOS_DOCUMENTO_CO": "readonly",
+    "normalizarNumeroDocumento": "readonly",
+    "validarDocumentoCO": "readonly",
+    "TEL_CO_RE": "readonly",
+    "normalizarDigitosCO": "readonly",
+    "formatearTelefonoCO": "readonly",
+    "validarTelefonoCO": "readonly",
+    "limpiarMotivoRechazo": "readonly",
+    "infoDocRow": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "vars": "local", "args": "none", "varsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "no-redeclare": "error",
+    "no-dupe-keys": "error",
+    "no-dupe-args": "error",
+    "no-dupe-class-members": "error",
+    "no-func-assign": "error",
+    "no-cond-assign": "error",
+    "no-constant-condition": ["error", { "checkLoops": false }],
+    "no-fallthrough": "error",
+    "no-self-assign": "error",
+    "no-unsafe-negation": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error"
+  },
+  "overrides": [
+    {
+      "files": ["public/js/utils.js"],
+      "globals": { "requeridos": "writable", "verDocumento": "readonly" },
+      "rules": { "no-redeclare": "off", "no-unused-vars": "off" }
+    }
+  ]
+}

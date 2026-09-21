@@ -2,6 +2,7 @@
 // 🔧 FUNCIÓN HELPER: fetchAPI
 // ==========================================
 function fetchAPI(url, options = {}) {
+marcarAccionPropia(); // 🔔 D4: ventana de acción propia (1.5s) para que el eco del socket no suene
 return fetch(url, { ...options, credentials: 'include' });
 }
 // ==========================================
@@ -1487,7 +1488,6 @@ requeridos.forEach((req, idx) => {
 const sub = map[req.tipo] || [];
 const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
 const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
-const tieneArchivos = sub.length > 0;
 // 🆕 Cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
 const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
 const puedeSubir = permiteMultiples
@@ -1804,7 +1804,6 @@ if (!sub.length) {
 html += '<small style="color:#9ca3af;">📭 No ha subido documentos</small>';
 } else {
 sub.forEach(d => {
-const nombreEscapado = escapeHtml(nombreFormato(d.tipo));
 const aprobado = d.estado === 'aprobado';
 const extraGest = `<br>${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>'}`;
 html += `<div class="doc-row">
@@ -1982,7 +1981,6 @@ requeridos.forEach((req, idx) => {
 const sub = map[req.tipo] || [];
 const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
 const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
-const tieneArchivos = sub.length > 0;
 // 🆕 Cupo múltiple (experiencia): permite agregar hasta cantidadMax
 const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
 const puedeSubir = !soloLectura && (permiteMultiples
@@ -2000,7 +1998,6 @@ if (!sub.length) {
 html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
 } else {
 sub.forEach(d => {
-const nombreEscapado = escapeHtml(d.nombre_original || '');
 const verificado = d.verificado === 1;
 const mostrarCheck = !soloLectura && d.estado !== 'aprobado';
 const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica'); // 🆕 sin archivo físico
@@ -2359,8 +2356,6 @@ ciclos.forEach(c => {
 const estadoColor = c.estado === 'activo' ? '#059669' : c.estado === 'cerrado' ? '#6b7280' : '#dc2626';
 const estadoIcon = c.estado === 'activo' ? '🟢' : c.estado === 'cerrado' ? '🔒' : '🔴';
 const fechaFin = c.fecha_fin ? formatearFecha(c.fecha_fin) : '—';
-const documentosTotal = c.total_documentos || 0;
-const aprobados = c.documentos_aprobados || 0;
 html += `
 <tr style="border-bottom:1px solid #e5e7eb;">
 <td style="padding:0.7rem;">
@@ -2478,7 +2473,6 @@ docsHtml += `
 <div class="doc-grid">
 `;
 documentos.forEach(d => {
-const nombreEscapado = escapeHtml(nombreFormato(d.tipo));
 const estadoVencimiento = d.estado_vencimiento || 'vigente';
 const vencimientoColor = estadoVencimiento === 'vencido' ? '#dc2626' : estadoVencimiento === 'proximo_a_vencer' ? '#d97706' : '#059669';
 const vencimientoLabel = estadoVencimiento === 'vencido' ? '🔴 Vencido' : estadoVencimiento === 'proximo_a_vencer' ? '🟡 Próximo a vencer' : '🟢 Vigente';
@@ -2609,7 +2603,6 @@ mostrarAlerta('❌ Error al exportar: ' + err.message);
 // ==========================================
 // ⚙️ CONFIGURACIÓN DEL SISTEMA (FECHA FIJA)
 // ==========================================
-let configuracionActual = {};
 async function cargarConfiguracion() {
 const contenedor = document.getElementById('contenedor-modulos');
 let html = `
@@ -2639,7 +2632,6 @@ const err = await response.json();
 throw new Error(err.error || 'Error al cargar configuración');
 }
 const config = await response.json();
-configuracionActual = config;
 renderizarFormularioConfiguracion(config);
 cargarBackups();
 } catch (err) {

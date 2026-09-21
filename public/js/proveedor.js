@@ -2,6 +2,7 @@
 // 🔧 FUNCIÓN HELPER: fetchAPI
   // ==========================================
 function fetchAPI(url, options = {}) {
+marcarAccionPropia(); // 🔔 D4: ventana de acción propia (1.5s) para que el eco del socket no suene
 return fetch(url, { ...options, credentials: 'include' });
 }
 // ==========================================
@@ -41,19 +42,23 @@ if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro
 // incluye fallback nativo si Swal no carga. mostrarAlerta se conserva.
 // ==========================================
 function mostrarAlerta(msg, tipo = 'error') {
-    const el = document.getElementById('alertaPassword');
-    if (el) {
-        el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
-        setTimeout(() => el.innerHTML = '', 5000);
-    } else {
-        mostrarAlerta(msg, tipo); // Fallback si no existe el modal de password
-    }
+const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info', 'warning': 'warning' };
+mostrarNotificacion(msg, tiposMap[tipo] || 'info');
 }
-
-
-  // ==========================================
-  // 📋 VARIABLES GLOBALES
-  // ==========================================
+// 🔐 Alerta específica para el modal de cambio de contraseña, con fallback
+// a mostrarAlerta() si el modal no existe en el DOM (robusta desde Sprint 6).
+function mostrarAlertaPassword(msg, tipo = 'error') {
+const el = document.getElementById('alertaPassword');
+if (el) {
+el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+setTimeout(() => el.innerHTML = '', 5000);
+} else {
+mostrarAlerta(msg, tipo);
+}
+}
+// ==========================================
+// 📋 VARIABLES GLOBALES
+// ==========================================
   let requeridos = [];
   let documentos = [];
   let perfilCompleto = false;
@@ -1129,7 +1134,6 @@ function actualizarChecklistFaltantes(completados) {
     const fondo = f.estado === 'rechazado' ? '#fef2f2' : '#ffffff';
     const borde = f.estado === 'rechazado' ? '#fecaca' : '#fde68a';
     const icono = f.estado === 'rechazado' ? '❌' : '📄';
-    const contador = f.requeridos > 1 ? ' (' + f.subidos + '/' + f.requeridos + ')' : '';
       html += `
         <button type="button" class="chip-faltante" data-tipo="${escapeAttr(f.tipo)}"
           title="Ir al documento: ${escapeAttr(f.nombre)}"
