@@ -366,7 +366,7 @@ let listaProveedoresCache = [];
 let listaFiltrada = [];
 let filtroEstadoActual = 'todos';
 let paginaActual = 1;
-let limiteActual = 20;
+let limiteActual = 50; // 📈 F5: página por defecto de 50 (agenda Sprint 6)
 let totalPaginas = 1;
 let totalRegistros = 0;
 let adminFormSubmitted = false;
@@ -1389,8 +1389,8 @@ ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.n
 <label style="font-size:0.85rem;">Mostrar:</label>
 <select id="selectLimite" onchange="cambiarLimite()" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
 <option value="10">10</option>
-<option value="20" selected>20</option>
-<option value="50">50</option>
+<option value="20">20</option>
+<option value="50" selected>50</option>
 <option value="100">100</option>
 </select>
 </div>
@@ -1403,14 +1403,15 @@ contenedor.innerHTML = html;
 cargarProveedoresPorModulo(modulo, 1);
 const buscador = document.getElementById('buscador');
 if (buscador) {
-// ⚡ OPT (#5): debounce 300ms — consulta al hacer pausa, no en cada tecla
+// ⚡ F6: debounce 800ms — menos queries intermedias al teclear nombres largos.
+// 300ms disparaba 3-4 peticiones por palabra; 800ms consulta al hacer pausa real.
 let debounceBusqueda = null;
 buscador.addEventListener('input', function() {
 clearTimeout(debounceBusqueda);
 debounceBusqueda = setTimeout(() => {
 paginaActual = 1;
 cargarProveedoresPorModulo(moduloActual, 1);
-}, 300);
+}, 800);
 });
 buscador.value = '';
 buscador.addEventListener('blur', function() {
@@ -1458,7 +1459,7 @@ listaProveedoresCache = result.data || [];
 totalRegistros = result.total || 0;
 paginaActual = result.page || 1;
 totalPaginas = result.totalPages || 1;
-limiteActual = result.limit || 20;
+limiteActual = result.limit || 50;
 
 aplicarFiltrosLocal();
 actualizarPaginacion();
@@ -2534,11 +2535,12 @@ cargarPlantillas._intentos = 0; // 🆕 resetea el contador al cargar bien
         const response = await fetchAPI('/api/admin/plantillas');
         if (!response.ok) throw new Error('Error al obtener plantillas');
         const plantillas = await response.json();
-        const map = {};
-        plantillas.forEach(p => map[p.tipo] = p);
-        cont.innerHTML = '';
-
-        plantillasRequeridas.forEach(req => {
+const map = {};
+plantillas.forEach(p => map[p.tipo] = p);
+cont.innerHTML = '';
+// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por plantilla
+const fragPlantillas = document.createDocumentFragment();
+plantillasRequeridas.forEach(req => {
             const p = map[req.tipo];
             const div = document.createElement('div');
             div.className = 'doc-item';
@@ -2556,11 +2558,11 @@ cargarPlantillas._intentos = 0; // 🆕 resetea el contador al cargar bien
                 <form class="form-plantilla" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
                     <input type="file" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx">
                     <button type="submit" class="btn btn-sm">${p ? 'Reemplazar' : 'Subir'}</button>
-                </form>
-            `;
-            cont.appendChild(div);
+        </form>
+        `;
+        fragPlantillas.appendChild(div);
         });
-
+        cont.appendChild(fragPlantillas);
         // Adjunta handlers SOLO a los formularios recién renderizados
         cont.querySelectorAll('.form-plantilla').forEach(form => {
             form.addEventListener('submit', async e => {
@@ -3923,6 +3925,8 @@ const notas = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/n
 const cont = document.getElementById('listaNotas');
 if (!notas.length) { cont.innerHTML = '<small style="color:#9ca3af;">Sin notas.</small>'; return; }
 cont.innerHTML = '';
+// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por nota
+const fragNotas = document.createDocumentFragment();
 notas.forEach(n => {
 const div = document.createElement('div');
 div.className = 'nota-item';
@@ -3939,8 +3943,9 @@ const body = document.createElement('div');
 body.className = 'nota-body';
 body.textContent = n.nota;
 div.appendChild(body);
-cont.appendChild(div);
+fragNotas.appendChild(div);
 });
+cont.appendChild(fragNotas);
 }
 async function guardarNota() {
 const titulo = document.getElementById('tituloNota').value.trim();

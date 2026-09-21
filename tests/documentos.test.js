@@ -25,22 +25,27 @@ const PDF_INVALIDO = Buffer.from('ESTO NO ES UN PDF REAL');
 
 let app, db, agent, proveedorId, docRut, docCamara;
 
+// ⚡ OPT TEST: timeout elevado porque bcryptjs en Windows con cost 12
+// es muy lento (~200 ms por compare + ~250 ms por hash). El setup completo
+// de la BD (migraciones + índices + Socket.IO) suma fácilmente 12-14 s.
+// 60 s da margen seguro sin enmascarar cuellos de botella reales.
 beforeAll(async () => {
   const serverModule = require('../server');
   app = serverModule.app;
   db = serverModule.db;
   agent = request.agent(app);
+
   const login = await agent.post('/api/login').send({
     email: 'admin@test.local',
     password: 'AdminTest123!'
   });
   if (login.status !== 200) throw new Error('No se pudo loguear el admin de prueba');
-});
+}, 60000);
 
 afterAll(async () => {
   try { if (db && typeof db.close === 'function') db.close(); } catch (e) {}
   try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch (e) {}
-});
+}, 15000);
 
 describe('📄 Flujo de documentos (admin)', () => {
   test('crear proveedor de prueba', async () => {
@@ -55,8 +60,9 @@ describe('📄 Flujo de documentos (admin)', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     proveedorId = res.body.proveedorId;
-    await new Promise(r => setTimeout(r, 300)); // espera a que Brevo termine
-  });
+    // 🧹 Eliminado el setTimeout(300): Brevo envía en fire-and-forget
+    // y no bloquea la respuesta HTTP. El test no depende de ese correo.
+  }, 30000);
 
   test('rechaza archivo que no es PDF', async () => {
     const res = await agent

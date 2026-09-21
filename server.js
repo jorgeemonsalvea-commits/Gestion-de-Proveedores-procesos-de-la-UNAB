@@ -366,8 +366,15 @@ io.on('connection', (socket) => {
   });
 });
 
+// 📈 F3: caché TTL corta para /api/admin/stats (6 COUNT por llamada).
+// Se invalida en cualquier mutación que emita eventos de stats/proveedores,
+// así la consistencia es inmediata y el TTL solo cubre rachas de lecturas.
+const statsCache = { ts: 0, data: null };
+const STATS_TTL_MS = 4000;
+function invalidarStatsCache() { statsCache.ts = 0; statsCache.data = null; }
 function emitirAdmin(evento, datos) {
-  const n = io.sockets.adapter.rooms.get('admin')?.size || 0;
+if (evento === 'estadisticas_actualizadas' || evento === 'proveedores_actualizados') invalidarStatsCache();
+const n = io.sockets.adapter.rooms.get('admin')?.size || 0;
   console.log(`📡 [SOCKET] emit '${evento}' → sala 'admin' (${n} cliente(s))`);
   io.to('admin').emit(evento, datos);
 }
@@ -2786,9 +2793,8 @@ app.delete('/api/admin/documento/:id', requiereAdmin, (req, res) => {
 app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 50; // 📈 F5: default 50 (solo proveedores; ciclos sigue en 20)
     const offset = (page - 1) * limit;
-
     const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
     const estado = req.query.estado || null;
     const filtroVerificacion = req.query.filtroVerificacion || null;
@@ -2891,28 +2897,24 @@ if (busqueda) {
 
     const total = db.prepare(countQuery).get(...params).total;
 
+// ⚡ F4: payload EXPLÍCITO y liviano. Se elimina p.* (traía columnas internas
+// innecesarias) y las evaluacion_* (el listado NO las usa: el modal las pide
+// por /api/admin/proveedor/:id y el CSV/Excel por /export, con sus propias queries).
 const query = `
-      SELECT
-      p.*,
-      u.email,
-      u.nombre_empresa,
-      u.creado_en,
-      p.etapa,
-      p.evaluacion_inicial,
-      p.evaluacion_estado,
-      p.evaluacion_fecha,
-      p.numero_registro,
-      p.tipo_gestion,
-      p.notas_gestion,
-      p.fecha_gestion,
-      CAST(julianday(datetime('now','-05:00')) - julianday(COALESCE((SELECT MAX(h.creado_en) FROM historial h WHERE h.proveedor_id = p.id AND h.accion IN ('cambio_etapa','registro','solicitud_actualizacion','rechazo_limpiado','etapa_normalizada','evaluacion_rechazada_con_retroceso','evaluacion_rechazada_actualizacion','vencimiento_automatico','vencimiento_forzado','proceso_reiniciado')), u.creado_en)) AS INTEGER) AS dias_en_etapa,
+SELECT
+p.id, p.razon_social, p.rfc, p.representante, p.telefono, p.direccion,
+p.estado_general, p.etapa, p.tipo_proveedor, p.tipo_documento,
+p.numero_registro, p.tipo_gestion, p.notas_gestion, p.fecha_gestion,
+p.todos_subidos, p.todos_verificados, p.fecha_aprobacion,
+u.email, u.nombre_empresa, u.creado_en,
+CAST(julianday(datetime('now','-05:00')) - julianday(COALESCE((SELECT MAX(h.creado_en) FROM historial h WHERE h.proveedor_id = p.id AND h.accion IN ('cambio_etapa','registro','solicitud_actualizacion','rechazo_limpiado','etapa_normalizada','evaluacion_rechazada_con_retroceso','evaluacion_rechazada_actualizacion','vencimiento_automatico','vencimiento_forzado','proceso_reiniciado')), u.creado_en)) AS INTEGER) AS dias_en_etapa,
 (SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
-  (SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
-  FROM proveedores p
-  JOIN usuarios u ON p.usuario_id = u.id
-  ${whereClause}
-  ORDER BY p.id DESC
-  LIMIT ? OFFSET ?
+(SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
+FROM proveedores p
+JOIN usuarios u ON p.usuario_id = u.id
+${whereClause}
+ORDER BY p.id DESC
+LIMIT ? OFFSET ?
 `;
 
 const proveedores = db.prepare(query).all(...params, limit, offset);
@@ -3491,8 +3493,12 @@ p.todos_verificados = p.todos_verificados === 1;
 });
 
 app.get('/api/admin/stats', requiereAdmin, (req, res) => {
-  try {
-    const registrados = db.prepare(`SELECT COUNT(*) as count FROM proveedores WHERE etapa = 'registrado'`).get().count;
+try {
+// 📈 F3: sirve caché fresca si está dentro del TTL (evita 6 COUNT repetidos)
+if (statsCache.data && (Date.now() - statsCache.ts) < STATS_TTL_MS) {
+return res.json(statsCache.data);
+}
+const registrados = db.prepare(`SELECT COUNT(*) as count FROM proveedores WHERE etapa = 'registrado'`).get().count;
 
     const verificacion = db.prepare(`
       SELECT COUNT(*) as count
@@ -3528,14 +3534,10 @@ WHERE p.etapa = 'verificacion'
 AND NOT EXISTS (SELECT 1 FROM documentos d WHERE d.proveedor_id = p.id AND d.es_historico = 0)
 AND u.creado_en <= datetime('now', '-7 days', '-05:00')
 `).get().count;
-res.json({
-registrados,
-verificacion,
-aprobacion,
-inscripcion,
-rechazados,
-inactivos
-});
+const payload = { registrados, verificacion, aprobacion, inscripcion, rechazados, inactivos };
+statsCache.data = payload;
+statsCache.ts = Date.now();
+res.json(payload);
 } catch (err) {
 console.error('❌ Error obteniendo estadísticas:', err);
 res.status(500).json({ error: 'Error al obtener estadísticas' });

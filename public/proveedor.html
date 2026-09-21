@@ -2136,11 +2136,12 @@ m.classList.toggle('visor-fullscreen');
   // ==========================================
   async function cargarRecordatorios() {
     const recs = await (await fetchAPI('/api/proveedor/recordatorios')).json();
-    const cont = document.getElementById('recordatorios');
-    if (!recs.length) { cont.innerHTML = ''; return; }
-
-    cont.innerHTML = '';
-    recs.forEach(r => {
+const cont = document.getElementById('recordatorios');
+if (!recs.length) { cont.innerHTML = ''; return; }
+cont.innerHTML = '';
+// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por recordatorio
+const fragRecs = document.createDocumentFragment();
+recs.forEach(r => {
       const div = document.createElement('div');
       div.className = `recordatorio-box ${r.leido ? 'leido' : ''}`;
       div.dataset.id = r.id;
@@ -2169,11 +2170,11 @@ m.classList.toggle('visor-fullscreen');
       const small = document.createElement('small');
       small.textContent = `🕐 ${formatearFecha(r.creado_en)}`;
       contenido.appendChild(small);
-      div.appendChild(contenido);
-      cont.appendChild(div);
-
-      if (!r.leido) fetchAPI(`/api/proveedor/recordatorio/${r.id}/leido`, { method: 'POST' });
-    });
+div.appendChild(contenido);
+fragRecs.appendChild(div);
+if (!r.leido) fetchAPI(`/api/proveedor/recordatorio/${r.id}/leido`, { method: 'POST' });
+});
+cont.appendChild(fragRecs);
   }
 
   // ==========================================
@@ -2181,11 +2182,12 @@ m.classList.toggle('visor-fullscreen');
   // ==========================================
   async function cargarNotas() {
     const notas = await (await fetchAPI('/api/proveedor/notas')).json();
-    const cont = document.getElementById('notas');
-    if (!notas.length) { cont.innerHTML = ''; return; }
-
-    cont.innerHTML = '';
-    notas.forEach(n => {
+const cont = document.getElementById('notas');
+if (!notas.length) { cont.innerHTML = ''; return; }
+cont.innerHTML = '';
+// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por nota
+const fragNotasProv = document.createDocumentFragment();
+notas.forEach(n => {
       const div = document.createElement('div');
       div.className = 'nota-item';
       div.dataset.id = n.id;
@@ -2210,11 +2212,11 @@ m.classList.toggle('visor-fullscreen');
       const body = document.createElement('div');
       body.className = 'nota-body';
       body.textContent = n.nota;
-      div.appendChild(body);
-      cont.appendChild(div);
-
-      if (!n.leida) fetchAPI(`/api/proveedor/nota/${n.id}/leida`, { method: 'POST' });
-    });
+div.appendChild(body);
+fragNotasProv.appendChild(div);
+if (!n.leida) fetchAPI(`/api/proveedor/nota/${n.id}/leida`, { method: 'POST' });
+});
+cont.appendChild(fragNotasProv);
   }
 
   // ==========================================
@@ -2484,41 +2486,50 @@ verificarYBloquearPerfil(prov);
 // mayúscula, minúscula, número y especial. El server sigue siendo la
 // autoridad: este medidor NUNCA bloquea el envío, solo orienta.
 // ==========================================
-const PASS_REGLAS = {
-len: v => v.length >= 8,
-may: v => /[A-ZÁÉÍÓÚÑ]/.test(v),
-min: v => /[a-záéíóúñ]/.test(v),
-num: v => /\d/.test(v),
-esp: v => /[^A-Za-z0-9\s]/.test(v)
+// 🛡️ FIX TDZ: las constantes se declaran con 'var' para evitar el
+// Temporal Dead Zone cuando el IIFE se ejecuta antes de la inicialización.
+// El hoisting de 'var' las hace disponibles inmediatamente (aunque undefined).
+var PASS_REGLAS = {
+  len: v => v.length >= 8,
+  may: v => /[A-ZÁÉÍÓÚÑ]/.test(v),
+  min: v => /[a-záéíóúñ]/.test(v),
+  num: v => /\d/.test(v),
+  esp: v => /[^A-Za-z0-9\s]/.test(v)
 };
-const PASS_ETIQUETAS = { 0: '—', 1: 'Muy débil', 2: 'Débil', 3: 'Aceptable', 4: 'Buena', 5: 'Fuerte' };
+var PASS_ETIQUETAS = { 0: '—', 1: 'Muy débil', 2: 'Débil', 3: 'Aceptable', 4: 'Buena', 5: 'Fuerte' };
+
 function medidorFortaleza(v) {
-return Object.keys(PASS_REGLAS).filter(k => PASS_REGLAS[k](v || '')).length;
+  if (!PASS_REGLAS) return 0; // 🛡️ guard contra TDZ
+  return Object.keys(PASS_REGLAS).filter(k => PASS_REGLAS[k](v || '')).length;
 }
+
 function actualizarMedidorPass(input) {
-const wrap = document.getElementById('passMeterWrap');
-const meter = document.getElementById('passMeter');
-const label = document.getElementById('passMeterLabel');
-const list = document.getElementById('passChecklist');
-if (!wrap || !meter) return;
-const v = input.value || '';
-wrap.style.display = v ? 'block' : 'none';
-const score = medidorFortaleza(v);
-meter.setAttribute('data-score', String(score));
-if (label) label.textContent = 'Seguridad: ' + PASS_ETIQUETAS[score];
-if (list) list.querySelectorAll('li').forEach(li => {
-const fn = PASS_REGLAS[li.dataset.k];
-li.classList.toggle('ok', !!fn && fn(v));
-});
+  const wrap = document.getElementById('passMeterWrap');
+  const meter = document.getElementById('passMeter');
+  const label = document.getElementById('passMeterLabel');
+  const list = document.getElementById('passChecklist');
+  if (!wrap || !meter) return;
+  const v = input.value || '';
+  wrap.style.display = v ? 'block' : 'none';
+  const score = medidorFortaleza(v);
+  meter.setAttribute('data-score', String(score));
+  if (label) label.textContent = 'Seguridad: ' + PASS_ETIQUETAS[score];
+  if (list) list.querySelectorAll('li').forEach(li => {
+    const fn = PASS_REGLAS[li.dataset.k];
+    li.classList.toggle('ok', !!fn && fn(v));
+  });
 }
-(function conectarMedidorPass() {
-const inp = document.querySelector('#form-cambiar-password input[name="password_nueva"]');
-if (!inp) return;
-inp.addEventListener('input', () => actualizarMedidorPass(inp));
-inp.addEventListener('blur', () => {
-if (!inp.value) { const w = document.getElementById('passMeterWrap'); if (w) w.style.display = 'none'; }
-});
-})();
+
+// 🛡️ FIX TDZ: el IIFE se ejecuta DESPUÉS de que PASS_REGLAS esté inicializado.
+// Se envuelve en una función que se llama explícitamente al final del script.
+function conectarMedidorPass() {
+  const inp = document.querySelector('#form-cambiar-password input[name="password_nueva"]');
+  if (!inp) return;
+  inp.addEventListener('input', () => actualizarMedidorPass(inp));
+  inp.addEventListener('blur', () => {
+    if (!inp.value) { const w = document.getElementById('passMeterWrap'); if (w) w.style.display = 'none'; }
+  });
+}
 // ==========================================
 // 🔑 CAMBIAR CONTRASEÑA
 // ==========================================
@@ -2628,8 +2639,10 @@ function irADocumento(tipo) {
 // ==========================================
 // 🚀 INICIAR APLICACIÓN
 // ==========================================
+// 🛡️ FIX TDZ: conectar el medidor DESPUÉS de que todo esté inicializado
+conectarMedidorPass();
 console.log('✅ Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
-  init();
+init();
 </script>
 </body>
 </html>
