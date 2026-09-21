@@ -2131,6 +2131,15 @@ html[data-tema="oscuro"] [style*="background:white"] { background: #241b36 !impo
 html[data-tema="oscuro"] [style*="background:white"] button { color: var(--color-texto) !important; }
 html[data-tema="oscuro"] [style*="background:white"] button:hover { background: var(--color-fondo-suave) !important; }
 /* ==========================================
+🧭 B1-fix: BARRA DEL MODO GUIADO EN OSCURO (portal proveedor)
+El nav se pinta en runtime con style.cssText → el atributo queda serializado
+como rgb(245,243,255) y los selectores [style*="#hex"] no lo alcanzan.
+Como tiene id fijo #navGuiado, lo tematizamos por id: !important gana
+sobre el inline sin tocar la lógica de aplicarModoGuiado().
+========================================== */
+html[data-tema="oscuro"] #navGuiado { background: #241b36 !important; border-color: #463075 !important; }
+html[data-tema="oscuro"] #navGuiado strong { color: #d8b4fe !important; }
+/* ==========================================
 🔍 E4: CONTROLES DE ZOOM/ROTACIÓN DEL VISOR PDF
 ========================================== */
 .btn-visor {
