@@ -374,6 +374,20 @@ let noAplicaChanged = false;
 let historicosCache = [];
 let documentosActivosCache = []; // 🆕 C1: docs activos del proveedor abierto en el modal
 let revisionEnfocada = { activa: false, modo: 'verificacion', cola: [], indice: 0 }; // 🆕 C1
+// ⚡ F2: SUB-PESTAÑAS LAZY — flags por pestaña y por apertura de proveedor.
+// Evita renderizar históricos/notas/recordatorios al abrir el modal:
+// cada sub-pestaña se construye solo la primera vez que se visita.
+let subTabLoadFlags = { provId: null, historicos: false, hist: false, notas: false, rec: false };
+function resetSubTabFlags(provId) {
+subTabLoadFlags = { provId: provId, historicos: false, hist: false, notas: false, rec: false };
+}
+function subTabYaCargada(t) {
+return subTabLoadFlags.provId === proveedorActualId && subTabLoadFlags[t] === true;
+}
+function marcarSubTab(t) {
+if (subTabLoadFlags.provId !== proveedorActualId) resetSubTabFlags(proveedorActualId);
+subTabLoadFlags[t] = true;
+}
 
 // ==========================================
 // 📋 FUNCIONES AUXILIARES
@@ -1661,6 +1675,14 @@ proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_emp
 data.proveedor.documentos = data.documentos || [];
 documentosActivosCache = data.documentos || []; // 🆕 C1
 historicosCache = data.documentos_historicos || [];
+// ⚡ F2: flags lazy en cero para este proveedor + badge de históricos
+// pintado desde el conteo (sin construir el DOM de ciclos todavía).
+resetSubTabFlags(id);
+const badgeHistApertura = document.getElementById('countHistoricos');
+if (badgeHistApertura) {
+if (historicosCache.length) { badgeHistApertura.textContent = historicosCache.length; badgeHistApertura.style.display = 'inline-block'; }
+else badgeHistApertura.style.display = 'none';
+}
 // 🆕 Cargar los requerimientos según el tipo de persona de ESTE proveedor
 try {
 const tipoProv = data.proveedor.tipo_proveedor;
@@ -1691,28 +1713,25 @@ document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active
 document.querySelector('[data-stab="docs"]').classList.add('active');
 subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
 renderDocsCompleto(data.proveedor, data.documentos, historicosCache);
-renderHistoricosProveedor(data.proveedor, historicosCache);
+// ⚡ F2: históricos ya NO se renderiza al abrir (lazy al primer clic en 📦)
 } else if (modulo === 'verificacion') {
 subTabsContainer.style.display = 'block';
 document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
 document.querySelector('[data-stab="docs"]').classList.add('active');
 subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
 renderVerificacionCompleta(data.proveedor, data.documentos);
-renderHistoricosProveedor(data.proveedor, historicosCache);
 } else if (modulo === 'aprobacion') {
 subTabsContainer.style.display = 'block';
 document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
 document.querySelector('[data-stab="docs"]').classList.add('active');
 subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
 renderAprobacionCompleta(data.proveedor, data.documentos);
-renderHistoricosProveedor(data.proveedor, historicosCache);
 } else if (modulo === 'inscripcion') {
 subTabsContainer.style.display = 'block';
 document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
 document.querySelector('[data-stab="docs"]').classList.add('active');
 subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
 renderGestion(data.proveedor, data.documentos);
-renderHistoricosProveedor(data.proveedor, historicosCache);
 }
 
 document.getElementById('modal').classList.add('active');
@@ -3613,8 +3632,19 @@ const listaTipo = await rr.json();
 if (listaTipo.length) requeridos = listaTipo;
 }
 } catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
-renderHistoricosProveedor(data.proveedor, historicosCache);
-
+// ⚡ F2: invalidar flags lazy tras recarga; si hay una sub-pestaña dinámica
+// VISIBLE en este momento, se refresca solo esa (no las cuatro).
+resetSubTabFlags(proveedorActualId);
+const badgeHistRecarga = document.getElementById('countHistoricos');
+if (badgeHistRecarga) {
+if (historicosCache.length) { badgeHistRecarga.textContent = historicosCache.length; badgeHistRecarga.style.display = 'inline-block'; }
+else badgeHistRecarga.style.display = 'none';
+}
+const stabActiva = document.querySelector('[data-stab].active')?.dataset.stab;
+if (stabActiva === 'historicos') { renderHistoricosProveedor(data.proveedor, historicosCache); marcarSubTab('historicos'); }
+else if (stabActiva === 'notas') { cargarNotas(); marcarSubTab('notas'); }
+else if (stabActiva === 'hist') { cargarHistorialProveedor(); marcarSubTab('hist'); }
+else if (stabActiva === 'rec') { cargarRecordatoriosEnviados(); marcarSubTab('rec'); }
 document.getElementById('modalTitulo').textContent = proveedorActualNombre;
 const contenedorDinamico = document.getElementById('modalContenidoDinamico');
 const subTabsContainer = document.getElementById('subTabsContainer');
@@ -4501,10 +4531,16 @@ const tgt = tab.dataset.stab;
 ['docs','historicos','notas','hist','rec','eliminar'].forEach(t =>
 document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== tgt)
 );
-if (tgt === 'hist') cargarHistorialProveedor();
-if (tgt === 'rec') cargarRecordatoriosEnviados();
-if (tgt === 'notas') cargarNotas();
-if (tgt === 'historicos') renderHistoricosProveedor({ id: proveedorActualId }, historicosCache);
+// ⚡ F2: cada sub-pestaña carga SOLO la primera vez por proveedor abierto.
+// Las mutaciones que refrescan explícitamente (guardarNota, enviarRecordatorio,
+// recargas por socket) resetean los flags, así el caché nunca queda viejo.
+if (tgt === 'historicos' && !subTabYaCargada('historicos')) {
+renderHistoricosProveedor({ id: proveedorActualId }, historicosCache);
+marcarSubTab('historicos');
+}
+if (tgt === 'notas' && !subTabYaCargada('notas')) { cargarNotas(); marcarSubTab('notas'); }
+if (tgt === 'hist' && !subTabYaCargada('hist')) { cargarHistorialProveedor(); marcarSubTab('hist'); }
+if (tgt === 'rec' && !subTabYaCargada('rec')) { cargarRecordatoriosEnviados(); marcarSubTab('rec'); }
 }
 });
 
