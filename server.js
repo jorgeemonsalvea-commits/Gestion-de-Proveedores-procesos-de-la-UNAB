@@ -3600,6 +3600,54 @@ console.error('❌ Error obteniendo tendencia:', err);
 res.status(500).json({ error: 'Error al obtener tendencia' });
 }
 });
+// ==========================================
+// 📈 E7: PRODUCTIVIDAD ADMIN (últimos 7 días, desde auditoría)
+// ==========================================
+app.get('/api/admin/stats/productividad', requiereAdmin, (req, res) => {
+try {
+const filas = db.prepare(`
+SELECT
+date(creado_en) AS dia,
+SUM(CASE WHEN accion = 'documento_verificado' AND detalle LIKE 'Documento marcado%' THEN 1 ELSE 0 END) AS verificados,
+SUM(CASE WHEN accion = 'documento_aprobado' THEN 1 ELSE 0 END) AS aprobados,
+SUM(CASE WHEN accion = 'documento_rechazado' THEN 1 ELSE 0 END) AS rechazados,
+SUM(CASE WHEN accion = 'nota_agregada' THEN 1 ELSE 0 END) AS notas,
+SUM(CASE WHEN accion = 'recordatorio_enviado' THEN 1 ELSE 0 END) AS recordatorios,
+SUM(CASE WHEN accion = 'gestion_actualizada' THEN 1 ELSE 0 END) AS gestiones
+FROM historial
+WHERE creado_en >= datetime('now', '-6 days', '-05:00')
+AND usuario_nombre <> 'Sistema'
+GROUP BY date(creado_en)
+ORDER BY dia ASC
+`).all();
+const hoyCivil = db.prepare(`SELECT date(datetime('now', '-05:00')) AS d`).get().d;
+const porDia = {};
+filas.forEach(f => { porDia[f.dia] = f; });
+const dias = [];
+for (let i = 6; i >= 0; i--) {
+const d = db.prepare(`SELECT date(datetime('now', '-05:00', '-' || ? || ' days')) AS dia`).get(i).dia;
+const f = porDia[d] || {};
+dias.push({
+dia: d,
+verificados: f.verificados || 0,
+aprobados: f.aprobados || 0,
+rechazados: f.rechazados || 0,
+notas: f.notas || 0,
+recordatorios: f.recordatorios || 0,
+gestiones: f.gestiones || 0
+});
+}
+const totales = dias.reduce((acc, d) => {
+acc.verificados += d.verificados; acc.aprobados += d.aprobados; acc.rechazados += d.rechazados;
+acc.notas += d.notas; acc.recordatorios += d.recordatorios; acc.gestiones += d.gestiones;
+return acc;
+}, { verificados: 0, aprobados: 0, rechazados: 0, notas: 0, recordatorios: 0, gestiones: 0 });
+res.json({ dias, totales, hoy: dias[dias.length - 1], hoyCivil });
+} catch (err) {
+console.error('❌ Error obteniendo productividad:', err);
+res.status(500).json({ error: 'Error al obtener productividad' });
+}
+});
 
 app.get('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
   try {

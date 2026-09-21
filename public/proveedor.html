@@ -206,10 +206,10 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <label style="font-weight:700;">🧾 Tipo de persona *</label>
 <div style="display:flex;gap:1.5rem;margin-top:0.4rem;flex-wrap:wrap;">
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipo_persona" value="juridica" onchange="sincronizarHintDocProv(this.value)"> 🏢 Persona Jurídica
+<input type="radio" name="tipo_persona" value="juridica" onchange="sincronizarHintDocProv(this.value, true)"> 🏢 Persona Jurídica
 </label>
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipo_persona" value="natural" onchange="sincronizarHintDocProv(this.value)"> 🧍 Persona Natural
+<input type="radio" name="tipo_persona" value="natural" onchange="sincronizarHintDocProv(this.value, true)"> 🧍 Persona Natural
 </label>
 </div>
 </div>
@@ -2405,26 +2405,15 @@ hint.style.color = '#1e40af';
 } else if (valor === 'natural') {
 hint.textContent = '🧍 Persona natural: tu NIT es tu misma cédula. Recomendado: C.C. (el sistema los trata como equivalentes).';
 hint.style.color = '#1e40af';
-}
-}
-document.querySelectorAll('input[name="tipo_persona"]').forEach(r => {
-r.addEventListener('change', () => sincronizarHintDocProv(r.value, true));
-});
-// 🪪 G7-b: guía contextual del tipo de documento (no bloquea, informa)
-function sincronizarHintDocProv(valor) {
-const hint = document.getElementById('hintDocProv');
-if (!hint) return;
-if (valor === 'juridica') {
-hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.';
-hint.style.color = '#1e40af';
-} else if (valor === 'natural') {
-hint.textContent = '🧍 Persona natural: tu NIT es tu misma cédula. Puedes registrarlo como C.C. o NIT; extranjeros con C.E./Pasaporte.';
-hint.style.color = '#1e40af';
 } else {
 hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
 hint.style.color = '#6b7280';
 }
 }
+// 🪪 G7-fix: eliminados listener y SEGUNDA definición duplicada de
+// sincronizarHintDocProv (pisaba a la versión con autoSwitch y dejaba muerto
+// el salto automático a C.C. en personas naturales). Los radios llaman la
+// función vía onchange inline con (valor, true); queda UNA definición.
 
 // ==========================================
 // 🏢 GUARDAR DATOS

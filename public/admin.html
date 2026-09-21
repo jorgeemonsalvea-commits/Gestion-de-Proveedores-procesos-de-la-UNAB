@@ -85,6 +85,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
     <button class="ad-item" data-mod="historial" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
     <button class="ad-item" data-mod="configuracion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="txt">Configuración</span></button>
     <button class="ad-item" data-mod="plantillas" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="txt">Plantillas</span></button>
+    <button class="ad-item" data-mod="metricas" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg><span class="txt">Métricas</span></button>
   </nav>
   <div class="ad-side-footer">
     <button class="ad-item" onclick="logout()"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="txt">Cerrar sesión</span></button>
@@ -120,6 +121,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div><div class="kpi-spark" id="spark-inscripcion"></div></div></div>
 <div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div><div class="kpi-spark" id="spark-rechazados"></div></div></div>
 </div>
+<!-- 📊 E7→Métricas: la card del dashboard se movió al módulo "Métricas" del sidebar -->
 <div class="ad-grid">
   <div class="ad-col-main">
     <!-- CONTENEDOR DINÁMICO -->
@@ -887,7 +889,7 @@ registrarEventoD4('🎉', `Nuevo proveedor: ${data.nombre || 'Sin nombre'}`, dat
   actualizarContadoresSidebar();
   recargarVistaActual();
 });
-socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas actualizadas'); actualizarEstadisticasGlobales(); });
+socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas actualizadas'); actualizarEstadisticasGlobales(); if (moduloActual === 'metricas') cargarMetricas(); });
 socket.on('vencimientos_procesados', (data) => {
 console.log('⏰ Vencimientos procesados:', data);
 notificarD4('warning');
@@ -915,6 +917,8 @@ recargarConfiguracion();
 cargarHistorial(historialPaginaActual);
 } else if (moduloActual === 'plant') {
 cargarPlantillas();
+} else if (moduloActual === 'metricas') {
+cargarMetricas();
 } else {
 cargarProveedoresPorModulo(moduloActual, paginaActual);
 }
@@ -1039,6 +1043,97 @@ renderSparkline(sparkId, tend.por_etapa_dia[etapa], colores[etapa] || '#6b7280')
 console.error('❌ Error actualizando estadísticas:', err);
 }
 }
+// ==========================================
+// 📊 MÉTRICAS (módulo del sidebar) — productividad 7 días desde auditoría
+// ==========================================
+async function cargarMetricas() {
+const contenedor = document.getElementById('contenedor-modulos');
+if (!contenedor) return;
+contenedor.innerHTML = `
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+<h3 style="margin:0;">📊 Métricas de productividad</h3>
+<button class="btn btn-sm btn-secondary" onclick="cargarMetricas()">🔄 Actualizar</button>
+</div>
+<div id="metricasContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">⏳ Cargando métricas…</p></div>
+</div>`;
+try {
+const r = await fetchAPI('/api/admin/stats/productividad');
+if (!r.ok) throw new Error('Error al cargar métricas');
+const data = await r.json();
+const t = data.totales || {};
+const dias = data.dias || [];
+const chips = [
+['✅ Verificados', t.verificados, '#059669'],
+['👍 Aprobados', t.aprobados, '#2563eb'],
+['👎 Rechazados', t.rechazados, '#dc2626'],
+['📝 Notas', t.notas, '#8600dd'],
+['📨 Recordatorios', t.recordatorios, '#d97706'],
+['📋 Gestiones', t.gestiones, '#0891b2']
+];
+const totalAcciones = (t.verificados || 0) + (t.aprobados || 0) + (t.rechazados || 0) + (t.notas || 0) + (t.recordatorios || 0) + (t.gestiones || 0);
+const mejorDia = dias.reduce((m, d) => {
+const tot = d.verificados + d.aprobados + d.rechazados;
+return tot > (m.tot || 0) ? { dia: d.dia, tot } : m;
+}, { dia: '—', tot: 0 });
+const max = Math.max(1, ...dias.map(d => d.verificados + d.aprobados + d.rechazados));
+document.getElementById('metricasContenido').innerHTML = `
+<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+${chips.map(c => `<span class="badge-count" style="border:1px solid ${c[2]}33;color:${c[2]};background:${c[2]}11;padding:.4rem .7rem;font-size:.85rem;">${c[0]}: <strong>${c[1] || 0}</strong></span>`).join('')}
+<span class="badge-count" style="border:1px solid #8600dd33;color:#8600dd;background:#8600dd11;padding:.4rem .7rem;font-size:.85rem;">⚡ Total acciones: <strong>${totalAcciones}</strong></span>
+<span class="badge-count" style="border:1px solid #05966933;color:#059669;background:#05966911;padding:.4rem .7rem;font-size:.85rem;">🏆 Mejor día: <strong>${mejorDia.dia === '—' ? '—' : mejorDia.dia.slice(8, 10) + '/' + mejorDia.dia.slice(5, 7)} (${mejorDia.tot})</strong></span>
+</div>
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:1rem;margin-bottom:1rem;">
+<h4 style="margin:0 0 .8rem 0;font-size:.9rem;">📈 Documentos procesados por día (verificados / aprobados / rechazados)</h4>
+${dias.map(d => {
+const total = d.verificados + d.aprobados + d.rechazados;
+const w = n => Math.round((n / max) * 100);
+const partes = String(d.dia).split('-');
+const esHoy = d.dia === data.hoyCivil;
+return `
+<div class="prod-fila" title="${d.dia} · ✅${d.verificados} 👍${d.aprobados} 👎${d.rechazados} · 📝${d.notas} 📨${d.recordatorios} 📋${d.gestiones}">
+<span class="prod-dia${esHoy ? ' prod-hoy' : ''}">${partes[1]}/${partes[2]}</span>
+<span class="prod-barra">
+<span style="width:${w(d.verificados)}%;background:#059669;"></span>
+<span style="width:${w(d.aprobados)}%;background:#2563eb;"></span>
+<span style="width:${w(d.rechazados)}%;background:#dc2626;"></span>
+</span>
+<span class="prod-num">${total}</span>
+</div>`;
+}).join('')}
+</div>
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;font-size:.88rem;">
+<thead><tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
+<th style="padding:.6rem;text-align:left;">Día</th>
+<th style="padding:.6rem;text-align:center;">✅ Verificados</th>
+<th style="padding:.6rem;text-align:center;">👍 Aprobados</th>
+<th style="padding:.6rem;text-align:center;">👎 Rechazados</th>
+<th style="padding:.6rem;text-align:center;">📝 Notas</th>
+<th style="padding:.6rem;text-align:center;">📨 Recordatorios</th>
+<th style="padding:.6rem;text-align:center;">📋 Gestiones</th>
+</tr></thead>
+<tbody>
+${dias.slice().reverse().map(d => `
+<tr style="border-bottom:1px solid #e5e7eb;">
+<td style="padding:.55rem;font-weight:600;">${d.dia}${d.dia === data.hoyCivil ? ' <span class="badge-count" style="background:#ede9fe;color:#6d28d9;">hoy</span>' : ''}</td>
+<td style="padding:.55rem;text-align:center;">${d.verificados}</td>
+<td style="padding:.55rem;text-align:center;">${d.aprobados}</td>
+<td style="padding:.55rem;text-align:center;">${d.rechazados}</td>
+<td style="padding:.55rem;text-align:center;">${d.notas}</td>
+<td style="padding:.55rem;text-align:center;">${d.recordatorios}</td>
+<td style="padding:.55rem;text-align:center;">${d.gestiones}</td>
+</tr>`).join('')}
+</tbody></table>
+</div>
+<small style="color:#6b7280;display:block;margin-top:.8rem;">Fuente: auditoría interna (historial) de los últimos 7 días · solo acciones de administradores.</small>
+`;
+} catch (e) {
+console.warn('⚠️ Métricas no disponibles:', e);
+const cont = document.getElementById('metricasContenido');
+if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error al cargar métricas: ${e.message}</div>`;
+}
+}
 
 // ==========================================
 // 📋 CONFIGURAR PESTAÑAS
@@ -1062,7 +1157,8 @@ cargarModulo(tabId);
 const MODULOS_TITULO = {
 registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
 inscripcion: 'Inscripción', rechazados: 'Rechazados', historial: 'Historial de actualizaciones',
-configuracion: 'Configuración', plantillas: 'Plantillas', inactivos: '🕐 Inactivos (+7 días sin documentos)'
+configuracion: 'Configuración', plantillas: 'Plantillas', inactivos: '🕐 Inactivos (+7 días sin documentos)',
+metricas: '📊 Métricas de productividad'
 };
 function marcarModuloAdmin(mod) {
     document.querySelectorAll('.ad-item[data-mod]').forEach(b => b.classList.toggle('active', b.dataset.mod === mod));
@@ -1214,6 +1310,7 @@ function cargarModulo(modulo) {
     if (modulo === 'configuracion') { cargarConfiguracion(); return; }
 if (modulo === 'historial') { cargarHistorial(1); return; }
 if (modulo === 'plant' || modulo === 'plantillas') { renderizarPlantillas(); return; }
+if (modulo === 'metricas') { cargarMetricas(); return; }
 const botonesAccion = modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
 <button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
@@ -4320,24 +4417,10 @@ hint.textContent = valor === 'juridica'
 hint.style.color = '#1e40af';
 }
 }
-const selTipoCrear = document.querySelector('#formCrearProveedor select[name="tipo_proveedor"]');
-if (selTipoCrear) selTipoCrear.addEventListener('change', () => sincronizarTipoDocCrear(selTipoCrear.value));
-// 🪪 G7-b: guía contextual del tipo de documento (no bloquea, informa)
-function sincronizarTipoDocCrear(valor) {
-const sel = document.querySelector('#formCrearProveedor select[name="tipo_documento"]');
-const hint = document.getElementById('hintDocCrear');
-if (valor === 'juridica') {
-if (sel) sel.value = 'nit';
-if (sel) sel.dispatchEvent(new Event('change'));
-if (hint) { hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'; hint.style.color = '#1e40af'; }
-} else if (valor === 'natural') {
-if (sel) sel.dispatchEvent(new Event('change'));
-if (hint) { hint.textContent = '🧍 Persona natural: tu NIT es tu misma cédula. Puedes registrarlo como C.C. o NIT; extranjeros con C.E./Pasaporte.'; hint.style.color = '#1e40af'; }
-} else if (hint) {
-hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
-hint.style.color = '#6b7280';
-}
-}
+// 🪪 G7-fix: eliminados el listener duplicado y la SEGUNDA definición de
+// sincronizarTipoDocCrear (la última declaración pisaba a la primera y dejaba
+// muerto el auto-switch a C.C. en naturales). El select ya invoca la función
+// vía onchange inline; queda UNA sola definición activa (la que sí conmuta).
 // ==========================================
 // 🔐 CREAR PROVEEDOR
 // ==========================================
