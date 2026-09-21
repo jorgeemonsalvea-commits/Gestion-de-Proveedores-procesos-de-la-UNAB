@@ -1,0 +1,2275 @@
+// ==========================================
+// 🔧 FUNCIÓN HELPER: fetchAPI
+  // ==========================================
+function fetchAPI(url, options = {}) {
+return fetch(url, { ...options, credentials: 'include' });
+}
+// ==========================================
+// 🌙 D1: MODO OSCURO — tema persistido + fallback al sistema operativo
+// ==========================================
+const TEMA_KEY = 'unab_tema';
+function aplicarTemaD1(tema) {
+document.documentElement.setAttribute('data-tema', tema);
+const btn = document.getElementById('btnTemaD1');
+if (btn) {
+btn.textContent = tema === 'oscuro' ? '☀️' : '🌙';
+btn.setAttribute('aria-label', tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+btn.title = tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro';
+}
+}
+function toggleTemaD1() {
+const actual = document.documentElement.getAttribute('data-tema') === 'oscuro' ? 'oscuro' : 'claro';
+const nuevo = actual === 'oscuro' ? 'claro' : 'oscuro';
+localStorage.setItem(TEMA_KEY, nuevo);
+aplicarTemaD1(nuevo);
+}
+(function initTemaD1() {
+const guardado = localStorage.getItem(TEMA_KEY);
+const sistema = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'oscuro' : 'claro';
+aplicarTemaD1(guardado || sistema);
+if (window.matchMedia) {
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro');
+});
+}
+})();
+
+// ==========================================
+// 📬 NOTIFICACIONES PUSH (TOASTS)
+// ==========================================
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+    const notif = document.createElement('div');
+    notif.className = `notification notification-${tipo}`;
+    const iconos = { success: '☑️', error: '💥', warning: '⚠️', info: 'ℹ️' };
+    const icono = iconos[tipo] || 'ℹ️';
+    notif.innerHTML = `
+        <span class="notification-icon">${icono}</span>
+        <span class="notification-content">${mensaje}</span>
+        <button class="notification-close" onclick="cerrarNotificacion(this)">✕</button>
+    `;
+    container.appendChild(notif);
+    const timeout = setTimeout(() => {
+        cerrarNotificacion(notif.querySelector('.notification-close'));
+    }, duracion);
+    notif.dataset.timeout = timeout;
+}
+
+function cerrarNotificacion(boton) {
+    const notif = boton.closest('.notification');
+    if (!notif) return;
+    if (notif.dataset.timeout) clearTimeout(parseInt(notif.dataset.timeout));
+    notif.classList.add('notification-exit');
+    setTimeout(() => { if (notif.parentNode) notif.remove(); }, 350);
+}
+
+function mostrarAlerta(msg, tipo = 'error') {
+    const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info', 'warning': 'warning' };
+    mostrarNotificacion(msg, tiposMap[tipo] || 'info');
+}
+
+function mostrarAlertaPassword(msg, tipo = 'error') {
+    const el = document.getElementById('alertaPassword');
+    if (el) {
+        el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+        setTimeout(() => el.innerHTML = '', 5000);
+    } else {
+        mostrarAlerta(msg, tipo); // Fallback si no existe el modal de password
+    }
+}
+
+
+  // ==========================================
+  // 📋 VARIABLES GLOBALES
+  // ==========================================
+  let requeridos = [];
+  let documentos = [];
+  let perfilCompleto = false;
+  let socket = null;
+  let etapaActual = '';
+
+  // ==========================================
+  // 📋 FUNCIONES AUXILIARES
+  // ==========================================
+function formatearFecha(f) {
+  if (!f) return '';
+  // 🕐 FIX TZ: los strings de la BD están en hora civil de Bogotá (Colombia = UTC-5 fijo).
+  // Forzamos el parseo como -05:00 y mostramos en 'America/Bogota' para que el resultado
+  // sea idéntico en cualquier zona y NO sume ni reste 5h.
+  return new Date(String(f).replace(' ', 'T') + '-05:00').toLocaleString('es-CO', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Bogota'
+  });
+}
+
+function formatearEtapa(etapa) {
+const map = {
+'verificacion': '🔍 Verificación',
+'aprobacion': '📋 Aprobación',
+'inscripcion': '📝 Inscripción',
+'registrado': '✅ Registrado',
+'rechazado': '❌ Rechazado'
+};
+return map[etapa] || (etapa ? etapa : '-');
+}
+// 🛡️ A1: escape para texto visible (innerHTML)
+function escapeHtml(text) {
+if (!text) return '';
+return String(text)
+.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+// 🛡️ A1: escape para valores de atributos HTML (data-*)
+function escapeAttr(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// 🧹 Limpia el comentario de rechazo eliminando sufijos automáticos del sistema
+// para mostrar solo el motivo real escrito por el administrador
+function limpiarMotivoRechazo(comentario) {
+    if (!comentario) return '';
+    let texto = String(comentario).trim();
+    // Remover sufijos automáticos agregados por el backend
+    const sufijos = [
+        '— Debes eliminar este documento antes de subir uno nuevo.',
+        'Debes eliminar este documento antes de subir uno nuevo.',
+        'Debes eliminar este documento rechazado antes de subir uno nuevo',
+        'Debes subir una nueva versión (reinicio de proceso)'
+    ];
+    sufijos.forEach(sufijo => {
+        if (texto.endsWith(sufijo)) {
+            texto = texto.substring(0, texto.length - sufijo.length).trim();
+        }
+        // También remover si está en medio (con guión largo)
+        const idx = texto.indexOf('— ' + sufijo);
+        if (idx !== -1) {
+            texto = texto.substring(0, idx).trim();
+        }
+    });
+    // Remover patrón genérico de rechazo
+    texto = texto.replace(/\s*—\s*Debes eliminar.*$/i, '').trim();
+    texto = texto.replace(/^Documento rechazado\.\s*/i, '').trim();
+    return texto || 'Sin motivo especificado';
+}
+
+// ==========================================
+// 🛡️ ANTI-AUTOCOMPLETAR (portal proveedor): evita el desplegable
+// "Información guardada" del navegador en campos de texto y textareas.
+// readonly hasta el foco: Chrome no despliega autofill sobre readonly.
+// ==========================================
+function esCampoBlindable(el) {
+if (!el || !el.tagName) return false;
+if (el.tagName === 'TEXTAREA') return true;
+if (el.tagName !== 'INPUT') return false;
+if (['password','checkbox','radio','file','date','datetime-local','month','number','hidden','button','submit'].includes(el.type)) return false;
+return true; // text, email, search, tel, url
+}
+function blindarCampo(el) {
+if (!el || el.dataset.autofillBlind === '1') return;
+el.dataset.autofillBlind = '1';
+el.setAttribute('autocomplete', 'off');
+el.setAttribute('autocorrect', 'off');
+el.setAttribute('autocapitalize', 'off');
+el.setAttribute('spellcheck', 'false');
+el.setAttribute('readonly', 'readonly');
+if (document.activeElement === el) el.removeAttribute('readonly');
+}
+// 🆕 Libera readonly ANTES del foco (capture): teclados móviles sin retardo
+document.addEventListener('pointerdown', (e) => {
+if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.removeAttribute('readonly');
+}, true);
+document.addEventListener('focusin', (e) => {
+if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.removeAttribute('readonly');
+});
+document.addEventListener('focusout', (e) => {
+if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.setAttribute('readonly', 'readonly');
+});
+// Cubre campos existentes y los que se creen después (Swal, re-renders)
+const obsBlindajeProv = new MutationObserver((muts) => {
+for (const m of muts) {
+for (const n of m.addedNodes) {
+if (!n || n.nodeType !== 1) continue;
+if (esCampoBlindable(n)) blindarCampo(n);
+if (n.querySelectorAll) n.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
+// ♿ D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
+if (n.classList && n.classList.contains('modal-overlay')) { n.setAttribute('role', 'dialog'); n.setAttribute('aria-modal', 'true'); }
+if (n.querySelectorAll) n.querySelectorAll('.modal-overlay').forEach(ov => { ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); });
+}
+}
+});
+if (document.body) obsBlindajeProv.observe(document.body, { childList: true, subtree: true });
+document.addEventListener('DOMContentLoaded', () => {
+document.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
+});
+// 🎨 Iconografía de línea UNAB v5 — reemplaza emojis en botones de acción
+const ICONOS = {
+check: '<svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+x: '<svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+eye: '<svg class="ico" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+download: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+upload: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+trash: '<svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+zip: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+plus: '<svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+save: '<svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
+};
+// ==========================================
+// 🔔 D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
+// ==========================================
+let sonidoActivado = localStorage.getItem('unab_sonido') !== 'off';
+let audioCtxD4 = null;
+let pendienesD4 = 0;
+const tituloBaseD4 = document.title;
+let accionPropiaHasta = 0;
+function marcarAccionPropia() { accionPropiaHasta = Date.now() + 1500; }
+function esAccionPropia() { return Date.now() < accionPropiaHasta; }
+function reproducirSonidoD4(tipo = 'info') {
+if (!sonidoActivado) return;
+try {
+if (!audioCtxD4) audioCtxD4 = new (window.AudioContext || window.webkitAudioContext)();
+if (audioCtxD4.state === 'suspended') audioCtxD4.resume();
+const secuencia = { info: [660], success: [880, 1174], warning: [440, 440] }[tipo] || [660];
+secuencia.forEach((freq, i) => {
+const osc = audioCtxD4.createOscillator();
+const gain = audioCtxD4.createGain();
+osc.type = 'sine';
+osc.frequency.value = freq;
+const t0 = audioCtxD4.currentTime + (i * 0.12);
+gain.gain.setValueAtTime(0.0001, t0);
+gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+osc.connect(gain); gain.connect(audioCtxD4.destination);
+osc.start(t0); osc.stop(t0 + 0.2);
+});
+} catch (e) { /* sin audio disponible: silencio */ }
+}
+function notificarD4(tipo = 'info') {
+if (esAccionPropia()) return;
+reproducirSonidoD4(tipo);
+if (document.hidden) {
+pendienesD4++;
+document.title = `(${pendienesD4}) 🔔 ${tituloBaseD4}`;
+}
+}
+function resetearTituloD4() {
+pendienesD4 = 0;
+document.title = tituloBaseD4;
+}
+document.addEventListener('visibilitychange', () => {
+if (!document.hidden) resetearTituloD4();
+});
+function toggleSonidoD4() {
+sonidoActivado = !sonidoActivado;
+localStorage.setItem('unab_sonido', sonidoActivado ? 'on' : 'off');
+const btn = document.getElementById('btnSonidoD4');
+if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
+if (sonidoActivado) reproducirSonidoD4('success');
+}
+// 🛡️ A1: abre el visor leyendo datos desde data-attributes
+function verDocumentoBtn(btn) {
+verDocumento(btn.dataset.url, btn.dataset.nombre || 'Documento');
+}
+// 🏷️ Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
+function nombreFormato(tipo) {
+const r = (requeridos || []).find(x => x.tipo === tipo);
+return r ? r.nombre : (tipo || 'Documento');
+}
+// 🧹 Retira el sufijo legado de los motivos de rechazo almacenados antes del
+// cambio ("... Debes eliminar este documento antes de subir uno nuevo.").
+// El aviso de eliminación ya vive en el letrero del pie de la tarjeta.
+function limpiarMotivoRechazo(texto) {
+return String(texto || '')
+.replace(/\s*[.\-—]\s*Debes eliminar este documento antes de subir uno nuevo\.\s*$/i, '')
+.trim();
+}
+
+// 🚫 Punto 8: además de la etapa, bloquea si hay rechazo total con documentos rechazados activos
+function puedeSubirDocumentos() {
+const etapasPermitidas = ['verificacion', 'rechazado', ''];
+if (!etapasPermitidas.includes(etapaActual)) return false;
+
+const activos = (documentos || []).filter(d => d.es_historico !== 1);
+const rechazados = activos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+const todosActivosRechazados = activos.length > 0 && activos.every(d => d.estado === 'rechazado');
+
+if (rechazados.length > 0 && (etapaActual === 'rechazado' || todosActivosRechazados)) {
+return false;
+}
+
+return true;
+}
+
+  // ==========================================
+  // 📅 ESTADO DE VENCIMIENTO
+  // ==========================================
+  function obtenerEstadoVencimiento(fechaVencimiento) {
+    if (!fechaVencimiento) {
+      return { clase: 'sin-fecha', texto: 'Sin fecha', icono: '⚪' };
+    }
+  const hoy = new Date();
+  // 🕐 FIX TZ: fechaVencimiento es civil Bogotá → lo parseamos como -05:00 (instante real).
+  const venc = new Date(String(fechaVencimiento).replace(' ', 'T') + '-05:00');
+  const diffDias = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24));
+    if (diffDias < 0) {
+      return { clase: 'vencido', texto: 'Vencido', icono: '🔴' };
+    } else if (diffDias <= 30) {
+      return { clase: 'proximo-a-vencer', texto: 'Próximo a vencer', icono: '🟡' };
+    } else {
+      return { clase: 'vigente', texto: 'Vigente', icono: '🟢' };
+    }
+  }
+
+// ==========================================
+// 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
+// ==========================================
+const SwalToast = (typeof Swal !== 'undefined') ? Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    showCloseButton: true,
+    timerProgressBar: true,
+    didOpen: (self) => {
+        self.addEventListener('mouseenter', Swal.stopTimer);
+        self.addEventListener('mouseleave', Swal.resumeTimer);
+    }
+}) : null;
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
+    if (SwalToast) {
+        const iconos = { success: 'success', error: 'error', warning: 'warning', info: 'info' };
+        SwalToast.fire({ icon: iconos[tipo] || 'info', title: mensaje, timer: duracion });
+        return;
+    }
+    // Fallback si SweetAlert2 no cargó
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+    const notif = document.createElement('div');
+    notif.className = `notification notification-${tipo}`;
+    notif.innerHTML = `<span class="notification-content">${mensaje}</span>`;
+    container.appendChild(notif);
+    setTimeout(() => notif.remove(), duracion);
+}
+function cerrarNotificacion() { if (SwalToast) Swal.close(); }
+
+function mostrarAlertaPassword(msg, tipo = 'error') {
+const el = document.getElementById('alertaPassword');
+el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
+setTimeout(() => el.innerHTML = '', 5000);
+}
+// ==========================================
+// 🍬 SWEETALERT2 — HELPERS DE CONFIRMACIÓN (idénticos a admin)
+// ==========================================
+function confirmarSwal({ titulo = '¿Estás seguro?', texto = '', icono = 'warning', textoConfirmar = 'Sí, continuar', textoCancelar = 'Cancelar', peligro = true } = {}) {
+    return Swal.fire({
+        title: titulo,
+        text: texto,
+        icon: icono,
+        showCancelButton: true,
+        confirmButtonText: textoConfirmar,
+        cancelButtonText: textoCancelar,
+        confirmButtonColor: peligro ? '#dc2626' : '#8600dd',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true
+    }).then(r => r.isConfirmed);
+}
+function promptSwal({ titulo = 'Ingresa un motivo', texto = '', placeholder = '', obligatorio = true } = {}) {
+    return Swal.fire({
+        title: titulo,
+        text: texto,
+        icon: 'question',
+        input: 'textarea',
+        inputPlaceholder: placeholder,
+        showCancelButton: true,
+        confirmButtonText: 'Aceptar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#8600dd',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+        inputValidator: obligatorio
+            ? (v) => (!v || !v.trim()) ? 'Debes escribir un motivo.' : null
+            : null
+    }).then(r => (r.isConfirmed ? (r.value || '') : null));
+}
+
+  // ==========================================
+  // 🚦 BANNER DE ESTADO (rechazado / registrado)
+  // ==========================================
+function actualizarStepper(etapa) {
+const orden = ['verificacion', 'aprobacion', 'inscripcion', 'registrado'];
+const cont = document.getElementById('stepperEtapas');
+if (!cont) return;
+const idx = orden.indexOf(etapa);
+cont.querySelectorAll('.step').forEach((el, i) => {
+el.classList.remove('done', 'current', 'rejected');
+if (etapa === 'rechazado') { el.classList.add('rejected'); return; }
+if (idx === -1) { if (i === 0) el.classList.add('current'); return; }
+if (i < idx || etapa === 'registrado') el.classList.add('done');
+if (i === idx && etapa !== 'registrado') el.classList.add('current');
+});
+}
+function actualizarBannerEstado(prov) {
+etapaActual = prov.etapa || '';
+actualizarStepper(etapaActual);
+
+    const bannerRechazado = document.getElementById('bloqueo-rechazado');
+    const bannerRegistrado = document.getElementById('banner-registrado');
+    const alerta = document.getElementById('alerta');
+
+    bannerRechazado.style.display = 'none';
+    bannerRegistrado.style.display = 'none';
+    alerta.innerHTML = '';
+
+if (etapaActual === 'rechazado') {
+let tituloRechazo = '❌ Proceso rechazado';
+let mensajeRechazo = `No cuentas con la calificación necesaria para ser proveedor. Si deseas volver a participar, <strong>sube los documentos actualizados</strong>. El administrador revisará tu nueva documentación.`;
+let pasoRechazo = `Para continuar, primero debes <strong>eliminar los documentos rechazados</strong> desde la pestaña <strong>Documentos</strong>. Cuando los elimines, el sistema te habilitará nuevamente la carga de documentos.`;
+
+if (prov.notas_gestion && String(prov.notas_gestion).toLowerCase().includes('vencimiento')) {
+tituloRechazo = '⏰ Documentos vencidos';
+mensajeRechazo = `Tus documentos han vencido y tu perfil ha sido desactivado automáticamente.`;
+pasoRechazo = `Para volver a ser proveedor activo, primero <strong>selecciona tu tipo de persona</strong> (Natural o Jurídica) en la pestaña <strong>Mis datos</strong> y luego sube toda la documentación actualizada desde la pestaña <strong>Documentos</strong>.`;
+}
+
+bannerRechazado.style.display = 'block';
+bannerRechazado.innerHTML = `
+<h2 style="color:#991b1b;">${tituloRechazo}</h2>
+<p style="color:#7f1d1d; font-size:1.1rem;">${mensajeRechazo}</p>
+<p style="color:#6b7280; margin-top:0.5rem;">${pasoRechazo}</p>
+`;
+} 
+else if (etapaActual === 'registrado') {
+      bannerRegistrado.style.display = 'block';
+    }
+  }
+
+  // ==========================================
+  // 🚫 VERIFICAR Y BLOQUEAR PERFIL
+  // ==========================================
+function verificarYBloquearPerfil(prov) {
+// 🆕 El tipo de persona también es obligatorio para desbloquear el portal
+const tipoOk = (prov.tipo_proveedor === 'natural' || prov.tipo_proveedor === 'juridica');
+const datosOk = (
+prov.razon_social && prov.razon_social.trim() !== '' &&
+prov.rfc && prov.rfc.trim() !== '' &&
+prov.representante && prov.representante.trim() !== '' &&
+prov.telefono && prov.telefono.trim() !== '' &&
+prov.direccion && prov.direccion.trim() !== ''
+);
+perfilCompleto = datosOk && tipoOk;
+
+const alerta = document.getElementById('alerta-perfil-incompleto');
+const tabs = document.querySelectorAll('.tab');
+
+if (!perfilCompleto) {
+alerta.style.display = 'block';
+alerta.innerHTML = !datosOk
+? '⚠️ <strong>Acción Requerida:</strong> Para continuar usando el portal y subir documentos, debes completar los datos de tu empresa.'
+: '⚠️ <strong>Acción Requerida:</strong> Para continuar, selecciona si eres <strong>Persona Natural</strong> o <strong>Persona Jurídica</strong> y guarda los datos.';
+tabs.forEach(tab => {
+if (tab.dataset.tab !== 'datos') {
+tab.classList.add('tab-bloqueada');
+} else {
+tab.classList.remove('tab-bloqueada');
+if (!tab.classList.contains('active')) tab.click();
+}
+});
+document.getElementById('tab-docs').classList.add('hidden');
+document.getElementById('tab-hist').classList.add('hidden');
+document.getElementById('tab-datos').classList.remove('hidden');
+} else {
+alerta.style.display = 'none';
+tabs.forEach(tab => tab.classList.remove('tab-bloqueada'));
+// 🚫 FIX: mostrar únicamente la tarjeta de la pestaña activa
+const tabActiva = document.querySelector('.tab.active');
+cambiarTab(tabActiva ? tabActiva.dataset.tab : 'docs');
+}
+}
+
+// ==========================================
+// 🔀 CAMBIO DE PESTAÑAS (centralizado)
+// ==========================================
+function cambiarTab(tgt) {
+document.querySelectorAll('.tab').forEach(t => {
+t.classList.toggle('active', t.dataset.tab === tgt);
+});
+document.getElementById('tab-docs').classList.toggle('hidden', tgt !== 'docs');
+document.getElementById('tab-datos').classList.toggle('hidden', tgt !== 'datos');
+document.getElementById('tab-hist').classList.toggle('hidden', tgt !== 'hist');
+const bc = document.getElementById('bcActual');
+if (bc) bc.textContent = ({ docs: 'Documentos', datos: 'Mis datos', hist: 'Historial' })[tgt] || '';
+if (tgt === 'hist') cargarHistorial();
+}
+// 🏛️ PANEL LATERAL (modelo convocatorias): resumen + progreso del flujo
+function actualizarBarraProgreso() {
+const c = parseInt(document.getElementById('docsCompletos')?.textContent || '0', 10);
+const t = parseInt(document.getElementById('docsTotal')?.textContent || '1', 10);
+const pct = t ? Math.round((c / t) * 100) : 0;
+const bar = document.getElementById('pBarra'); if (bar) bar.style.width = pct + '%';
+const p = document.getElementById('pPct'); if (p) p.textContent = pct + '%';
+}
+function actualizarPanelProveedor(prov) {
+const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+set('pRazon', prov.razon_social || '—');
+set('pNit', prov.rfc || '—');
+const lblDoc = document.getElementById('pNitLabel');
+if (lblDoc) lblDoc.textContent = ({ nit: 'NIT', cc: 'C.C.', ce: 'C.E.', pas: 'Pasaporte' })[prov.tipo_documento || 'nit'] || 'NIT';
+set('pRegistro', prov.numero_registro || 'Pendiente');
+const mapa = { verificacion: 'Paso 1 de 4 · Verificación', aprobacion: 'Paso 2 de 4 · Aprobación', inscripcion: 'Paso 3 de 4 · Inscripción', registrado: 'Paso 4 de 4 · Registrado', rechazado: '⚠️ Requiere corrección' };
+set('pPaso', mapa[prov.etapa || ''] || 'Paso 1 de 4 · Verificación');
+const correo = document.getElementById('userEmail')?.textContent;
+if (correo && correo !== '—') set('pCorreo', correo);
+actualizarBarraProgreso();
+}
+function irPasoSig() { const a = document.querySelector('.tab.active'); if (!a) return; if (a.dataset.tab === 'docs') cambiarTab('datos'); else if (a.dataset.tab === 'datos') cambiarTab('hist'); }
+function irPasoAnt() { const a = document.querySelector('.tab.active'); if (!a) return; if (a.dataset.tab === 'hist') cambiarTab('datos'); else if (a.dataset.tab === 'datos') cambiarTab('docs'); }
+
+
+// ==========================================
+// 🧾 ACTUALIZAR UI DE TIPO DE PERSONA
+// ==========================================
+function actualizarTipoPersonaUI(prov) {
+document.querySelectorAll('input[name="tipo_persona"]').forEach(r => {
+r.checked = (prov.tipo_proveedor === r.value);
+});
+
+const lblTipo = document.getElementById('tipoPersonaLabel');
+if (lblTipo) {
+lblTipo.textContent =
+prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
+prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
+}
+}
+
+  // ==========================================
+  // 📋 VERIFICAR HABEAS DATA
+  // ==========================================
+  async function verificarHabeasData() {
+    try {
+      const res = await fetchAPI('/api/habeas-data/check');
+      const data = await res.json();
+      if (!data.aceptado) mostrarModalHabeas();
+    } catch (err) {
+      console.error('Error verificando Habeas Data:', err);
+    }
+  }
+
+  function mostrarModalHabeas() {
+    if (document.getElementById('modalHabeas')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay active';
+    overlay.id = 'modalHabeas';
+    overlay.style.zIndex = '10000';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:600px;">
+        <h3 style="margin-bottom:0.5rem;">📋 Aceptación de Política de Datos</h3>
+        <p style="color:#6b7280;margin-bottom:1rem;">
+          Para continuar usando el portal, debes aceptar nuestra
+          <a href="/habeas-data.html" target="_blank" style="color:#8600dd;text-decoration:underline;">
+            Política de Tratamiento de Datos Personales
+          </a>.
+        </p>
+        <div style="background:#fee2e2;padding:1rem;border-radius:6px;margin-bottom:1rem;color:#991b1b;font-size:0.9rem;">
+          ⚠️ Es obligatorio aceptar esta política para poder acceder al sistema y gestionar tus documentos.
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-full" onclick="aceptarHabeasData()" style="background:#8600dd;">✅ Aceptar y continuar</button>
+        </div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb;text-align:center;">
+          <small style="color:#6b7280;">Al aceptar, autorizas el tratamiento de tus datos conforme a la ley.</small>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  async function aceptarHabeasData() {
+    try {
+      const res = await fetchAPI('/api/proveedor/habeas-data/aceptar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        mostrarNotificacion('✅ Política de datos aceptada correctamente', 'success');
+        const modal = document.getElementById('modalHabeas');
+        if (modal) modal.remove();
+        location.reload();
+      } else {
+        mostrarNotificacion('❌ ' + (data.error || 'Error al aceptar'), 'error');
+      }
+    } catch (err) {
+      console.error('Error aceptando Habeas Data:', err);
+      mostrarNotificacion('❌ Error de conexión', 'error');
+    }
+  }
+
+  // ==========================================
+  // 📡 SOCKET.IO - CONEXIÓN EN TIEMPO REAL
+  // ==========================================
+  // 🆕 B4: pinta el indicador 🟢/🔴 de la topbar
+function actualizarIndicadorSocket(conectado) {
+  const el = document.getElementById('socketStatus');
+  if (!el) return;
+  el.textContent = conectado ? '🟢 Conectado' : '🔴 Reconectando...';
+  el.style.color = conectado ? '#059669' : '#dc2626';
+}
+function conectarSocket() {
+  // 🆕 Reconexión explícita y robusta (antes usaba solo defaults)
+  socket = io({
+    withCredentials: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000
+  });
+  socket.on('connect', () => {
+    console.log('🔌 Conectado al servidor Socket.IO · id=' + socket.id);
+    actualizarIndicadorSocket(true);
+  });
+  // 🆕 El server confirma en qué salas quedó este socket (diagnóstico)
+  socket.on('socket_info', (info) => {
+    console.log('📡 Salas asignadas por el servidor:', info);
+  });
+  socket.on('disconnect', (motivo) => {
+    console.log('🔌 Desconectado del servidor Socket.IO:', motivo);
+    actualizarIndicadorSocket(false);
+  });
+  // 🆕 Errores de conexión visibles (antes eran silenciosos)
+  socket.on('connect_error', (err) => {
+    console.error('❌ Socket connect_error:', err.message);
+    actualizarIndicadorSocket(false);
+  });
+  // 🆕 Red de seguridad: al volver a la pestaña con el socket caído,
+  // refrescamos datos una vez para no quedar desactualizados hasta F5.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && socket && !socket.connected) {
+      console.log('👁️ Pestaña visible con socket caído → recarga de seguridad');
+      recargarDatosProveedor();
+    }
+  });
+  socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarDatosProveedor(); });
+  socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarDatosProveedor(); });
+  socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarDatosProveedor(); });
+  socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarDatosProveedor(); });
+  socket.on('proveedor_registrado', (data) => {
+  console.log('🏷️ Proveedor registrado:', data);
+  notificarD4('success');
+  recargarDatosProveedor();
+  mostrarNotificacion('🎉 ¡Felicidades! Has sido registrado como proveedor.', 'success');
+  });
+  socket.on('nuevo_recordatorio', (data) => {
+  console.log('📨 Nuevo recordatorio:', data);
+  notificarD4('info');
+  mostrarNotificacion('📨 Tienes un nuevo recordatorio del administrador', 'info');
+  cargarRecordatorios();
+  });
+  socket.on('nueva_nota', (data) => {
+  console.log('📝 Nueva nota:', data);
+  notificarD4('info');
+  mostrarNotificacion('📝 Tienes una nueva nota del administrador', 'info');
+  cargarNotas();
+  });
+  socket.on('vencimientos_procesados', (data) => {
+      console.log('⏰ Vencimientos procesados:', data);
+      mostrarNotificacion(`📦 Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
+      recargarDatosProveedor();
+    });
+socket.on('tipo_persona_actualizado', (data) => {
+console.log('🧾 Tipo de persona actualizado por admin:', data);
+mostrarNotificacion('🧾 El administrador definió tu tipo de persona. Recargando...', 'info');
+location.reload();
+});
+// 🆕 G10c: el admin solicitó actualización anual → el portal se entera en vivo.
+// El server archiva los documentos y deja tipo_proveedor = NULL; tras el reload,
+// verificarYBloquearPerfil() vuelve a bloquear el portal hasta elegir el tipo.
+socket.on('solicitud_actualizacion', (data) => {
+console.log('🔄 Solicitud de actualización recibida:', data);
+notificarD4('warning');
+mostrarNotificacion('🔄 El administrador solicitó la actualización de tus documentos. Recargando...', 'info', 6000);
+setTimeout(() => location.reload(), 1200);
+});
+}
+
+  // ==========================================
+  // 🔄 RECARGAR DATOS DEL PROVEEDOR
+  // ==========================================
+  async function recargarDatosProveedor() {
+    try {
+      const prov = await (await fetchAPI('/api/proveedor/info')).json();
+      if (prov) {
+        etapaActual = prov.etapa || '';
+        document.getElementById('estadoGeneral').textContent = prov.estado_general || 'pendiente';
+        document.getElementById('estadoGeneral').style.color =
+          prov.estado_general === 'aprobado' ? '#059669' :
+          prov.estado_general === 'rechazado' ? '#dc2626' : '#d97706';
+        document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
+actualizarBannerEstado(prov);
+actualizarPanelProveedor(prov);
+const lblTipo = document.getElementById('tipoPersonaLabel');
+if (lblTipo) lblTipo.textContent =
+prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
+prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
+
+        documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+        renderDocumentos();
+        await actualizarBadgesVerificacion();
+      }
+    } catch (err) {
+      console.error('Error recargando datos:', err);
+    }
+  }
+
+  // ==========================================
+  // 🚀 INICIALIZACIÓN
+  // ==========================================
+async function init() {
+    try {
+      const me = await (await fetchAPI('/api/me')).json();
+      if (!me.usuario) return window.location.href = 'index.html';
+      if (me.usuario.rol !== 'proveedor') return window.location.href = 'admin.html';
+
+      document.getElementById('userEmail').textContent = me.usuario.email;
+      const av = document.getElementById('userAvatar');
+      if (av) av.textContent = ((me.usuario.email || 'UN').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase()) || 'UN';
+
+      if (me.debe_cambiar_password) {
+        document.getElementById('modalPassword').classList.add('active');
+      }
+
+      const prov = await (await fetchAPI('/api/proveedor/info')).json();
+
+      if (prov) {
+        document.getElementById('razon_social').value = prov.razon_social || '';
+        document.getElementById('rfc').value = prov.rfc || '';
+const selTipoDoc = document.getElementById('tipo_documento');
+if (selTipoDoc) selTipoDoc.value = prov.tipo_documento || 'nit';
+// 🩹 G7-fix: repintar hint con el valor ya cargado (antes quedaba rojo fantasma)
+if (window.pintarDocProv) window.pintarDocProv();
+sincronizarHintDocProv(prov.tipo_proveedor || '', false);
+        document.getElementById('representante').value = prov.representante || '';
+        document.getElementById('telefono').value = prov.telefono || '';
+        document.getElementById('direccion').value = prov.direccion || '';
+const emailInput = document.getElementById('email_usuario');
+if (emailInput) emailInput.value = me.usuario.email || '';
+    // 🆕 Cargar tipo de persona en el radio y en la tarjeta de estado
+    actualizarTipoPersonaUI(prov);
+        document.getElementById('estadoGeneral').textContent = prov.estado_general || 'pendiente';
+        document.getElementById('estadoGeneral').style.color =
+          prov.estado_general === 'aprobado' ? '#059669' :
+          prov.estado_general === 'rechazado' ? '#dc2626' : '#d97706';
+        document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
+
+        // Banner de estado (rechazado / registrado)
+        actualizarBannerEstado(prov);
+        actualizarPanelProveedor(prov);
+        verificarYBloquearPerfil(prov);
+
+        const badgesContainer = document.getElementById('badgesVerificacion');
+        if (badgesContainer) {
+          badgesContainer.innerHTML = '';
+          if (prov.estado_general === 'pendiente' && prov.todos_subidos) {
+            if (prov.todos_verificados) {
+              badgesContainer.innerHTML = `
+                <span class="badge-verificado-pendiente">📋 Verificado - Pendiente aprobación</span>
+                <small style="color:#6b7280;display:block;margin-top:0.3rem;">
+                  Todos tus documentos han sido revisados y verificados.
+                  El administrador realizará la aprobación final pronto.
+                </small>
+              `;
+            } else {
+              badgesContainer.innerHTML = `
+                <span class="badge-pendiente-verificar">⏳ Pendiente por verificar</span>
+                <small style="color:#6b7280;display:block;margin-top:0.3rem;">
+                  Todos tus documentos están subidos.
+                  El administrador los revisará y los marcará como verificados.
+                </small>
+              `;
+            }
+          }
+        }
+      }
+
+      await verificarHabeasData();
+
+if (perfilCompleto) {
+    try {
+    // ⚡ OPT: requeridos y documentos son independientes → en paralelo
+    const [reqRes, docsRes] = await Promise.all([
+    fetchAPI('/api/proveedor/requerimientos'),
+    fetchAPI('/api/proveedor/documentos')
+    ]);
+    requeridos = await reqRes.json();
+    documentos = await docsRes.json();
+    if (!requeridos || requeridos.length === 0) {
+    console.warn('⚠️ No se cargaron requerimientos');
+    mostrarAlerta('No se pudieron cargar los documentos requeridos. Contacta al administrador.', 'warning');
+    }
+    document.getElementById('docsTotal').textContent = requeridos.length || 0;
+    renderDocumentos();
+    // ⚡ OPT: recordatorios y notas también en paralelo
+    await Promise.all([cargarRecordatorios(), cargarNotas()]);
+    await actualizarBadgesVerificacion();
+    } catch (err) {
+    console.error('❌ Error cargando documentos:', err);
+    mostrarAlerta('Error al cargar documentos. Recarga la página o contacta al administrador.', 'error');
+}
+}
+
+  else {
+        console.log('⏳ Perfil incompleto, esperando que el usuario complete datos.');
+        document.getElementById('docsCompletos').textContent = '0';
+        document.getElementById('docsTotal').textContent = '14';
+        actualizarBarraProgreso();
+      }
+
+// 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
+const btnSonido = document.getElementById('btnSonidoD4');
+if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
+// ♿ D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
+const bSonD2 = document.getElementById('btnSonidoD4');
+if (bSonD2 && !bSonD2.getAttribute('aria-label')) bSonD2.setAttribute('aria-label', 'Activar o silenciar sonido de notificaciones');
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+ov.setAttribute('role', 'dialog');
+ov.setAttribute('aria-modal', 'true');
+});
+conectarSocket();
+} catch (err) {
+console.error('Error en init:', err);
+mostrarAlerta('Error al cargar: ' + err.message);
+}
+  }
+
+  // ==========================================
+  // 📄 RENDERIZAR DOCUMENTOS
+  // ==========================================
+  function renderDocumentos() {
+    const cont = document.getElementById('listaDocumentos');
+    const avisoEtapa = document.getElementById('avisoEtapa');
+
+    // Filtrar solo documentos activos (defensivo frente a históricos)
+    const docsActivos = documentos.filter(d => d.es_historico !== 1);
+
+    const map = {};
+    docsActivos.forEach(d => {
+      if (!map[d.tipo]) map[d.tipo] = [];
+      map[d.tipo].push(d);
+    });
+
+// 🚫 Punto 8: detectar documentos rechazados activos
+const rechazadosActivos = docsActivos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+const todosActivosRechazados = docsActivos.length > 0 && docsActivos.every(d => d.estado === 'rechazado');
+const rechazoTotal = rechazadosActivos.length > 0 && (etapaActual === 'rechazado' || todosActivosRechazados);
+
+// Aviso según la etapa del proveedor
+let subirHabilitado = puedeSubirDocumentos();
+if (rechazoTotal) subirHabilitado = false;
+
+if (rechazoTotal) {
+avisoEtapa.innerHTML = `
+<div class="alert alert-error" style="margin-bottom:1rem;">
+<strong>🚫 Tienes ${rechazadosActivos.length} documento(s) rechazado(s).</strong><br>
+Para poder subir nueva documentación, primero debes eliminar todos los documentos rechazados.
+<div style="margin-top:0.8rem;">
+<button type="button" class="btn btn-danger btn-sm" onclick="eliminarTodosRechazados()">🗑️ Eliminar todos los rechazados</button>
+</div>
+</div>`;
+} else if (etapaActual === 'registrado') {
+avisoEtapa.innerHTML = `<div class="alert alert-info">ℹ️ Estás registrado como proveedor activo. La carga de documentos está deshabilitada. Para actualizar tu documentación, espera la solicitud del administrador.</div>`;
+} else if (etapaActual === 'aprobacion') {
+avisoEtapa.innerHTML = `<div class="alert alert-info">📋 Tus documentos están en etapa de aprobación. No puedes modificarlos en este momento.</div>`;
+} else if (etapaActual === 'inscripcion') {
+avisoEtapa.innerHTML = `<div class="alert alert-info">📝 Tus documentos están en etapa de inscripción. No puedes modificarlos en este momento.</div>`;
+} else {
+avisoEtapa.innerHTML = '';
+}
+
+    let completados = 0;
+
+    cont.innerHTML = requeridos.map((req, idx) => {
+      const sub = map[req.tipo] || [];
+      // ✅ Avance: un tipo cuenta como completo si está verificado (o aprobado) o marcado "No aplica".
+// Así la barra avanza durante la Verificación (paso 1) y se mantiene llena al aprobar.
+      const ok = sub.filter(d => d.estado === 'aprobado' || d.verificado === 1).length >= req.cantidadMin;
+      const noAplica = sub.some(d => d.no_aplica === 1);
+      const tieneArchivos = sub.length > 0;
+
+// 🆕 Documentos con cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
+// siempre permiten agregar mientras no se alcance el máximo (cantidadMax).
+const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
+const rechazadosDelTipo = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
+const tieneRechazado = rechazadosDelTipo.length > 0;
+
+const puedeSubir = rechazoTotal
+? false
+: (tieneRechazado
+  ? false
+  : (permiteMultiples ? true : sub.length === 0));
+
+
+      if (ok || noAplica) completados++;
+
+let html = `<div class="doc-item" data-tipo-doc="${escapeAttr(req.tipo)}" style="flex-direction:column;align-items:stretch;">
+<div style="margin-bottom:0.5rem;">
+<h4>${idx + 1}. ${req.nombre}</h4>
+${(req.descripcion || req.requiereFirma || req.requiereHuella) ? `
+<div style="margin-top:0.3rem;">
+<button type="button" data-target="info-${escapeAttr(req.tipo)}" onclick="toggleInfoDoc(this)"
+style="background:none;border:none;color:#8600dd;font-size:0.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.2rem;font-family:inherit;font-weight:600;">
+ℹ️ ¿Qué debe contener?
+</button>
+<div id="info-${escapeAttr(req.tipo)}" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:0.6rem 0.8rem;margin-top:0.4rem;font-size:0.82rem;color:#0369a1;line-height:1.5;">
+${req.descripcion ? escapeHtml(req.descripcion) : ''}
+${req.requiereFirma ? '<br>✍️ <strong>Requiere firma.</strong>' : ''}
+${req.requiereHuella ? ' 👆 <strong>Requiere huella.</strong>' : ''}
+${req.esPlantilla ? '<br>📋 Descarga la plantilla institucional, diligénciala, fírmala y súbela escaneada en PDF.' : ''}
+</div>
+</div>
+` : ''}
+<small style="color:#6b7280;">
+Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}
+${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
+${noAplica ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;background:#fef3c7;color:#92400e;">No aplica</span>' : ''}
+</small>
+${(ok || noAplica) && !tieneRechazado ? `<button type="button" class="btn-toggle-doc" onclick="toggleDocBody(this)" style="background:none;border:none;color:#8600dd;font-size:0.75rem;font-weight:600;cursor:pointer;padding:0.2rem 0.4rem;font-family:inherit;">▼ Ver detalle</button>` : ''}
+</div>`;
+// 🆕 A7: las tarjetas completas (o No aplica) sin rechazados inician colapsadas
+const colapsado = (ok || noAplica) && !tieneRechazado;
+html += `<div class="doc-body" style="${colapsado ? 'display:none;' : ''}">`;
+
+// BLOQUE EXPERIENCIA (máximo 3)
+if (req.tipo === 'experiencia') {
+const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
+const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
+const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
+const maxAlcanzado = subidosValidos >= maxExp;
+
+html += `
+<div style="margin-top:0.8rem;padding:0.8rem;background:${subidosRechazados > 0 ? '#fee2e2' : '#f0fdf4'};border-radius:6px;border:1px solid ${subidosRechazados > 0 ? '#dc2626' : '#86efac'};">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+    <span style="font-size:0.85rem;color:${subidosRechazados > 0 ? '#991b1b' : '#065f46'};">
+      📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
+      ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazado(s))` : ''}
+      ${maxAlcanzado && subidosRechazados === 0 ? ' ✅ Límite alcanzado' : ''}
+    </span>
+
+    ${subirHabilitado && !tieneRechazado && !maxAlcanzado && puedeSubir ? `
+      <form class="form-upload dropzone" data-tipo="${req.tipo}">
+        <div class="dz-icon">${ICONOS.upload}</div>
+        <div class="dz-text"><strong>Adjuntar certificados PDF</strong><small>Máx. ${maxExp} certificados · PDF · máx. 15 MB c/u</small></div>
+        <input type="file" name="archivo" required accept=".pdf">
+        <button type="submit" class="btn btn-sm btn-success">${ICONOS.upload} Subir PDF</button>
+      </form>
+    ` : `
+      <span style="color:${subidosRechazados > 0 ? '#991b1b' : '#6b7280'};font-size:0.9rem;font-weight:${subidosRechazados > 0 ? '700' : '400'};">
+        ${subidosRechazados > 0
+          ? '🗑️ Debes eliminar los certificados rechazados antes de subir uno nuevo'
+          : (maxAlcanzado
+            ? `✅ Máximo de ${maxExp} certificados alcanzado`
+            : (subirHabilitado ? 'No disponible' : '🔒 Solo lectura'))}
+      </span>
+    `}
+  </div>
+</div>`;
+}
+
+      // PLANTILLA
+      if (req.esPlantilla && req.plantilla) {
+        html += `<div style="background:#f0f9ff;padding:0.8rem;border-radius:6px;margin-bottom:0.5rem;border-left:3px solid #0284c7;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <small style="color:#0369a1;">📋 <strong>Plantilla disponible:</strong> ${req.plantilla.nombre_original}</small>
+            <a href="/api/proveedor/plantilla/${req.tipo}" class="btn btn-sm" style="background:#0284c7;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;">${ICONOS.download} Descargar</a>
+          </div>
+        </div>`;
+      }
+
+      // DOCUMENTOS SUBIDOS
+      if (!sub.length) {
+        html += '<small style="color:#9ca3af;">📭 No has subido documentos aún</small>';
+      } else {
+sub.forEach(d => {
+const esHistorico = d.es_historico === 1;
+// 🚫 Punto 8: aunque la carga esté bloqueada por rechazo, el documento rechazado se puede eliminar
+const puedeEliminar = !esHistorico && d.estado !== 'aprobado' && d.verificado !== 1 && (subirHabilitado || d.estado === 'rechazado');
+const esNoAplica = d.no_aplica === 1;
+const esMarcadorNoAplicaInvalido = !esNoAplica && (!d.archivo || d.archivo === 'no_aplica');
+const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.trim() !== ''; // 🆕 sin archivo físico
+
+          html += `<div class="doc-row">
+            <div style="flex:1;min-width:180px;">
+              <small>📎 ${escapeHtml(nombreFormato(d.tipo))} ${(d.estado === 'pendiente' && d.verificado === 1)
+            ? '<span class="badge badge-verificado-pendiente">✅ Verificado</span>'
+            : `<span class="badge badge-${d.estado}">${d.estado}</span>`}</small>
+              ${d.comentario ? `<div style="color:#991b1b;font-size:0.95rem;font-weight:600;margin:0.35rem 0;line-height:1.4;">💬 Motivo: ${escapeHtml(limpiarMotivoRechazo(d.comentario))}</div>` : ''}
+              <br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
+              ${d.fecha_vencimiento ? `
+                <br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
+                <span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
+                  ${obtenerEstadoVencimiento(d.fecha_vencimiento).icono}
+                  ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
+                </span>
+              ` : ''}
+            </div>
+<div class="doc-row-actions">
+${esNoAplica && !tieneArchivoReal
+? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+: esMarcadorNoAplicaInvalido ? `
+<small style="color:#9ca3af;">Marcador No aplica inválido</small>
+${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">${ICONOS.trash}</button>` : ''}
+` : tieneArchivoReal ? `
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
+${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">${ICONOS.trash}</button>` : ''}
+` : '<small style="color:#9ca3af;">Sin archivo</small>'}
+</div>
+          </div>`;
+        });
+      }
+
+      // NO APLICA (documentos opcionales)
+      if (req.opcional) {
+        const noAplicaChecked = noAplica;
+        const checkboxDisabled = !subirHabilitado || (tieneArchivos && !noAplicaChecked);
+
+        html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
+            <input type="checkbox" class="checkbox-no-aplica" data-tipo="${req.tipo}"
+              ${noAplicaChecked ? 'checked' : ''}
+              ${checkboxDisabled ? 'disabled' : ''}>
+            <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Este documento no aplica para mi empresa</span>
+          </label>
+          <small style="color:#78350f;display:block;margin-top:0.3rem;">
+            ${noAplicaChecked
+              ? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
+              : (checkboxDisabled
+                  ? 'ℹ️ No disponible en la etapa actual o ya hay documentos cargados.'
+                  : 'Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"')
+            }
+          </small>
+        </div>`;
+      }
+
+// FORMULARIO DE SUBIDA
+if (req.tipo !== 'experiencia' && subirHabilitado && puedeSubir && !noAplica && !tieneRechazado) {
+const label = sub.length === 0 ? ICONOS.upload + ' Subir PDF' : (req.cantidadMin > 1 ? ICONOS.plus + ` Agregar PDF (${sub.length}/${req.cantidadMin})` : ICONOS.upload + ' Reemplazar PDF');
+html += `<form class="form-upload dropzone" data-tipo="${req.tipo}">
+<div class="dz-icon">${ICONOS.upload}</div>
+<div class="dz-text"><strong>Adjuntar PDF</strong><small>Descarga la plantilla, diligénciala, fírmala y súbela aquí · PDF · máx. 15 MB</small></div>
+<input type="file" name="archivo" required accept=".pdf">
+<button type="submit" class="btn btn-sm btn-success">${label}</button>
+</form>`;
+} else if (req.tipo !== 'experiencia' && tieneRechazado && !noAplica) {
+html += `
+<div style="margin-top:0.8rem;padding:0.8rem;background:#fee2e2;border-radius:6px;border:1px solid #dc2626;">
+<small style="color:#991b1b;font-weight:600;">🗑️ Documento rechazado: elimínalo antes de subir uno nuevo.</small>
+</div>`;
+} else if (req.tipo !== 'experiencia' && noAplica) {
+html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
+<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+</div>`;
+}
+
+html += '</div>'; // 🆕 A7: cierra .doc-body
+html += '</div>'; // cierra .doc-item
+return html;
+}).join('');
+
+    document.getElementById('docsCompletos').textContent = completados;
+    configurarEventosDocumentos();
+    actualizarBarraProgreso();
+
+    // 🆕 A6: Actualizar checklist de faltantes
+    actualizarChecklistFaltantes(completados);
+    // 🆕 B1: si el modo guiado está activo, deja visible solo el pendiente actual
+    aplicarModoGuiado();
+}
+
+// ==========================================
+// 🆕 A8: TOGGLE DESCRIPCIÓN CONTEXTUAL DE DOCUMENTO
+// ==========================================
+function toggleInfoDoc(btn) {
+  const target = document.getElementById(btn.dataset.target);
+  if (!target) return;
+  const abierto = target.style.display !== 'none';
+  target.style.display = abierto ? 'none' : 'block';
+  btn.textContent = abierto ? 'ℹ️ ¿Qué debe contener?' : '🔼 Ocultar detalle';
+}
+
+// ==========================================
+// 🆕 B1: MODO GUIADO (un documento pendiente a la vez)
+// ==========================================
+let modoGuiado = false;
+let idxGuiado = 0;
+
+function toggleModoGuiado() {
+  modoGuiado = !modoGuiado;
+  idxGuiado = 0;
+  renderDocumentos();
+}
+
+function navegarGuiado(delta) {
+  idxGuiado += delta;
+  renderDocumentos();
+}
+
+// 🧭 Calcula los tipos pendientes (sin cupo completo y sin "No aplica")
+function pendientesGuiado() {
+  return (requeridos || []).filter(req => {
+    const sub = (documentos || []).filter(d => d.tipo === req.tipo && d.es_historico !== 1);
+    const ok = sub.filter(d => d.estado === 'aprobado' || d.verificado === 1).length >= req.cantidadMin;
+    const noAplica = sub.some(d => d.no_aplica === 1);
+    return !(ok || noAplica);
+  });
+}
+
+// 🧭 Aplica/retira el modo guiado sobre el DOM ya renderizado
+function aplicarModoGuiado() {
+  const cont = document.getElementById('listaDocumentos');
+  if (!cont) return;
+  const btn = document.getElementById('btnModoGuiado');
+  const items = Array.from(cont.querySelectorAll('.doc-item[data-tipo-doc]'));
+  const pendientes = pendientesGuiado();
+  let nav = document.getElementById('navGuiado');
+
+  // Modo guiado INACTIVO: vista completa normal
+  if (!modoGuiado) {
+    if (nav) nav.remove();
+    items.forEach(it => { it.style.display = ''; });
+    if (btn) btn.innerHTML = '🧭 Modo guiado';
+    return;
+  }
+
+  // Modo guiado ACTIVO: solo la tarjeta del pendiente actual
+  if (idxGuiado > pendientes.length - 1) idxGuiado = Math.max(0, pendientes.length - 1);
+  const actual = pendientes[idxGuiado] || null;
+  items.forEach(it => {
+    it.style.display = (actual && it.dataset.tipoDoc === actual.tipo) ? '' : 'none';
+  });
+
+  if (!nav) {
+    nav = document.createElement('div');
+    nav.id = 'navGuiado';
+    nav.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:0.7rem 1rem;margin-bottom:1rem;';
+    cont.parentNode.insertBefore(nav, cont);
+  }
+  nav.innerHTML = actual ? `
+    <strong style="color:#6d28d9;">🧭 Modo guiado — Pendiente ${idxGuiado + 1} de ${pendientes.length}: ${escapeHtml(actual.nombre)}</strong>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(-1)" ${idxGuiado === 0 ? 'disabled' : ''}>← Anterior</button>
+      <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(1)" ${idxGuiado >= pendientes.length - 1 ? 'disabled' : ''}>Siguiente →</button>
+      <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()">✕ Salir</button>
+    </div>
+  ` : `
+    <strong style="color:#065f46;">🎉 No tienes documentos pendientes por subir.</strong>
+    <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()">✕ Salir del modo guiado</button>
+  `;
+  if (btn) btn.innerHTML = '🧭 En modo guiado';
+}
+
+// ==========================================
+// 🎯 CONFIGURAR EVENTOS DE DOCUMENTOS
+// ==========================================
+function configurarEventosDocumentos() {
+  document.querySelectorAll('.form-upload').forEach(form => {
+    form.removeEventListener('submit', handleUploadSubmit);
+    form.addEventListener('submit', handleUploadSubmit);
+  });
+  document.querySelectorAll('.checkbox-no-aplica').forEach(checkbox => {
+    checkbox.removeEventListener('change', handleNoAplicaChange);
+    checkbox.addEventListener('change', handleNoAplicaChange);
+  });
+  // 🆕 A4: Drag & Drop real + preview del archivo seleccionado
+  configurarDragDrop();
+}
+
+// ==========================================
+// 🆕 A6: CHECKLIST INTELIGENTE DE FALTANTES (v2.1 — sin template literals anidados)
+// FIX: un documento SUBIDO (pendiente de revisión) ya NO cuenta como faltante.
+// FIX: chips en grid simétrico. Sin backticks anidados → imposible romper el cierre.
+// ==========================================
+function actualizarChecklistFaltantes(completados) {
+  const cont = document.getElementById('checklist-faltantes');
+  if (!cont) return;
+
+  const total = (requeridos || []).length;
+  if (!total) { cont.style.display = 'none'; return; }
+
+  const faltantes = [];
+
+  (requeridos || []).forEach(function (req) {
+    const docs = (documentos || []).filter(function (d) { return d.tipo === req.tipo && d.es_historico !== 1; });
+    const noAplica = docs.some(function (d) { return d.no_aplica === 1; });
+    const validos = docs.filter(function (d) { return d.no_aplica !== 1 && d.estado !== 'rechazado'; }).length;
+    const rechazados = docs.filter(function (d) { return d.estado === 'rechazado' && d.no_aplica === 0; }).length;
+    if (!noAplica && validos < req.cantidadMin) {
+      faltantes.push({
+        tipo: req.tipo,
+        nombre: req.nombre,
+        estado: rechazados > 0 ? 'rechazado' : 'pendiente',
+        subidos: validos,
+        requeridos: req.cantidadMin
+      });
+    }
+  });
+
+  // ---- Caso 0: nada faltante pero aún sin verificar todo → banner azul ----
+  if (faltantes.length === 0 && completados < total) {
+    cont.style.display = 'block';
+    cont.style.background = '#eff6ff';
+    cont.style.borderColor = '#bfdbfe';
+    cont.dataset.estadoCheck = 'revision';
+    cont.classList.remove('celebracion-banner');
+    cont.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
+      '<span style="font-size:1.2rem;">📤</span>' +
+      '<strong style="color:#1e40af;">¡Todos tus documentos están subidos!</strong>' +
+      '<span style="color:#3b82f6;font-size:0.85rem;">El administrador los está revisando. Te avisaremos cuando haya novedades.</span>' +
+      '</div>';
+    return;
+  }
+
+  // ---- Caso 2: hay faltantes → banner ámbar con chips simétricos ----
+  const rechazadosCount = faltantes.filter(function (f) { return f.estado === 'rechazado'; }).length;
+
+  let html =
+    '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;flex-wrap:wrap;">' +
+    '<span style="font-size:1.1rem;">📋</span>' +
+    '<strong style="color:#92400e;">Te faltan ' + faltantes.length + ' de ' + total + ' documentos por subir</strong>' +
+    (rechazadosCount > 0
+      ? '<span style="color:#dc2626;font-|size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ')</span>'
+      : '') +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.4rem;">';
+
+  faltantes.forEach(function (f) {
+    const color = f.estado === 'rechazado' ? '#dc2626' : '#b45309';
+    const fondo = f.estado === 'rechazado' ? '#fef2f2' : '#ffffff';
+    const borde = f.estado === 'rechazado' ? '#fecaca' : '#fde68a';
+    const icono = f.estado === 'rechazado' ? '❌' : '📄';
+    const contador = f.requeridos > 1 ? ' (' + f.subidos + '/' + f.requeridos + ')' : '';
+      html += `
+        <button type="button" class="chip-faltante" data-tipo="${escapeAttr(f.tipo)}"
+          title="Ir al documento: ${escapeAttr(f.nombre)}"
+          style="display:flex;align-items:center;gap:0.4rem;background:${fondo};border:1px solid ${borde};color:${color};padding:0.4rem 0.6rem;border-radius:6px;font-size:0.75rem;font-weight:600;min-width:0;cursor:pointer;font-family:inherit;text-align:left;transition:transform .15s ease, box-shadow .15s ease;">
+          <span style="flex-shrink:0;">${icono}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.nombre)}${f.requeridos > 1 ? ` (${f.subidos}/${f.requeridos})` : ''}</span>
+        </button>`;
+  });
+
+  html += '</div>';
+
+  cont.style.display = 'block';
+  cont.style.background = '#fffbeb';
+  cont.style.borderColor = '#fcd34d';
+  cont.dataset.estadoCheck = 'faltantes';
+  cont.classList.remove('celebracion-banner');
+  cont.innerHTML = html;
+}
+
+// ==========================================
+// 🆕 A4: DRAG & DROP REAL + PREVIEW DE ARCHIVO
+// ==========================================
+function configurarDragDrop() {
+  document.querySelectorAll('.form-upload.dropzone').forEach(form => {
+    // Preview al seleccionar desde el input file
+    const input = form.querySelector('input[type="file"]');
+    if (input) {
+      input.removeEventListener('change', mostrarPreviewArchivo);
+      input.addEventListener('change', mostrarPreviewArchivo);
+    }
+
+    // Drag & Drop
+    form.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.style.borderColor = 'var(--color-primario)';
+      form.style.background = 'var(--color-primario-muy-claro)';
+      form.style.boxShadow = '0 0 0 3px var(--color-primario-claro)';
+    });
+
+    form.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.style.borderColor = '';
+      form.style.background = '';
+      form.style.boxShadow = '';
+    });
+
+    form.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      form.style.borderColor = '';
+      form.style.background = '';
+      form.style.boxShadow = '';
+
+      const files = e.dataTransfer.files;
+      if (!files.length) return;
+
+      const file = files[0];
+      const tipo = form.dataset.tipo;
+
+      // Validación instantánea
+      const validacion = validarArchivoCliente(file, tipo);
+      if (!validacion.valido) {
+        mostrarAlerta(`❌ ${validacion.mensaje}`, 'error');
+        return;
+      }
+
+      // Asignar al input file del formulario
+      const input = form.querySelector('input[type="file"]');
+      if (input) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        // Disparar preview
+        mostrarPreviewArchivo({ target: input });
+      }
+
+      mostrarAlerta(`📎 "${file.name}" listo para subir. Presiona el botón para enviar.`, 'info', 3000);
+    });
+  });
+}
+
+// 🆕 A4: Validación instantánea en el cliente (antes de subir)
+function validarArchivoCliente(file, tipo) {
+  const MAX_SIZE = 15 * 1024 * 1024; // 15 MB
+
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    return { valido: false, mensaje: 'Solo se permiten archivos PDF.' };
+  }
+  if (file.size > MAX_SIZE) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    return { valido: false, mensaje: `El archivo pesa ${mb} MB. Máximo permitido: 15 MB.` };
+  }
+  if (file.size === 0) {
+    return { valido: false, mensaje: 'El archivo está vacío (0 bytes).' };
+  }
+  return { valido: true };
+}
+
+// 🆕 A4: Mostrar preview del archivo seleccionado
+function mostrarPreviewArchivo(e) {
+  const input = e.target;
+  const form = input.closest('.form-upload');
+  if (!form) return;
+
+  // Eliminar preview anterior
+  const prev = form.querySelector('.file-preview');
+  if (prev) prev.remove();
+
+  if (!input.files || !input.files.length) return;
+
+  const file = input.files[0];
+  const validacion = validarArchivoCliente(file, form.dataset.tipo);
+
+  const sizeStr = file.size < 1024 * 1024
+    ? (file.size / 1024).toFixed(0) + ' KB'
+    : (file.size / 1024 / 1024).toFixed(1) + ' MB';
+
+  const preview = document.createElement('div');
+  preview.className = 'file-preview';
+  preview.style.cssText = `
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.8rem; margin-top: 0.5rem;
+    background: ${validacion.valido ? '#f0fdf4' : '#fee2e2'};
+    border: 1px solid ${validacion.valido ? '#86efac' : '#dc2626'};
+    border-radius: 6px; font-size: 0.82rem; flex-basis: 100%;
+  `;
+  preview.innerHTML = `
+    <span>${validacion.valido ? '✅' : '❌'}</span>
+    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      ${escapeHtml(file.name)}
+    </span>
+    <span style="color:#6b7280;white-space:nowrap;">${sizeStr}</span>
+    ${!validacion.valido ? `<span style="color:#dc2626;font-weight:600;">${validacion.mensaje}</span>` : ''}
+  `;
+  form.appendChild(preview);
+
+  // Si no es válido, limpiar el input
+  if (!validacion.valido) {
+    input.value = '';
+    setTimeout(() => preview.remove(), 4000);
+  }
+}
+
+// ==========================================
+// HANDLER PARA SUBIDA DE DOCUMENTOS
+// ==========================================
+async function handleUploadSubmit(e) {
+  e.preventDefault();
+  if (!puedeSubirDocumentos()) {
+    mostrarAlerta('🔒 No puedes subir documentos en la etapa actual.', 'warning');
+    return;
+  }
+
+  const form = e.target;
+  const fd = new FormData(form);
+  fd.append('tipo', form.dataset.tipo);
+
+  const btn = form.querySelector('button');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Subiendo...';
+
+  // 🆕 A5: Crear barra de progreso dentro del formulario
+  let progressContainer = form.querySelector('.upload-progress');
+  if (!progressContainer) {
+    progressContainer = document.createElement('div');
+    progressContainer.className = 'upload-progress';
+    progressContainer.style.cssText = `
+      flex-basis: 100%; margin-top: 0.5rem; padding: 0.5rem 0.8rem;
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px;
+    `;
+    progressContainer.innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.6rem;">
+        <div style="flex:1;height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+          <div class="upload-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--color-primario),var(--color-acento));border-radius:999px;transition:width 0.2s ease;"></div>
+        </div>
+        <span class="upload-progress-text" style="font-size:0.78rem;color:#0369a1;font-weight:600;white-space:nowrap;">0%</span>
+      </div>
+      <small class="upload-progress-status" style="color:#6b7280;font-size:0.75rem;display:block;margin-top:0.3rem;">Preparando subida...</small>
+    `;
+    form.appendChild(progressContainer);
+  }
+  progressContainer.style.display = 'block';
+
+  const bar = progressContainer.querySelector('.upload-progress-bar');
+  const text = progressContainer.querySelector('.upload-progress-text');
+  const status = progressContainer.querySelector('.upload-progress-status');
+
+  // 🚫 Cambio 9: ya no se controla reinicio automático; el flujo exige eliminar documentos rechazados antes de subir.
+  const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica');
+  if (checkboxNoAplica && checkboxNoAplica.checked) {
+    try {
+      const tipo = form.dataset.tipo;
+      await fetchAPI('/api/proveedor/documento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, no_aplica: false })
+      });
+    } catch (err) {
+      console.error('Error desmarcando No Aplica:', err);
+      mostrarAlerta('❌ Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+      progressContainer.remove();
+      return;
+    }
+  }
+
+  // 🆕 A5: Subida con progreso real usando XMLHttpRequest
+  try {
+    const resultado = await subirConProgreso(fd, bar, text, status);
+
+    if (resultado.ok) {
+      // Animación de éxito
+      bar.style.width = '100%';
+      bar.style.background = 'linear-gradient(90deg, #059669, #10b981)';
+      text.textContent = '100%';
+      status.textContent = '✅ Documento recibido y procesado';
+      status.style.color = '#059669';
+
+      mostrarAlerta('👌 Documento subido correctamente', 'success');
+      documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+      renderDocumentos();
+      await actualizarEstado();
+    } else {
+      bar.style.background = '#dc2626';
+      status.textContent = `❌ ${resultado.error}`;
+      status.style.color = '#dc2626';
+      mostrarAlerta(`❌ ${resultado.error}`);
+      setTimeout(() => progressContainer.remove(), 3000);
+    }
+  } catch (err) {
+    console.error('Error subiendo documento:', err);
+    bar.style.background = '#dc2626';
+    status.textContent = `❌ ${err.message}`;
+    status.style.color = '#dc2626';
+    mostrarAlerta('❌ Error al subir el documento: ' + err.message);
+    setTimeout(() => progressContainer.remove(), 3000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+    // La barra se elimina automáticamente al re-renderizar documentos
+  }
+}
+
+// ==========================================
+// 🆕 A5: HELPER DE SUBIDA CON PROGRESO (XHR)
+// ==========================================
+function subirConProgreso(formData, bar, text, status) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/proveedor/documento');
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        if (bar) bar.style.width = pct + '%';
+        if (text) text.textContent = pct + '%';
+        if (status) {
+          if (pct < 100) {
+            status.textContent = `Subiendo archivo... (${(e.loaded / 1024 / 1024).toFixed(1)} / ${(e.total / 1024 / 1024).toFixed(1)} MB)`;
+          } else {
+            status.textContent = 'Procesando en servidor...';
+          }
+        }
+      }
+    };
+
+    xhr.upload.onloadstart = () => {
+      if (status) status.textContent = 'Iniciando transferencia...';
+    };
+
+    xhr.onload = () => {
+      if (status) status.textContent = 'Respuesta recibida del servidor...';
+      try {
+        const data = JSON.parse(xhr.responseText);
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300, ...data });
+      } catch (e) {
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300 });
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Error de red durante la subida'));
+    xhr.ontimeout = () => reject(new Error('Tiempo de espera agotado (120s)'));
+    xhr.onabort = () => reject(new Error('Subida cancelada'));
+
+    xhr.timeout = 120000; // 2 minutos para archivos grandes
+
+    xhr.send(formData);
+  });
+}
+
+  // ==========================================
+  // HANDLER PARA "NO APLICA"
+  // ==========================================
+async function handleNoAplicaChange(e) {
+const checkbox = e.target;
+const tipo = checkbox.dataset.tipo;
+const noAplica = checkbox.checked;
+
+if (!puedeSubirDocumentos()) {
+mostrarAlerta('🔒 No puedes modificar documentos mientras tengas rechazados activos o en la etapa actual.', 'warning');
+checkbox.checked = !noAplica;
+return;
+}
+
+checkbox.disabled = true;
+
+    try {
+      const res = await fetchAPI('/api/proveedor/documento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, no_aplica: noAplica })
+      });
+      const r = await res.json();
+      if (res.ok) {
+        mostrarAlerta(noAplica ? '👌 Documento marcado como "No Aplica"' : '👌 Documento ahora requiere carga', 'success');
+        documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+        renderDocumentos();
+        await actualizarEstado();
+      } else {
+        mostrarAlerta(`❌ ${r.error}`);
+        checkbox.checked = !noAplica;
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      mostrarAlerta('Error al actualizar');
+      checkbox.checked = !noAplica;
+    } finally {
+      checkbox.disabled = false;
+    }
+  }
+
+  // ==========================================
+  // 🔄 ACTUALIZAR BADGES DE VERIFICACIÓN
+  // ==========================================
+  async function actualizarBadgesVerificacion() {
+    try {
+      const prov = await (await fetchAPI('/api/proveedor/info')).json();
+      const badgesContainer = document.getElementById('badgesVerificacion');
+      if (!badgesContainer) return;
+
+      badgesContainer.innerHTML = '';
+      if (prov && prov.estado_general === 'pendiente' && prov.todos_subidos) {
+        if (prov.todos_verificados) {
+          badgesContainer.innerHTML = `
+            <span class="badge-verificado-pendiente">📋 Verificado - Pendiente aprobación</span>
+            <small style="color:#6b7280;display:block;margin-top:0.3rem;">
+              Todos tus documentos han sido revisados y verificados. El administrador realizará la aprobación final pronto.
+            </small>
+          `;
+        } else {
+          badgesContainer.innerHTML = `
+            <span class="badge-pendiente-verificar">⏳ Pendiente por verificar</span>
+            <small style="color:#6b7280;display:block;margin-top:0.3rem;">
+              Todos tus documentos están subidos. El administrador los revisará y los marcará como verificados.
+            </small>
+          `;
+        }
+      }
+    } catch (err) {
+      console.error('Error actualizando badges:', err);
+    }
+  }
+
+  // ==========================================
+  // 🗑️ ELIMINAR DOCUMENTO
+  // ==========================================
+async function eliminarDocumento(id) {
+const confirmado = await confirmarSwal({
+titulo: '¿Eliminar este documento?',
+texto: 'El documento se eliminará de forma permanente. Esta acción no se puede deshacer.',
+textoConfirmar: 'Sí, eliminar',
+peligro: true
+});
+if (!confirmado) return;
+try {
+      const res = await fetchAPI(`/api/proveedor/documento/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        mostrarAlerta('👌 Documento eliminado', 'success');
+        documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+        renderDocumentos();
+        await actualizarEstado();
+      } else {
+        const r = await res.json();
+        mostrarAlerta(`❌ ${r.error}`);
+      }
+    } catch (err) {
+      console.error('Error eliminando documento:', err);
+      mostrarAlerta('Error al eliminar el documento');
+    }
+  }
+
+  // ==========================================
+// 🗑️ ELIMINAR TODOS LOS DOCUMENTOS RECHAZADOS
+// ==========================================
+async function eliminarTodosRechazados() {
+const rechazados = (documentos || []).filter(d =>
+d.es_historico !== 1 &&
+d.estado === 'rechazado' &&
+d.no_aplica === 0
+);
+
+if (rechazados.length === 0) {
+mostrarAlerta('No hay documentos rechazados para eliminar.', 'info');
+return;
+}
+
+const confirmado = await confirmarSwal({
+titulo: `¿Eliminar ${rechazados.length} documento(s) rechazado(s)?`,
+texto: 'Debes eliminar los documentos rechazados antes de subir nueva documentación. Esta acción no se puede deshacer.',
+textoConfirmar: 'Sí, eliminar todos',
+peligro: true
+});
+if (!confirmado) return;
+
+let eliminados = 0;
+let errores = 0;
+
+for (const doc of rechazados) {
+try {
+const res = await fetchAPI(`/api/proveedor/documento/${doc.id}`, { method: 'DELETE' });
+
+if (res.ok) {
+  eliminados++;
+} else {
+  errores++;
+}
+} catch (err) {
+console.error(`Error eliminando documento ${doc.id}:`, err);
+errores++;
+}
+}
+
+documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+renderDocumentos();
+await actualizarEstado();
+
+if (errores === 0) {
+mostrarAlerta(`👌 Se eliminaron ${eliminados} documento(s) rechazados.`, 'success');
+} else {
+mostrarAlerta(`⚠️ Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning');
+}
+}
+
+  // ==========================================
+  // 👁️ VISOR DE DOCUMENTOS
+  // ==========================================
+  function verDocumento(url, nombre) {
+    document.getElementById('modalVisor').style.zIndex = '9000';
+    document.getElementById('visorTitulo').textContent = nombre;
+    document.getElementById('visorDescargar').href = url + '?download=true';
+    document.getElementById('visorDescargar').setAttribute('download', /\.pdf$/i.test(nombre) ? nombre : nombre + '.pdf');
+    document.getElementById('visorNuevaPestana').href = url;
+
+    const iframe = document.getElementById('visorIframe');
+    const cargando = document.getElementById('visorCargando');
+    iframe.style.display = 'none';
+    cargando.style.display = 'block';
+    iframe.src = url;
+    iframe.onload = () => { cargando.style.display = 'none'; iframe.style.display = 'block'; };
+    setTimeout(() => {
+      iframe.onload = () => { cargando.style.display = 'none'; iframe.style.display = 'block'; };
+    }, 8000);
+    document.getElementById('modalVisor').classList.add('active');
+  }
+
+function cerrarVisor() {
+document.getElementById('visorIframe').src = 'about:blank';
+document.getElementById('modalVisor').classList.remove('active');
+document.getElementById('modalVisor').classList.remove('visor-fullscreen'); // 🔍 E4: cerrar restaura el tamaño
+}
+// ==========================================
+// 🔍 E4 (REDEFINIDO): EXPANDIR VISOR A PANTALLA COMPLETA
+// Decisión de diseño: el zoom y la rotación REALES los aporta el visor
+// nativo del navegador dentro del iframe (PDFium). Lo que el nativo NO
+// puede hacer es agrandar el modal que lo contiene. Este toggle lleva
+// el modal a ~100vw/100vh para que el PDF trabaje con toda el área.
+// ==========================================
+function toggleVisorPantallaCompleta() {
+const m = document.getElementById('modalVisor');
+if (!m) return;
+m.classList.toggle('visor-fullscreen');
+}
+
+  // ==========================================
+  // 📊 ACTUALIZAR ESTADO (etapa + banner + badges)
+  // ==========================================
+  async function actualizarEstado() {
+    try {
+      const prov = await (await fetchAPI('/api/proveedor/info')).json();
+      if (prov) {
+        etapaActual = prov.etapa || '';
+        document.getElementById('estadoGeneral').textContent = prov.estado_general || 'pendiente';
+        document.getElementById('estadoGeneral').style.color =
+          prov.estado_general === 'aprobado' ? '#059669' :
+          prov.estado_general === 'rechazado' ? '#dc2626' : '#d97706';
+        document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
+        actualizarBannerEstado(prov);
+        await actualizarBadgesVerificacion();
+      }
+    } catch (err) {
+      console.error('Error actualizando estado:', err);
+    }
+  }
+
+  // ==========================================
+  // 📨 RECORDATORIOS
+  // ==========================================
+  async function cargarRecordatorios() {
+    const recs = await (await fetchAPI('/api/proveedor/recordatorios')).json();
+const cont = document.getElementById('recordatorios');
+if (!recs.length) { cont.innerHTML = ''; return; }
+cont.innerHTML = '';
+// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por recordatorio
+const fragRecs = document.createDocumentFragment();
+recs.forEach(r => {
+      const div = document.createElement('div');
+      div.className = `recordatorio-box ${r.leido ? 'leido' : ''}`;
+      div.dataset.id = r.id;
+      div.dataset.tipo = 'recordatorio';
+
+      const btnCerrar = document.createElement('button');
+      btnCerrar.className = 'btn-cerrar';
+      btnCerrar.textContent = '×';
+      btnCerrar.onclick = () => cerrarElemento(btnCerrar, r.id, 'recordatorio');
+      div.appendChild(btnCerrar);
+
+      const icono = document.createElement('div');
+      icono.className = 'icono';
+      icono.textContent = '📨';
+      div.appendChild(icono);
+
+      const contenido = document.createElement('div');
+      contenido.className = 'contenido';
+      const strong = document.createElement('strong');
+      strong.textContent = 'Recordatorio del administrador';
+      contenido.appendChild(strong);
+      const p = document.createElement('p');
+      p.style.margin = '0.3rem 0';
+      p.textContent = r.mensaje;
+      contenido.appendChild(p);
+      const small = document.createElement('small');
+      small.textContent = `🕐 ${formatearFecha(r.creado_en)}`;
+      contenido.appendChild(small);
+div.appendChild(contenido);
+fragRecs.appendChild(div);
+if (!r.leido) fetchAPI(`/api/proveedor/recordatorio/${r.id}/leido`, { method: 'POST' });
+});
+cont.appendChild(fragRecs);
+  }
+
+  // ==========================================
+  // 📝 NOTAS
+  // ==========================================
+  async function cargarNotas() {
+    const notas = await (await fetchAPI('/api/proveedor/notas')).json();
+const cont = document.getElementById('notas');
+if (!notas.length) { cont.innerHTML = ''; return; }
+cont.innerHTML = '';
+// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por nota
+const fragNotasProv = document.createDocumentFragment();
+notas.forEach(n => {
+      const div = document.createElement('div');
+      div.className = 'nota-item';
+      div.dataset.id = n.id;
+      div.dataset.tipo = 'nota';
+
+      const btnCerrar = document.createElement('button');
+      btnCerrar.className = 'btn-cerrar';
+      btnCerrar.textContent = '×';
+      btnCerrar.onclick = () => cerrarElemento(btnCerrar, n.id, 'nota');
+      div.appendChild(btnCerrar);
+
+      const header = document.createElement('div');
+      header.className = 'nota-header';
+      const strong = document.createElement('strong');
+      strong.textContent = `📝 ${n.titulo}`;
+      header.appendChild(strong);
+      const small = document.createElement('small');
+      small.textContent = `🕐 ${formatearFecha(n.creado_en)}`;
+      header.appendChild(small);
+      div.appendChild(header);
+
+      const body = document.createElement('div');
+      body.className = 'nota-body';
+      body.textContent = n.nota;
+div.appendChild(body);
+fragNotasProv.appendChild(div);
+if (!n.leida) fetchAPI(`/api/proveedor/nota/${n.id}/leida`, { method: 'POST' });
+});
+cont.appendChild(fragNotasProv);
+  }
+
+  // ==========================================
+  // ❌ CERRAR NOTAS Y RECORDATORIOS
+  // ==========================================
+  async function cerrarElemento(boton, id, tipo) {
+    const elemento = boton.closest('.recordatorio-box, .nota-item');
+    if (!elemento) return;
+
+    boton.disabled = true;
+    boton.textContent = '⏳';
+
+    try {
+      const url = tipo === 'nota'
+        ? `/api/proveedor/nota/${id}/cerrar`
+        : `/api/proveedor/recordatorio/${id}/cerrar`;
+
+      const res = await fetchAPI(url, { method: 'POST' });
+      if (res.ok) {
+        elemento.classList.add('cerrando');
+        setTimeout(() => {
+          elemento.remove();
+          const mensaje = tipo === 'nota' ? '👌 Nota cerrada' : '👌 Recordatorio cerrado';
+          mostrarAlerta(mensaje, 'success');
+        }, 300);
+      } else {
+        const r = await res.json();
+        mostrarAlerta(`❌ Error: ${r.error}`);
+        boton.disabled = false;
+        boton.textContent = '×';
+      }
+    } catch (err) {
+      console.error('❌ Error cerrando:', err);
+      mostrarAlerta('❌ Error de conexión');
+      boton.disabled = false;
+      boton.textContent = '×';
+    }
+  }
+
+  // ==========================================
+  // 📜 HISTORIAL
+  // ==========================================
+  async function cargarHistorial() {
+    const hist = await (await fetchAPI('/api/proveedor/historial')).json();
+    const cont = document.getElementById('listaHistorial');
+    if (!hist.length) {
+      cont.innerHTML = '<div class="historial-vacio">📭 Sin actividad registrada.</div>';
+      return;
+    }
+
+    cont.innerHTML = hist.map(h => {
+      const iconos = {
+        registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
+        documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
+        documento_no_aplica: '📋', documento_requiere_carga: '📄', datos_actualizados: '✏️',
+        reinicio_automatico: '♻️', solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰',tipo_persona_definido: '🧾'
+      };
+      const clases = {
+        documento_subido: 'subida', documento_reemplazado: 'subida',
+        documento_aprobado: 'aprobado', documento_rechazado: 'rechazado',
+        documento_eliminado: 'eliminado', datos_actualizados: 'datos',
+        registro: 'registro', documento_no_aplica: 'aprobado', documento_requiere_carga: 'datos',
+        reinicio_automatico: 'subida', solicitud_actualizacion: 'recordatorio', vencimiento_automatico: 'rechazado',tipo_persona_definido: 'datos'
+      };
+
+      
+
+      return `
+        <div class="historial-item">
+          <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
+          <div class="historial-contenido">
+            <div class="detalle">${h.detalle}</div>
+            <div class="meta"><span>🕐 ${formatearFecha(h.creado_en)}</span></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+// ==========================================
+// 📞 G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
+// Legacy: un teléfono antiguo guardado se tolera (ámbar) hasta que se edite.
+// ==========================================
+const TEL_CO_RE = { cel: /^3\d{9}$/, fijo: /^(60|70)\d{8}$/ };
+function normalizarDigitosCO(v) {
+let d = String(v || '').replace(/\D+/g, '');
+if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
+return d;
+}
+function formatearTelefonoCO(v) {
+const d = normalizarDigitosCO(v).slice(0, 10);
+return d.replace(/^(.{3})(.{0,3})(.{0,4})$/, (m, a, b, c) => [a, b, c].filter(Boolean).join(' '));
+}
+function validarTelefonoCO(v) {
+const d = normalizarDigitosCO(v);
+if (!d) return { valido: true, mensaje: '' };
+if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: '📱 Celular válido' };
+if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: '☎️ Fijo válido' };
+return { valido: false, mensaje: 'Formato CO: 3XX XXX XXXX (celular) o 60X XXX XXXX (fijo) · 10 dígitos' };
+}
+function conectarMascaraTelefono(input) {
+if (!input) return;
+// Legacy sin editar: se tolera hasta la primera edición
+let tolerado = !!input.value && !validarTelefonoCO(input.value).valido;
+let hint = document.getElementById(input.id + '_hint');
+if (!hint) {
+hint = document.createElement('small');
+hint.id = input.id + '_hint';
+hint.style.cssText = 'display:block;margin-top:0.3rem;font-size:0.78rem;';
+const grp = input.closest('.form-group');
+if (grp) grp.appendChild(hint);
+}
+const pintar = () => {
+const r = validarTelefonoCO(input.value);
+if (tolerado) {
+hint.textContent = '⚠️ Formato antiguo: se validará cuando lo edites';
+hint.style.color = '#d97706';
+input.dataset.telOk = '1';
+return;
+}
+hint.textContent = input.value ? r.mensaje : 'Ej: 310 123 4567 · 601 123 4567';
+hint.style.color = !input.value ? '#6b7280' : (r.valido ? '#059669' : '#dc2626');
+input.dataset.telOk = r.valido ? '1' : '0';
+};
+input.addEventListener('input', () => {
+tolerado = false;
+input.value = formatearTelefonoCO(input.value);
+pintar();
+});
+input.addEventListener('blur', pintar);
+pintar();
+}
+conectarMascaraTelefono(document.getElementById('telefono'));
+// ==========================================
+// 🪪 G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
+// ==========================================
+const TIPOS_DOCUMENTO_CO = ['nit', 'cc', 'ce', 'pas'];
+function normalizarNumeroDocumento(v) { return String(v || '').replace(/[\s.\-]/g, '').toUpperCase(); }
+function validarDocumentoCO(tipo, numero) {
+const t = String(tipo || 'nit').toLowerCase();
+const n = normalizarNumeroDocumento(numero);
+if (!TIPOS_DOCUMENTO_CO.includes(t)) return { valido: false, mensaje: 'Tipo de documento inválido.' };
+if (!n) return { valido: false, mensaje: 'El número de documento es obligatorio.' };
+if (t === 'nit' && !/^\d{7,15}$/.test(n)) return { valido: false, mensaje: 'NIT: 7 a 15 dígitos sin puntos ni guion.' };
+if (t === 'cc' && !/^\d{6,12}$/.test(n)) return { valido: false, mensaje: 'Cédula: 6 a 12 dígitos.' };
+if (t === 'ce' && !/^\d{6,15}$/.test(n)) return { valido: false, mensaje: 'C.E.: 6 a 15 dígitos.' };
+if (t === 'pas' && !/^[A-Z0-9]{6,15}$/.test(n)) return { valido: false, mensaje: 'Pasaporte: 6 a 15 caracteres alfanuméricos.' };
+return { valido: true, numero: n };
+}
+(function conectarValidacionDocProv() {
+const sel = document.getElementById('tipo_documento');
+const inp = document.getElementById('rfc');
+const hint = document.getElementById('hintDocProv');
+if (!sel || !inp) return;
+const pintar = () => {
+const v = (inp.value || '').trim();
+// 🩹 G7-fix: campo vacío = hint NEUTRO (gris). El rojo solo aparece con
+// contenido inválido; el guardado vacío ya lo bloquea el guard con alerta.
+if (!v) {
+if (hint) { hint.textContent = 'Ej: 310 123 4567 · 601 123 4567 · NIT sin puntos'; hint.style.color = '#6b7280'; }
+inp.dataset.docOk = '0';
+return;
+}
+const r = validarDocumentoCO(sel.value, v);
+if (hint) {
+hint.textContent = r.valido ? '✅ Formato ' + sel.value.toUpperCase() + ' válido' : '❌ ' + r.mensaje;
+hint.style.color = r.valido ? '#059669' : '#dc2626';
+}
+inp.dataset.docOk = r.valido ? '1' : '0';
+};
+sel.addEventListener('change', pintar);
+inp.addEventListener('input', pintar);
+window.pintarDocProv = pintar; // 🩹 repintado externo (init / guardado / guía)
+pintar();
+})();
+// 🪪 G7-b: guía contextual del tipo de documento según tipo de persona
+function sincronizarHintDocProv(valor, autoSwitch) {
+const hint = document.getElementById('hintDocProv');
+const sel = document.getElementById('tipo_documento');
+if (!hint) return;
+if (valor === 'natural' && autoSwitch && sel && sel.value === 'nit') {
+sel.value = 'cc'; // 🪪 en natural el NIT es la cédula: sugerimos C.C.
+if (window.pintarDocProv) window.pintarDocProv();
+}
+if (valor === 'juridica') {
+hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.';
+hint.style.color = '#1e40af';
+} else if (valor === 'natural') {
+hint.textContent = '🧍 Persona natural: tu NIT es tu misma cédula. Recomendado: C.C. (el sistema los trata como equivalentes).';
+hint.style.color = '#1e40af';
+} else {
+hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
+hint.style.color = '#6b7280';
+}
+}
+// 🪪 G7-fix: eliminados listener y SEGUNDA definición duplicada de
+// sincronizarHintDocProv (pisaba a la versión con autoSwitch y dejaba muerto
+// el salto automático a C.C. en personas naturales). Los radios llaman la
+// función vía onchange inline con (valor, true); queda UNA definición.
+
+// ==========================================
+// 🏢 GUARDAR DATOS
+// ==========================================
+document.getElementById('form-datos').addEventListener('submit', async e => {
+e.preventDefault();
+// 📞 G11: no enviar si el teléfono editado es inválido (evita round-trip)
+const telInput = document.getElementById('telefono');
+if (telInput && telInput.dataset.telOk === '0') {
+mostrarAlerta('❌ Teléfono inválido: ' + validarTelefonoCO(telInput.value).mensaje, 'error');
+telInput.focus();
+return;
+}
+// 🪪 G7: bloqueo local si el documento es inválido (el server también valida)
+const docInput = document.getElementById('rfc');
+if (docInput && docInput.value.trim() && docInput.dataset.docOk === '0') {
+mostrarAlerta('❌ Documento inválido: ' + validarDocumentoCO(document.getElementById('tipo_documento').value, docInput.value).mensaje, 'error');
+docInput.focus();
+return;
+}
+const btn = e.target.querySelector('button');
+const textoOriginal = btn.textContent;
+btn.disabled = true;
+btn.textContent = '⏳ Guardando...';
+    try {
+        const data = Object.fromEntries(new FormData(e.target));
+        const res = await fetchAPI('/api/proveedor/datos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+mostrarAlerta('👌 Datos guardados correctamente', 'success');
+const prov = await (await fetchAPI('/api/proveedor/info')).json();
+actualizarTipoPersonaUI(prov);
+actualizarPanelProveedor(prov); // 🩹 G7-fix: el panel "Información del Proveedor" refresca sin recargar
+if (window.pintarDocProv) window.pintarDocProv(); // 🩹 hint acorde al valor guardado
+verificarYBloquearPerfil(prov);
+            if (perfilCompleto) {
+                try {
+                    requeridos = await (await fetchAPI('/api/proveedor/requerimientos')).json();
+                    documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
+                    document.getElementById('docsTotal').textContent = requeridos.length || 0;
+                    renderDocumentos();
+                    await actualizarBadgesVerificacion();
+                } catch (err) {
+                    console.error('❌ Error recargando documentos después de guardar datos:', err);
+                    mostrarAlerta('Error al cargar los documentos actualizados.', 'error');
+                }
+                cambiarTab('docs');
+            }
+        } else {
+            const r = await res.json();
+            mostrarAlerta(`❌ ${r.error}`, 'error');
+        }
+    } catch (err) {
+        console.error('Error guardando datos:', err);
+        mostrarAlerta('Error al guardar los datos', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+    }
+});
+
+// ==========================================
+// 🔐 G2: MEDIDOR DE FORTALEZA DE CONTRASEÑA (solo aviso)
+// Espejo exacto de validarPassword() en security.js: 8+ caracteres,
+// mayúscula, minúscula, número y especial. El server sigue siendo la
+// autoridad: este medidor NUNCA bloquea el envío, solo orienta.
+// ==========================================
+// 🛡️ FIX TDZ: las constantes se declaran con 'var' para evitar el
+// Temporal Dead Zone cuando el IIFE se ejecuta antes de la inicialización.
+// El hoisting de 'var' las hace disponibles inmediatamente (aunque undefined).
+var PASS_REGLAS = {
+  len: v => v.length >= 8,
+  may: v => /[A-ZÁÉÍÓÚÑ]/.test(v),
+  min: v => /[a-záéíóúñ]/.test(v),
+  num: v => /\d/.test(v),
+  esp: v => /[^A-Za-z0-9\s]/.test(v)
+};
+var PASS_ETIQUETAS = { 0: '—', 1: 'Muy débil', 2: 'Débil', 3: 'Aceptable', 4: 'Buena', 5: 'Fuerte' };
+
+function medidorFortaleza(v) {
+  if (!PASS_REGLAS) return 0; // 🛡️ guard contra TDZ
+  return Object.keys(PASS_REGLAS).filter(k => PASS_REGLAS[k](v || '')).length;
+}
+
+function actualizarMedidorPass(input) {
+  const wrap = document.getElementById('passMeterWrap');
+  const meter = document.getElementById('passMeter');
+  const label = document.getElementById('passMeterLabel');
+  const list = document.getElementById('passChecklist');
+  if (!wrap || !meter) return;
+  const v = input.value || '';
+  wrap.style.display = v ? 'block' : 'none';
+  const score = medidorFortaleza(v);
+  meter.setAttribute('data-score', String(score));
+  if (label) label.textContent = 'Seguridad: ' + PASS_ETIQUETAS[score];
+  if (list) list.querySelectorAll('li').forEach(li => {
+    const fn = PASS_REGLAS[li.dataset.k];
+    li.classList.toggle('ok', !!fn && fn(v));
+  });
+}
+
+// 🛡️ FIX TDZ: el IIFE se ejecuta DESPUÉS de que PASS_REGLAS esté inicializado.
+// Se envuelve en una función que se llama explícitamente al final del script.
+function conectarMedidorPass() {
+  const inp = document.querySelector('#form-cambiar-password input[name="password_nueva"]');
+  if (!inp) return;
+  inp.addEventListener('input', () => actualizarMedidorPass(inp));
+  inp.addEventListener('blur', () => {
+    if (!inp.value) { const w = document.getElementById('passMeterWrap'); if (w) w.style.display = 'none'; }
+  });
+}
+// ==========================================
+// 🔑 CAMBIAR CONTRASEÑA
+// ==========================================
+document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
+    e.preventDefault();
+
+const data = Object.fromEntries(new FormData(e.target));
+if (data.password_nueva !== data.password_confirmar) {
+return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
+}
+// ⚡ OPT (#6): feedback inmediato sin round-trip al servidor
+if (data.password_nueva === data.password_actual) {
+return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actual');
+}
+
+    const btn = e.target.querySelector('button');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Cambiando...';
+
+    try {
+      const res = await fetchAPI('/api/cambiar-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password_actual: data.password_actual, password_nueva: data.password_nueva })
+      });
+      const r = await res.json();
+      if (res.ok) {
+        mostrarAlertaPassword('👌 Contraseña cambiada correctamente', 'success');
+        setTimeout(() => document.getElementById('modalPassword').classList.remove('active'), 1500);
+      } else {
+        mostrarAlertaPassword(r.error || 'Error al cambiar contraseña');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      mostrarAlertaPassword('Error de conexión: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  });
+
+  // ==========================================
+  // 🚪 LOGOUT
+  // ==========================================
+  async function logout() {
+    await fetchAPI('/api/logout', { method: 'POST' });
+    window.location.href = 'index.html';
+  }
+
+  // ==========================================
+  // 🎯 EVENT LISTENERS DE NAVEGACIÓN
+  // ==========================================
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+    if (tab.classList.contains('tab-bloqueada')) return;
+    cambiarTab(tab.dataset.tab);
+    });
+    });
+
+  document.getElementById('modalVisor').addEventListener('click', e => {
+    if (e.target.id === 'modalVisor') cerrarVisor();
+  });
+
+// ==========================================
+// 🆕 A6.2: CLIC EN CHECKLIST → SALTAR AL DOCUMENTO FALTANTE
+// ==========================================
+document.addEventListener('click', function (e) {
+  const chip = e.target.closest('.chip-faltante');
+  if (!chip) return;
+  irADocumento(chip.dataset.tipo);
+});
+
+// 🆕 A7: expande/colapsa el cuerpo de una tarjeta de documento
+function toggleDocBody(btn) {
+  const item = btn.closest('.doc-item');
+  if (!item) return;
+  const body = item.querySelector('.doc-body');
+  if (!body) return;
+  const abierto = body.style.display !== 'none';
+  body.style.display = abierto ? 'none' : '';
+  btn.textContent = abierto ? '▼ Ver detalle' : '▲ Ocultar detalle';
+}
+function irADocumento(tipo) {
+  if (!tipo) return;
+  const target = document.querySelector('#listaDocumentos .doc-item[data-tipo-doc="' + tipo + '"]');
+  if (!target) {
+    mostrarAlerta('No se encontró ese documento en la lista.', 'warning');
+    return;
+  }
+  // 🆕 A7: si la tarjeta está colapsada, expandirla antes del scroll
+  const body = target.querySelector('.doc-body');
+  if (body && body.style.display === 'none') {
+    body.style.display = '';
+    const btn = target.querySelector('.btn-toggle-doc');
+    if (btn) btn.textContent = '▲ Ocultar detalle';
+  }
+  // Scroll suave hasta centrar la tarjeta
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Destello de resaltado (reinicia la animación si ya estaba activa)
+  target.classList.remove('doc-flash');
+  void target.offsetWidth;
+  target.classList.add('doc-flash');
+  setTimeout(() => target.classList.remove('doc-flash'), 2200);
+}
+
+// ==========================================
+// 🚀 INICIAR APLICACIÓN
+// ==========================================
+// 🛡️ FIX TDZ: conectar el medidor DESPUÉS de que todo esté inicializado
+conectarMedidorPass();
+console.log('✅ Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
+init();
