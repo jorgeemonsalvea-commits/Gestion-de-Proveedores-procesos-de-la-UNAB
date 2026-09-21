@@ -92,16 +92,7 @@ function mostrarAlertaPassword(msg, tipo = 'error') {
   // ==========================================
   // 📋 FUNCIONES AUXILIARES
   // ==========================================
-function formatearFecha(f) {
-  if (!f) return '';
-  // 🕐 FIX TZ: los strings de la BD están en hora civil de Bogotá (Colombia = UTC-5 fijo).
-  // Forzamos el parseo como -05:00 y mostramos en 'America/Bogota' para que el resultado
-  // sea idéntico en cualquier zona y NO sume ni reste 5h.
-  return new Date(String(f).replace(' ', 'T') + '-05:00').toLocaleString('es-CO', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Bogota'
-  });
-}
+// 🧩 F8: formatearFecha → /js/utils.js
 
 function formatearEtapa(etapa) {
 const map = {
@@ -114,21 +105,9 @@ const map = {
 return map[etapa] || (etapa ? etapa : '-');
 }
 // 🛡️ A1: escape para texto visible (innerHTML)
-function escapeHtml(text) {
-if (!text) return '';
-return String(text)
-.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
+// 🧩 F8: escapeHtml → /js/utils.js
 // 🛡️ A1: escape para valores de atributos HTML (data-*)
-function escapeAttr(text) {
-    if (!text) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
+// 🧩 F8: escapeAttr → /js/utils.js
 
 // 🧹 Limpia el comentario de rechazo eliminando sufijos automáticos del sistema
 // para mostrar solo el motivo real escrito por el administrador
@@ -272,14 +251,9 @@ if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
 if (sonidoActivado) reproducirSonidoD4('success');
 }
 // 🛡️ A1: abre el visor leyendo datos desde data-attributes
-function verDocumentoBtn(btn) {
-verDocumento(btn.dataset.url, btn.dataset.nombre || 'Documento');
-}
+// 🧩 F8: verDocumentoBtn → /js/utils.js
 // 🏷️ Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
-function nombreFormato(tipo) {
-const r = (requeridos || []).find(x => x.tipo === tipo);
-return r ? r.nombre : (tipo || 'Documento');
-}
+// 🧩 F8: nombreFormato → /js/utils.js
 // 🧹 Retira el sufijo legado de los motivos de rechazo almacenados antes del
 // cambio ("... Debes eliminar este documento antes de subir uno nuevo.").
 // El aviso de eliminación ya vive en el letrero del pie de la tarjeta.
@@ -305,25 +279,7 @@ return false;
 return true;
 }
 
-  // ==========================================
-  // 📅 ESTADO DE VENCIMIENTO
-  // ==========================================
-  function obtenerEstadoVencimiento(fechaVencimiento) {
-    if (!fechaVencimiento) {
-      return { clase: 'sin-fecha', texto: 'Sin fecha', icono: '⚪' };
-    }
-  const hoy = new Date();
-  // 🕐 FIX TZ: fechaVencimiento es civil Bogotá → lo parseamos como -05:00 (instante real).
-  const venc = new Date(String(fechaVencimiento).replace(' ', 'T') + '-05:00');
-  const diffDias = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24));
-    if (diffDias < 0) {
-      return { clase: 'vencido', texto: 'Vencido', icono: '🔴' };
-    } else if (diffDias <= 30) {
-      return { clase: 'proximo-a-vencer', texto: 'Próximo a vencer', icono: '🟡' };
-    } else {
-      return { clase: 'vigente', texto: 'Vigente', icono: '🟢' };
-    }
-  }
+// 🧩 F8: obtenerEstadoVencimiento → /js/utils.js
 
 // ==========================================
 // 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
@@ -1930,23 +1886,7 @@ cont.appendChild(fragNotasProv);
 // 📞 G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
 // Legacy: un teléfono antiguo guardado se tolera (ámbar) hasta que se edite.
 // ==========================================
-const TEL_CO_RE = { cel: /^3\d{9}$/, fijo: /^(60|70)\d{8}$/ };
-function normalizarDigitosCO(v) {
-let d = String(v || '').replace(/\D+/g, '');
-if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
-return d;
-}
-function formatearTelefonoCO(v) {
-const d = normalizarDigitosCO(v).slice(0, 10);
-return d.replace(/^(.{3})(.{0,3})(.{0,4})$/, (m, a, b, c) => [a, b, c].filter(Boolean).join(' '));
-}
-function validarTelefonoCO(v) {
-const d = normalizarDigitosCO(v);
-if (!d) return { valido: true, mensaje: '' };
-if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: '📱 Celular válido' };
-if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: '☎️ Fijo válido' };
-return { valido: false, mensaje: 'Formato CO: 3XX XXX XXXX (celular) o 60X XXX XXXX (fijo) · 10 dígitos' };
-}
+// 🧩 F8: TEL_CO_RE / normalizarDigitosCO / formatearTelefonoCO / validarTelefonoCO → /js/utils.js
 function conectarMascaraTelefono(input) {
 if (!input) return;
 // Legacy sin editar: se tolera hasta la primera edición
@@ -1983,19 +1923,7 @@ conectarMascaraTelefono(document.getElementById('telefono'));
 // ==========================================
 // 🪪 G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
 // ==========================================
-const TIPOS_DOCUMENTO_CO = ['nit', 'cc', 'ce', 'pas'];
-function normalizarNumeroDocumento(v) { return String(v || '').replace(/[\s.\-]/g, '').toUpperCase(); }
-function validarDocumentoCO(tipo, numero) {
-const t = String(tipo || 'nit').toLowerCase();
-const n = normalizarNumeroDocumento(numero);
-if (!TIPOS_DOCUMENTO_CO.includes(t)) return { valido: false, mensaje: 'Tipo de documento inválido.' };
-if (!n) return { valido: false, mensaje: 'El número de documento es obligatorio.' };
-if (t === 'nit' && !/^\d{7,15}$/.test(n)) return { valido: false, mensaje: 'NIT: 7 a 15 dígitos sin puntos ni guion.' };
-if (t === 'cc' && !/^\d{6,12}$/.test(n)) return { valido: false, mensaje: 'Cédula: 6 a 12 dígitos.' };
-if (t === 'ce' && !/^\d{6,15}$/.test(n)) return { valido: false, mensaje: 'C.E.: 6 a 15 dígitos.' };
-if (t === 'pas' && !/^[A-Z0-9]{6,15}$/.test(n)) return { valido: false, mensaje: 'Pasaporte: 6 a 15 caracteres alfanuméricos.' };
-return { valido: true, numero: n };
-}
+// 🧩 F8: TIPOS_DOCUMENTO_CO / normalizarNumeroDocumento / validarDocumentoCO → /js/utils.js
 (function conectarValidacionDocProv() {
 const sel = document.getElementById('tipo_documento');
 const inp = document.getElementById('rfc');
