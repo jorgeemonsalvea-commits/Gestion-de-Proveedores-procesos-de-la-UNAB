@@ -109,33 +109,7 @@ return map[etapa] || (etapa ? etapa : '-');
 // 🛡️ A1: escape para valores de atributos HTML (data-*)
 // 🧩 F8: escapeAttr → /js/utils.js
 
-// 🧹 Limpia el comentario de rechazo eliminando sufijos automáticos del sistema
-// para mostrar solo el motivo real escrito por el administrador
-function limpiarMotivoRechazo(comentario) {
-    if (!comentario) return '';
-    let texto = String(comentario).trim();
-    // Remover sufijos automáticos agregados por el backend
-    const sufijos = [
-        '— Debes eliminar este documento antes de subir uno nuevo.',
-        'Debes eliminar este documento antes de subir uno nuevo.',
-        'Debes eliminar este documento rechazado antes de subir uno nuevo',
-        'Debes subir una nueva versión (reinicio de proceso)'
-    ];
-    sufijos.forEach(sufijo => {
-        if (texto.endsWith(sufijo)) {
-            texto = texto.substring(0, texto.length - sufijo.length).trim();
-        }
-        // También remover si está en medio (con guión largo)
-        const idx = texto.indexOf('— ' + sufijo);
-        if (idx !== -1) {
-            texto = texto.substring(0, idx).trim();
-        }
-    });
-    // Remover patrón genérico de rechazo
-    texto = texto.replace(/\s*—\s*Debes eliminar.*$/i, '').trim();
-    texto = texto.replace(/^Documento rechazado\.\s*/i, '').trim();
-    return texto || 'Sin motivo especificado';
-}
+// 🧹 F9: limpiarMotivoRechazo vive ahora en /js/utils.js (compartido con admin)
 
 // ==========================================
 // 🛡️ ANTI-AUTOCOMPLETAR (portal proveedor): evita el desplegable
@@ -254,14 +228,7 @@ if (sonidoActivado) reproducirSonidoD4('success');
 // 🧩 F8: verDocumentoBtn → /js/utils.js
 // 🏷️ Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
 // 🧩 F8: nombreFormato → /js/utils.js
-// 🧹 Retira el sufijo legado de los motivos de rechazo almacenados antes del
-// cambio ("... Debes eliminar este documento antes de subir uno nuevo.").
-// El aviso de eliminación ya vive en el letrero del pie de la tarjeta.
-function limpiarMotivoRechazo(texto) {
-return String(texto || '')
-.replace(/\s*[.\-—]\s*Debes eliminar este documento antes de subir uno nuevo\.\s*$/i, '')
-.trim();
-}
+// 🧹 F9: segunda definición eliminada (utils.js es la fuente única)
 
 // 🚫 Punto 8: además de la etapa, bloquea si hay rechazo total con documentos rechazados activos
 function puedeSubirDocumentos() {
@@ -956,21 +923,8 @@ const esNoAplica = d.no_aplica === 1;
 const esMarcadorNoAplicaInvalido = !esNoAplica && (!d.archivo || d.archivo === 'no_aplica');
 const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.trim() !== ''; // 🆕 sin archivo físico
 
-          html += `<div class="doc-row">
-            <div style="flex:1;min-width:180px;">
-              <small>📎 ${escapeHtml(nombreFormato(d.tipo))} ${(d.estado === 'pendiente' && d.verificado === 1)
-            ? '<span class="badge badge-verificado-pendiente">✅ Verificado</span>'
-            : `<span class="badge badge-${d.estado}">${d.estado}</span>`}</small>
-              ${d.comentario ? `<div style="color:#991b1b;font-size:0.95rem;font-weight:600;margin:0.35rem 0;line-height:1.4;">💬 Motivo: ${escapeHtml(limpiarMotivoRechazo(d.comentario))}</div>` : ''}
-              <br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
-              ${d.fecha_vencimiento ? `
-                <br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
-                <span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
-                  ${obtenerEstadoVencimiento(d.fecha_vencimiento).icono}
-                  ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
-                </span>
-              ` : ''}
-            </div>
+html += `<div class="doc-row">
+${infoDocRow(d, { badgeVerificadoPend: true })}
 <div class="doc-row-actions">
 ${esNoAplica && !tieneArchivoReal
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'

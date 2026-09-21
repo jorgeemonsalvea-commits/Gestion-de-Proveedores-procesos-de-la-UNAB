@@ -90,3 +90,60 @@ if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: '📱 Celular válido
 if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: '☎️ Fijo válido' };
 return { valido: false, mensaje: 'Formato CO: 3XX XXX XXXX (celular) o 60X XXX XXXX (fijo) · 10 dígitos' };
 }
+// ==========================================
+// 🧹 F9: MOTIVO DE RECHAZO LIMPIO (sube desde proveedor.js a utils)
+// Retira sufijos automáticos legados para mostrar solo el motivo real.
+// ==========================================
+function limpiarMotivoRechazo(comentario) {
+if (!comentario) return '';
+let texto = String(comentario).trim();
+const sufijos = [
+'— Debes eliminar este documento antes de subir uno nuevo.',
+'Debes eliminar este documento antes de subir uno nuevo.',
+'Debes eliminar este documento rechazado antes de subir uno nuevo',
+'Debes subir una nueva versión (reinicio de proceso)'
+];
+sufijos.forEach(sufijo => {
+if (texto.endsWith(sufijo)) texto = texto.substring(0, texto.length - sufijo.length).trim();
+const idx = texto.indexOf('— ' + sufijo);
+if (idx !== -1) texto = texto.substring(0, idx).trim();
+});
+texto = texto.replace(/\s*—\s*Debes eliminar.*$/i, '').trim();
+texto = texto.replace(/^Documento rechazado\.\s*/i, '').trim();
+return texto || 'Sin motivo especificado';
+}
+// ==========================================
+// 📄 F9: COLUMNA INFORMATIVA UNIFICADA DE .doc-row
+// Único builder para admin y proveedor. opts:
+//  extra               → HTML local antes del cierre (checkbox, spans de estado)
+//  conBadgeNoAplica    → badge "NO APLICA" si no_aplica+verificado (admin)
+//  badgeVerificadoPend → badge "✅ Verificado" si pendiente+verificado (proveedor)
+// ==========================================
+function infoDocRow(doc, opts = {}) {
+const { extra = '', conBadgeNoAplica = false, badgeVerificadoPend = false } = opts;
+const verificado = doc.verificado === 1;
+const esNoAplica = doc.no_aplica === 1;
+let badgeEstado;
+if (conBadgeNoAplica && esNoAplica && verificado) {
+badgeEstado = '<span class="badge badge-aprobado">NO APLICA</span>';
+} else if (badgeVerificadoPend && doc.estado === 'pendiente' && verificado) {
+badgeEstado = '<span class="badge badge-verificado-pendiente">✅ Verificado</span>';
+} else {
+badgeEstado = `<span class="badge badge-${doc.estado || 'pendiente'}">${doc.estado || 'pendiente'}</span>`;
+}
+const motivo = doc.comentario
+? `<div style="color:#991b1b;font-size:0.95rem;font-weight:600;margin:0.35rem 0;line-height:1.4;">💬 Motivo: ${escapeHtml(limpiarMotivoRechazo(doc.comentario))}</div>`
+: '';
+const vencimiento = doc.fecha_vencimiento ? `
+<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(doc.fecha_vencimiento)}</small>
+<span class="badge badge-${obtenerEstadoVencimiento(doc.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
+${obtenerEstadoVencimiento(doc.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(doc.fecha_vencimiento).texto}
+</span>` : '';
+return `<div style="flex:1;min-width:180px;">
+<small>📎 ${escapeHtml(nombreFormato(doc.tipo))} ${badgeEstado}</small>
+${motivo}
+<br><small style="color:#9ca3af;">📅 ${formatearFecha(doc.subido_en)}</small>
+${vencimiento}
+${extra}
+</div>`;
+}

@@ -1513,24 +1513,10 @@ const aprobado = d.estado === 'aprobado';
 const rechazado = d.estado === 'rechazado';
 const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica');
 const checkDeshabilitado = rechazado || aprobado || esNoAplica;
-html += `<div class="doc-row">
-<div style="flex:1;min-width:180px;">
-<small>📎 ${esNoAplica && verificado ?
-`<span class="badge badge-aprobado">NO APLICA</span>` :
-`<span class="badge badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span>`
-}</small>
-${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
-<br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
-${d.fecha_vencimiento ? `
-<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
-<span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
-${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
-</span>
-` : ''}
-<br>`;
+let extraInfo = '';
 if (modo === 'verificacion') {
-html += `
-<label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:${checkDeshabilitado ? 'not-allowed' : 'pointer'};margin-top:0.2rem;">
+extraInfo += `
+<br><label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:${checkDeshabilitado ? 'not-allowed' : 'pointer'};margin-top:0.2rem;">
 <input type="checkbox" class="checkbox-verificado" data-docid="${d.id}"
 ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 <span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
@@ -1538,22 +1524,17 @@ ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 ${rechazado ? '<small style="color:#dc2626;display:block;">⚠️ Documento rechazado - Debe corregirse</small>' : ''}
 `;
 } else if (modo === 'aprobacion') {
-if (esNoAplica) {
-html += `<span style="color:#92400e;font-size:0.85rem;">📋 No aplica</span>`;
-} else if (aprobado) {
-html += `<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
-} else if (verificado) {
-html += `<span style="color:#059669;font-size:0.85rem;">✅ Verificado</span>`;
+if (esNoAplica) extraInfo += `<br><span style="color:#92400e;font-size:0.85rem;">📋 No aplica</span>`;
+else if (aprobado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
+else if (verificado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">✅ Verificado</span>`;
+else extraInfo += `<br><span style="color:#dc2626;font-size:0.85rem;">❌ No verificado</span>`;
 } else {
-html += `<span style="color:#dc2626;font-size:0.85rem;">❌ No verificado</span>`;
+if (aprobado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
+else if (rechazado) extraInfo += `<br><span style="color:#dc2626;font-size:0.85rem;">❌ Rechazado</span>`;
+else extraInfo += `<br><span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>`;
 }
-} else {
-if (aprobado) html += `<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
-else if (rechazado) html += `<span style="color:#dc2626;font-size:0.85rem;">❌ Rechazado</span>`;
-else html += `<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>`;
-}
-html += `
-</div>
+html += `<div class="doc-row">
+${infoDocRow(d, { conBadgeNoAplica: true, extra: extraInfo })}
 <div class="doc-row-actions" style="margin-left:auto;justify-content:flex-end;align-items:center;">
 ${esNoAplica
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
@@ -1828,20 +1809,9 @@ html += '<small style="color:#9ca3af;">📭 No ha subido documentos</small>';
 sub.forEach(d => {
 const nombreEscapado = escapeHtml(nombreFormato(d.tipo));
 const aprobado = d.estado === 'aprobado';
+const extraGest = `<br>${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>'}`;
 html += `<div class="doc-row">
-<div style="flex:1;min-width:180px;">
-<small>📎 ${escapeHtml(nombreFormato(d.tipo))} <span class="badge badge-${d.estado}">${d.estado}</span></small>
-${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
-<br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
-${d.fecha_vencimiento ? `
-<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
-<span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
-${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
-</span>
-` : ''}
-<br>
-${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>'}
-</div>
+${infoDocRow(d, { extra: extraGest })}
 <div class="doc-row-actions">
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
@@ -2039,25 +2009,15 @@ const mostrarCheck = !soloLectura && d.estado !== 'aprobado';
 const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica'); // 🆕 sin archivo físico
 const checkDeshabilitado = d.estado === 'rechazado' || soloLectura || esNoAplica;
 
-html += `<div class="doc-row">
-<div style="flex:1;min-width:180px;">
-<small>📎 ${escapeHtml(nombreFormato(d.tipo))} <span class="badge badge-${d.estado || 'pendiente'}">${d.estado || 'pendiente'}</span></small>
-${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
-<br><small style="color:#9ca3af;">📅 ${formatearFecha(d.subido_en)}</small>
-${d.fecha_vencimiento ? `
-<br><small style="color:#6b7280;">📅 Vence: ${formatearFecha(d.fecha_vencimiento)}</small>
-<span class="badge badge-${obtenerEstadoVencimiento(d.fecha_vencimiento).clase}" style="margin-left:0.5rem;font-size:0.7rem;">
-${obtenerEstadoVencimiento(d.fecha_vencimiento).icono} ${obtenerEstadoVencimiento(d.fecha_vencimiento).texto}
-</span>
-` : ''}
-${mostrarCheck ? `
+const extraCheck = mostrarCheck ? `
 <br><label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:pointer;margin-top:0.2rem;">
 <input type="checkbox" class="checkbox-verificado" data-docid="${d.id}"
 ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 <span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
 </label>
-` : ''}
-</div>
+` : '';
+html += `<div class="doc-row">
+${infoDocRow(d, { extra: extraCheck })}
 <div class="doc-row-actions">
 ${esNoAplica
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
