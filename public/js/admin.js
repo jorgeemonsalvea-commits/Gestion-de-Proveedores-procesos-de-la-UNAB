@@ -358,14 +358,8 @@ if (p.estado_general === 'rechazado') return 'Rechazado';
 return 'Pendiente';
 }
 
-// 🆕 C4: badge de días en la etapa actual (verde <3, ámbar 3-7, rojo >7)
-function badgeDiasEtapa(dias) {
-if (dias == null || isNaN(dias)) return '';
-const d = Math.max(0, parseInt(dias, 10));
-const color = d > 7 ? '#dc2626' : d >= 3 ? '#d97706' : '#059669';
-const fondo = d > 7 ? '#fee2e2' : d >= 3 ? '#fef3c7' : '#d1fae5';
-return `<span style="background:${fondo};color:${color};border-radius:10px;padding:0.1rem 0.5rem;font-size:0.7rem;font-weight:700;white-space:nowrap;">⏱️ ${d}d en etapa</span>`;
-}
+// 🧹 F11: badgeDiasEtapa eliminado (sin llamadores; el panel de contexto y
+// el listado muestran días en etapa directo desde p.dias_en_etapa).
 // ==========================================
 // 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
 // ==========================================
@@ -395,7 +389,8 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     container.appendChild(notif);
     setTimeout(() => notif.remove(), duracion);
 }
-function cerrarNotificacion() { if (SwalToast) Swal.close(); }
+// 🧹 F11: cerrarNotificacion eliminado (sin llamadores en admin; los toasts
+// Swal se cierran solos por timer / mouseleave / botón de cierre).
 // ==========================================
 // 🎉 G10b: TOAST SWEETALERT2 — NUEVO PROVEEDOR REGISTRADO (con acción)
 // ==========================================
@@ -518,8 +513,8 @@ socket.on('connect_error', (err) => {
 });
 socket.on('disconnect', () => { console.log('🔌 Desconectado del servidor Socket.IO'); });
 
-socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarVistaActual(); });
-socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarVistaActual(); });
+// 🧹 F11: listeners duplicados de documento_actualizado/verificado fusionados
+// en el par de más abajo (evento de feed + recarga de vista en un solo handler).
 socket.on('documento_subido', (data) => {
 console.log('📤 Documento subido:', data);
 notificarD4('info');
@@ -529,10 +524,12 @@ recargarVistaActual();
 socket.on('documento_verificado', (data) => {
 console.log('✅ Documento verificado:', data);
 registrarEventoD4('✅', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'}`, `Verificado por: ${data.actor || 'admin'}`);
+recargarVistaActual();
 });
 socket.on('documento_actualizado', (data) => {
 console.log('📄 Documento actualizado:', data);
 registrarEventoD4(data.estado === 'rechazado' ? '❌' : '✅', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'} → ${data.estado || 'actualizado'}`, `Por: ${data.actor || 'admin'}`);
+recargarVistaActual();
 });
 socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); notificarD4('info'); recargarVistaActual(); });
 socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); notificarD4('success'); recargarVistaActual(); });

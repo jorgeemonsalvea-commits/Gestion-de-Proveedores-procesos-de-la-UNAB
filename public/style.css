@@ -2215,3 +2215,37 @@ html[data-tema="oscuro"] .box-exito { background: #12291f; border-color: #1f5c40
 html[data-tema="oscuro"] .box-exito span { color: #86efac; }
 html[data-tema="oscuro"] .box-plantilla { background: #16233a; border-left-color: #2c4a75; }
 html[data-tema="oscuro"] .box-plantilla small { color: #93c5fd; }
+/* ==========================================
+🌙 F10-fix: PREVIEW DE ARCHIVO + PROGRESO DE SUBIDA (clases tematizables)
+Antes vivían en colores inline → ilegibles en modo oscuro.
+========================================== */
+.file-preview { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.8rem; margin-top: 0.5rem; border-radius: 6px; font-size: 0.82rem; flex-basis: 100%; }
+.file-preview.preview-ok { background: #f0fdf4; border: 1px solid #86efac; }
+.file-preview.preview-error { background: #fee2e2; border: 1px solid #dc2626; }
+.file-preview .fp-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937; }
+.file-preview .fp-size { color: #6b7280; white-space: nowrap; }
+.file-preview .fp-msg { color: #dc2626; font-weight: 600; }
+.upload-progress { flex-basis: 100%; margin-top: 0.5rem; padding: 0.5rem 0.8rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; }
+.upload-progress-row { display: flex; align-items: center; gap: 0.6rem; }
+.upload-progress-track { flex: 1; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.upload-progress-text { font-size: 0.78rem; color: #0369a1; font-weight: 600; white-space: nowrap; }
+.upload-progress-status { color: #6b7280; font-size: 0.75rem; display: block; margin-top: 0.3rem; }
+/* ---- Modo oscuro ---- */
+html[data-tema="oscuro"] .file-preview.preview-ok { background: #12291f; border-color: #1f5c40; }
+html[data-tema="oscuro"] .file-preview.preview-error { background: #381919; border-color: #7f2c2c; }
+html[data-tema="oscuro"] .file-preview .fp-name { color: #ece9f2; }
+html[data-tema="oscuro"] .file-preview .fp-size { color: #a79fb5; }
+html[data-tema="oscuro"] .file-preview .fp-msg { color: #fca5a5; }
+html[data-tema="oscuro"] .upload-progress { background: #16233a; border-color: #2c4a75; }
+html[data-tema="oscuro"] .upload-progress-track { background: #2a2238; }
+html[data-tema="oscuro"] .upload-progress-text { color: #93c5fd; }
+html[data-tema="oscuro"] .upload-progress-status { color: #a79fb5; }
+/* ==========================================
+🌙 FIX: DROPDOWN EXPORTAR (CSV / Excel) EN MODO OSCURO
+El contenedor nacía con background:white inline → texto claro invisible.
+Se tematiza por id con !important (gana sobre el inline) sin tocar el JS.
+========================================== */
+html[data-tema="oscuro"] #exportDropdown { background: #241b36 !important; border-color: #463b5a !important; box-shadow: 0 8px 16px rgba(0,0,0,.5) !important; }
+html[data-tema="oscuro"] #exportDropdown button { color: #ece9f2 !important; }
+html[data-tema="oscuro"] #exportDropdown button:hover { background: #2a2238 !important; }
+html[data-tema="oscuro"] #exportDropdown button:first-child { border-bottom-color: #372e47 !important; }

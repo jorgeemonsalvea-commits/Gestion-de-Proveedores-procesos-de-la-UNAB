@@ -315,6 +315,15 @@ outline: 3px solid var(--lp-dorado, #e9a427);
 outline-offset: 4px;
 border-radius: 8px;
 }
+/* 🔐 G2: medidor de fortaleza (registro + cambio obligatorio) */
+.lp-pw-meter { display: flex; gap: 4px; margin-top: .45rem; height: 6px; }
+.lp-pw-meter span { flex: 1; border-radius: 999px; background: var(--lp-borde-input, #d6cfe6); transition: background .2s ease; }
+.lp-pw-meter[data-score="1"] span:nth-child(-n+1),
+.lp-pw-meter[data-score="2"] span:nth-child(-n+2) { background: #dc2626; }
+.lp-pw-meter[data-score="3"] span:nth-child(-n+3) { background: #d97706; }
+.lp-pw-meter[data-score="4"] span:nth-child(-n+4) { background: var(--lp-dorado, #e9a427); }
+.lp-pw-meter[data-score="5"] span { background: #059669; }
+.lp-pw-hint { font-size: .72rem; font-weight: 700; color: var(--lp-texto-suave, #6b6478); margin: .3rem 0 0; min-height: 1.1em; }
 /* (bloque compacto eliminado: duplicaba el documentado de G2) */
 /* ==========================================
 🔐 G2: MEDIDOR DE FORTALEZA (registro + cambio obligatorio)
@@ -455,7 +464,7 @@ onerror="this.onerror=function(){this.style.display='none'};">
 <input type="password" name="password_nueva" id="Cn2Nw7" minlength="8" required autocomplete="new-password">
 <button type="button" class="toggle-password" data-target="#Cn2Nw7" aria-label="Mostrar contraseña">👁️</button>
 </div>
-<div class="lp-pw-meter" id="Mp3Mt1" data-score="0" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+<div class="lp-pw-meter" id="Mp3Mt1" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 <p class="lp-pw-hint" id="Mp3Ht1"></p>
 <small>Mín. 8, mayúscula, minúscula, número y especial</small>
 </div>
@@ -701,6 +710,41 @@ document.getElementById('Mp3Md8').classList.remove('active');
 });
 
 try { const _t = document.getElementById('Ts6Tm1'); if (_t) _t.value = Date.now(); } catch (e) {}
+// ==========================================
+// 🔐 G2: MEDIDOR DE FORTALEZA (index) — solo aviso, nunca bloquea.
+// 🛡️ Anti-colisión: todo vive DENTRO del IIFE (nombres internos), así no
+// choca con bloques G2 antiguos ni sufre TDZ. Guards totales por elemento.
+// ==========================================
+(function initMedidorG2Index() {
+const REGLAS = {
+len: v => v.length >= 8,
+may: v => /[A-ZÁÉÍÓÚÑ]/.test(v),
+min: v => /[a-záéíóúñ]/.test(v),
+num: v => /\d/.test(v),
+esp: v => /[^A-Za-z0-9\s]/.test(v)
+};
+const ETIQ = { 0: '—', 1: 'Muy débil', 2: 'Débil', 3: 'Aceptable', 4: 'Buena', 5: 'Fuerte' };
+function fortaleza(v) {
+return Object.keys(REGLAS).filter(k => REGLAS[k](v || '')).length;
+}
+function conectar(selInput, idMeter, idHint) {
+const inp = document.querySelector(selInput);
+const meter = document.getElementById(idMeter);
+const hint = document.getElementById(idHint);
+if (!inp || !meter) return; // 🛡️ sin markup = sin medidor, sin error
+const pintar = () => {
+const v = inp.value || '';
+const score = fortaleza(v);
+meter.setAttribute('data-score', String(v ? score : 0));
+if (hint) hint.textContent = v ? ('Seguridad: ' + ETIQ[score]) : '';
+};
+inp.addEventListener('input', pintar);
+inp.addEventListener('blur', pintar);
+pintar();
+}
+conectar('#Rp7Pw2', 'Mr5Xq3', 'Hr9Ys2'); // 📝 registro público
+conectar('#Cn2Nw7', 'Mp3Mt1', 'Mp3Ht1'); // 🔐 modal cambio obligatorio
+})();
 console.log('✅ Portal de Proveedores cargado (v4.7)');
 </script>
 </body>

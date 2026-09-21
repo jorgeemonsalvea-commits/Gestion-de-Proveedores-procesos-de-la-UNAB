@@ -36,40 +36,11 @@ if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro
 
 // ==========================================
 // 📬 NOTIFICACIONES PUSH (TOASTS)
+// 🧹 F11: se retiran mostrarNotificacion/cerrarNotificacion NATIVAS:
+// estaban pisadas por la versión SweetAlert2 de más abajo, que ya
+// incluye fallback nativo si Swal no carga. mostrarAlerta se conserva.
 // ==========================================
-function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
-    const container = document.getElementById('notificationContainer');
-    if (!container) return;
-    const notif = document.createElement('div');
-    notif.className = `notification notification-${tipo}`;
-    const iconos = { success: '☑️', error: '💥', warning: '⚠️', info: 'ℹ️' };
-    const icono = iconos[tipo] || 'ℹ️';
-    notif.innerHTML = `
-        <span class="notification-icon">${icono}</span>
-        <span class="notification-content">${mensaje}</span>
-        <button class="notification-close" onclick="cerrarNotificacion(this)">✕</button>
-    `;
-    container.appendChild(notif);
-    const timeout = setTimeout(() => {
-        cerrarNotificacion(notif.querySelector('.notification-close'));
-    }, duracion);
-    notif.dataset.timeout = timeout;
-}
-
-function cerrarNotificacion(boton) {
-    const notif = boton.closest('.notification');
-    if (!notif) return;
-    if (notif.dataset.timeout) clearTimeout(parseInt(notif.dataset.timeout));
-    notif.classList.add('notification-exit');
-    setTimeout(() => { if (notif.parentNode) notif.remove(); }, 350);
-}
-
 function mostrarAlerta(msg, tipo = 'error') {
-    const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info', 'warning': 'warning' };
-    mostrarNotificacion(msg, tiposMap[tipo] || 'info');
-}
-
-function mostrarAlertaPassword(msg, tipo = 'error') {
     const el = document.getElementById('alertaPassword');
     if (el) {
         el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
@@ -278,12 +249,9 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     setTimeout(() => notif.remove(), duracion);
 }
 function cerrarNotificacion() { if (SwalToast) Swal.close(); }
-
-function mostrarAlertaPassword(msg, tipo = 'error') {
-const el = document.getElementById('alertaPassword');
-el.innerHTML = `<div class="alert alert-${tipo}">${msg}</div>`;
-setTimeout(() => el.innerHTML = '', 5000);
-}
+// 🧹 F11: 2.ª mostrarAlertaPassword eliminada. Queda activa la definición
+// del inicio del archivo, que es MÁS robusta (tiene fallback si el modal
+// de cambio de contraseña no existe en el DOM).
 // ==========================================
 // 🍬 SWEETALERT2 — HELPERS DE CONFIRMACIÓN (idénticos a admin)
 // ==========================================
@@ -448,8 +416,8 @@ const correo = document.getElementById('userEmail')?.textContent;
 if (correo && correo !== '—') set('pCorreo', correo);
 actualizarBarraProgreso();
 }
-function irPasoSig() { const a = document.querySelector('.tab.active'); if (!a) return; if (a.dataset.tab === 'docs') cambiarTab('datos'); else if (a.dataset.tab === 'datos') cambiarTab('hist'); }
-function irPasoAnt() { const a = document.querySelector('.tab.active'); if (!a) return; if (a.dataset.tab === 'hist') cambiarTab('datos'); else if (a.dataset.tab === 'datos') cambiarTab('docs'); }
+// 🧹 F11: irPasoSig/irPasoAnt eliminados (sin llamadores en el portal;
+// la navegación de pestañas vive en cambiarTab + listeners de .tab).
 
 
 // ==========================================
@@ -1281,23 +1249,10 @@ function mostrarPreviewArchivo(e) {
     ? (file.size / 1024).toFixed(0) + ' KB'
     : (file.size / 1024 / 1024).toFixed(1) + ' MB';
 
-  const preview = document.createElement('div');
-  preview.className = 'file-preview';
-  preview.style.cssText = `
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 0.8rem; margin-top: 0.5rem;
-    background: ${validacion.valido ? '#f0fdf4' : '#fee2e2'};
-    border: 1px solid ${validacion.valido ? '#86efac' : '#dc2626'};
-    border-radius: 6px; font-size: 0.82rem; flex-basis: 100%;
-  `;
-  preview.innerHTML = `
-    <span>${validacion.valido ? '✅' : '❌'}</span>
-    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-      ${escapeHtml(file.name)}
-    </span>
-    <span style="color:#6b7280;white-space:nowrap;">${sizeStr}</span>
-    ${!validacion.valido ? `<span style="color:#dc2626;font-weight:600;">${validacion.mensaje}</span>` : ''}
-  `;
+const preview = document.createElement('div');
+// 🌙 F10-fix: preview con clases semánticas (tematizable en oscuro) en vez de colores inline
+preview.className = 'file-preview ' + (validacion.valido ? 'preview-ok' : 'preview-error');
+preview.innerHTML = `<span class="fp-icon">${validacion.valido ? '✅' : '❌'}</span> <span class="fp-name">${escapeHtml(file.name)}</span> <span class="fp-size">${sizeStr}</span> ${!validacion.valido ? `<span class="fp-msg">${validacion.mensaje}</span>` : ''}`;
   form.appendChild(preview);
 
   // Si no es válido, limpiar el input
@@ -1329,21 +1284,11 @@ async function handleUploadSubmit(e) {
   // 🆕 A5: Crear barra de progreso dentro del formulario
   let progressContainer = form.querySelector('.upload-progress');
   if (!progressContainer) {
-    progressContainer = document.createElement('div');
-    progressContainer.className = 'upload-progress';
-    progressContainer.style.cssText = `
-      flex-basis: 100%; margin-top: 0.5rem; padding: 0.5rem 0.8rem;
-      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px;
-    `;
-    progressContainer.innerHTML = `
-      <div style="display:flex;align-items:center;gap:0.6rem;">
-        <div style="flex:1;height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
-          <div class="upload-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--color-primario),var(--color-acento));border-radius:999px;transition:width 0.2s ease;"></div>
-        </div>
-        <span class="upload-progress-text" style="font-size:0.78rem;color:#0369a1;font-weight:600;white-space:nowrap;">0%</span>
-      </div>
-      <small class="upload-progress-status" style="color:#6b7280;font-size:0.75rem;display:block;margin-top:0.3rem;">Preparando subida...</small>
-    `;
+progressContainer = document.createElement('div');
+// 🌙 F10-fix: contenedor de progreso sin colores inline (tematizable en oscuro).
+// La barra .upload-progress-bar ya existe en style.css; aquí solo estructura.
+progressContainer.className = 'upload-progress';
+progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upload-progress-track"> <div class="upload-progress-bar"></div> </div> <span class="upload-progress-text">0%</span> </div> <small class="upload-progress-status">Preparando subida...</small>`;
     form.appendChild(progressContainer);
   }
   progressContainer.style.display = 'block';
