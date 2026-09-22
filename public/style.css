@@ -1938,7 +1938,7 @@ transition: background .2s ease;
 .pass-meter[data-score="3"] .pass-seg:nth-child(-n+3) { background: var(--color-advertencia); }
 .pass-meter[data-score="4"] .pass-seg:nth-child(-n+4) { background: var(--color-acento); }
 .pass-meter[data-score="5"] .pass-seg { background: var(--color-exito); }
-.pass-meter-label { font-size: .75rem; font-weight: 700; margin-top: .3rem; color: var(--color-texto-suave); }
+.pass-meter-label { font-size: .75rem; font-weight: 700; margin-top: .3rem; color: var(--color-texto-suave); display: block; min-height: 1.1em; }
 .pass-checklist {
 list-style: none; display: grid; grid-template-columns: 1fr 1fr;
 gap: .15rem .8rem; margin-top: .4rem; padding: 0;
@@ -2249,3 +2249,45 @@ html[data-tema="oscuro"] #exportDropdown { background: #241b36 !important; borde
 html[data-tema="oscuro"] #exportDropdown button { color: #ece9f2 !important; }
 html[data-tema="oscuro"] #exportDropdown button:hover { background: #2a2238 !important; }
 html[data-tema="oscuro"] #exportDropdown button:first-child { border-bottom-color: #372e47 !important; }
+/* ==========================================================================
+   👥 R4: MATRIZ DE PERMISOS (módulo Equipo)
+   Cuadro amplio, grupos con título y checks alineados en columna fija:
+   [checkbox] | nombre en negrita + ayuda debajo (nunca texto suelto).
+   ========================================================================== */
+.eq-matriz {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.1rem 1.6rem;
+  padding: 1.3rem;
+  background: var(--color-blanco);
+  border: 1px solid var(--color-borde);
+  border-radius: 10px;
+  margin-top: 0.6rem;
+}
+.eq-grupo { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
+.eq-grupo-titulo {
+  font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--color-primario); border-bottom: 1px solid var(--color-borde);
+  padding-bottom: 0.35rem; margin-bottom: 0.1rem;
+}
+.eq-check {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+  column-gap: 0.6rem; align-items: start; cursor: pointer;
+  padding: 0.5rem 0.6rem; border: 1px solid var(--color-borde); border-radius: 8px;
+  background: var(--color-fondo-suave);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.eq-check:hover { border-color: var(--color-primario); background: var(--color-primario-muy-claro); }
+.eq-check input[type="checkbox"] {
+  grid-column: 1; grid-row: 1 / span 2;
+  width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--color-primario);
+}
+.eq-nombre { grid-column: 2; grid-row: 1; font-size: 0.86rem; font-weight: 600; color: var(--color-texto); line-height: 1.25; }
+.eq-ayuda  { grid-column: 2; grid-row: 2; font-size: 0.72rem; color: var(--color-texto-suave); line-height: 1.3; }
+#modalInvitarStaff .modal { max-width: 860px !important; }
+#modalInvitarStaff .eq-matriz { max-height: 320px; overflow-y: auto; margin-top: 0.4rem; }
+/* ---- Modo oscuro ---- */
+html[data-tema="oscuro"] .eq-matriz { background: var(--color-blanco); }
+html[data-tema="oscuro"] .eq-check { background: #2a2238; border-color: var(--color-borde-input); }
+html[data-tema="oscuro"] .eq-check:hover { border-color: var(--color-primario); background: var(--color-primario-muy-claro); }
+html[data-tema="oscuro"] .eq-nombre { color: var(--color-texto); }

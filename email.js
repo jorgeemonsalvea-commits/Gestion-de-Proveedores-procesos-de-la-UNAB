@@ -475,6 +475,53 @@ Saludos,<br>
 `;
 }
 // ==========================================
+// 🆕 R3: PLANTILLA: Invitación a miembro del staff — MARCA (morado)
+// ==========================================
+// Uso: un superadmin invita a un nuevo miembro del equipo administrativo.
+// Se genera un token de activación de 7 días (un solo uso) que se envía
+// por correo. Al hacer clic, el usuario crea su contraseña y queda activo.
+// Diferencia de emailBienvenidaConActivacion en el lenguaje (equipo interno
+// vs proveedor) y en el destino (panel admin vs portal proveedor).
+// ==========================================
+function emailInvitacionStaff(email, nombreInvitador, enlaceActivacion) {
+  const eml = escapeHtml(email);
+  const inv = escapeHtml(nombreInvitador || 'Administración');
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #8600dd 0%, #6b00b0 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
+        <h1 style="margin: 0; font-size: 26px;">👥 Invitación al Panel Administrativo</h1>
+      </div>
+      <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+        <p>Hola,</p>
+        <p><strong>${inv}</strong> te ha invitado a formar parte del equipo administrativo del <strong>Portal de Proveedores UNAB</strong>.</p>
+        <p>Para activar tu cuenta de administrador y crear tu contraseña de acceso, haz clic en el siguiente enlace:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${enlaceActivacion}"
+             style="background: #8600dd; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            Activar mi cuenta de administrador
+          </a>
+        </div>
+        <p style="word-break: break-all; background: #f3f4f6; padding: 10px; border-radius: 4px; font-size: 0.85rem;">${enlaceActivacion}</p>
+        <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 15px 0; border-radius: 4px;">
+          <p style="margin: 0;"><strong>⚠️ Importante:</strong></p>
+          <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #92400e;">
+            <li>Este enlace expira en <strong>7 días</strong> y es de <strong>un solo uso</strong>.</li>
+            <li>Tu correo asociado es: <strong>${eml}</strong>.</li>
+            <li>Si no reconoces esta invitación, puedes ignorar este correo con seguridad.</li>
+          </ul>
+        </div>
+        <p style="color: #374151; line-height: 1.6;">Una vez activada tu cuenta, podrás acceder al panel administrativo según los permisos que te haya asignado el equipo.</p>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+          Si tienes alguna duda, contacta a quien te envió esta invitación.<br><br>
+          Saludos,<br>
+          <strong>Sistema de Gestión de Proveedores — UNAB</strong>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================
 // PLANTILLA: Solicitud de actualización anual — PROCESO (azul, intacta)
 // ==========================================
 function emailSolicitudActualizacion(nombreProveedor, mensajeAdmin, año) {
@@ -527,17 +574,18 @@ Saludos,<br>
 // EXPORTACIONES
 // ==========================================
 module.exports = {
-enviarEmail,
-emailProveedorSubioDocumento,
-emailDocumentoRechazado,
-emailProveedorAprobado,
-emailProveedorActualizacionAprobada,
-emailNuevaNota,
-emailBienvenidaProveedor,
-emailBienvenidaConActivacion,
-emailRecordatorio,
-emailProveedorCompletoDocumentos,
-emailRecordatorioDocumentosFaltantes,
-emailEvaluacionRechazada,
-emailSolicitudActualizacion
+  enviarEmail,
+  emailProveedorSubioDocumento,
+  emailDocumentoRechazado,
+  emailProveedorAprobado,
+  emailProveedorActualizacionAprobada,
+  emailNuevaNota,
+  emailBienvenidaProveedor,
+  emailBienvenidaConActivacion,
+  emailRecordatorio,
+  emailProveedorCompletoDocumentos,
+  emailRecordatorioDocumentosFaltantes,
+  emailEvaluacionRechazada,
+  emailSolicitudActualizacion,
+  emailInvitacionStaff            // 🆕 R3: invitación a miembros del staff
 };

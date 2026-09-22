@@ -47,7 +47,8 @@ const {
   emailProveedorCompletoDocumentos,
   emailRecordatorioDocumentosFaltantes,
   emailEvaluacionRechazada,
-  emailSolicitudActualizacion
+  emailSolicitudActualizacion,
+  emailInvitacionStaff            // 🆕 R3: invitación a miembros del staff (token 7d)
 } = require('./email');
 
 const app = express();
@@ -133,6 +134,10 @@ app.use(helmet({
 // 🛡️ HSTS: fuerza HTTPS por 1 año en el navegador (anti downgrade/SSL-stripping)
 hsts: { maxAge: 31536000, includeSubDomains: true },
 crossOriginEmbedderPolicy: false,
+// 🛡️ R4-fix: este Chrome no reconoce 'join-ad-interest-group' / 'run-ad-auction'
+// y Helmet los envía por defecto → 2 errores cosméticos en consola en cada carga.
+// Se desactiva solo ese header (Permissions-Policy); el resto de Helmet queda intacto.
+permissionsPolicy: false,
 crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 
@@ -323,6 +328,11 @@ secure: process.env.NODE_ENV === 'production'
 });
 
 app.use(sessionMiddleware);
+// 🛡️ R2: parseo de permisos UNA vez por request (API + uploads, donde se decide acceso).
+// middlewareRBAC va global pero solo actúa sobre rutas del catálogo (regex anclados).
+app.use('/api/', cargarPermisosReq);
+app.use('/uploads/', cargarPermisosReq);
+app.use(middlewareRBAC);
 app.use('/api/', requierePasswordCambiada);
 
 const sharedsession = require('express-socket.io-session');
@@ -371,7 +381,9 @@ io.on('connection', (socket) => {
 // así la consistencia es inmediata y el TTL solo cubre rachas de lecturas.
 const statsCache = { ts: 0, data: null };
 const STATS_TTL_MS = 4000;
-function invalidarStatsCache() { statsCache.ts = 0; statsCache.data = null; }
+const tendCache = { ts: 0, data: null };
+const TEND_TTL_MS = 15000;
+function invalidarStatsCache() { statsCache.ts = 0; statsCache.data = null; tendCache.ts = 0; tendCache.data = null; }
 function emitirAdmin(evento, datos) {
 if (evento === 'estadisticas_actualizadas' || evento === 'proveedores_actualizados') invalidarStatsCache();
 const n = io.sockets.adapter.rooms.get('admin')?.size || 0;
@@ -1418,16 +1430,188 @@ function validarCargaConRechazados(proveedor, tipo = null) {
 }
 
 // ==========================================
-// 5. MIDDLEWARES DE AUTENTICACIÓN
+// 🛡️ R2: RBAC COMPOSABLE (D1/D2/D9)
+// Catálogo: 15 claves conmutables (viven en usuarios.permisos como JSON)
+// + 4 reservadas que NUNCA viven en el JSON (solo superadmin).
+// Mecánica: es_superadmin=1 ⇒ bypass total · parseo UNA vez por request
+// en res.locals · el server es la autoridad (la UI solo oculta en R4).
 // ==========================================
-function requiereLogin(req, res, next) {
-  if (!req.session.usuario) return res.status(401).json({ error: 'No autorizado' });
+const PERMISOS_CONMUTABLES = [
+  'docs.ver', 'docs.verificar', 'docs.aprobar', 'docs.rechazar',
+  'gestion.inscribir', 'notas.enviar', 'proveedores.crear', 'proveedores.gestionar',
+  'plantillas.gestionar', 'config.gestionar', 'backups.gestionar', 'exportar.datos',
+  'evaluacion.gestionar', 'auditoria.ver', 'metricas.ver'
+];
+const PERMISOS_RESERVADOS = [
+  'usuarios.gestionar', 'sesiones.limpiar', 'rate_limits.limpiar', 'seguridad.diagnosticar'
+];
+
+/**
+ * 🛡️ R2: carga permisos UNA vez por request (evita N consultas por endpoint).
+ * Fail-closed: sin fila o JSON corrupto ⇒ permisos vacíos y sin bypass.
+ */
+function cargarPermisosReq(req, res, next) {
+  res.locals.permisos = [];
+  res.locals.esSuper = false;
+  res.locals.activoUsuario = 1;
+  const u = req.session && req.session.usuario;
+  if (!u) return next();
+  try {
+    const row = db.prepare('SELECT permisos, es_superadmin, activo FROM usuarios WHERE id = ?').get(u.id);
+    if (row) {
+      res.locals.esSuper = row.es_superadmin === 1;
+      res.locals.activoUsuario = row.activo === 0 ? 0 : 1;
+      try {
+        const arr = JSON.parse(row.permisos || '[]');
+        res.locals.permisos = Array.isArray(arr) ? arr : [];
+      } catch (e) { res.locals.permisos = []; }
+    }
+  } catch (e) { /* fail-closed: ya inicializado arriba */ }
   next();
 }
 
+/** 🛡️ R2: consulta de permiso reutilizable dentro de handlers (caso dinámico aprobar/rechazar). */
+function tienePermisoReq(res, clave) {
+  if (res.locals.esSuper) return true;
+  if (PERMISOS_RESERVADOS.includes(clave)) return false; // reservadas: jamás desde el JSON
+  return (res.locals.permisos || []).includes(clave);
+}
+
+/**
+ * 🛡️ R2 (D6): perfil REVISOR = solo lectura.
+// Tiene docs.ver y NINGÚN permiso de acción ⇒ el server restringe a etapa 'registrado'.
+ */
+function esSoloLectorReq(res) {
+  if (res.locals.esSuper) return false;
+  const p = res.locals.permisos || [];
+  return p.includes('docs.ver') &&
+    !p.includes('docs.verificar') && !p.includes('docs.aprobar') && !p.includes('docs.rechazar') &&
+    !p.includes('gestion.inscribir') && !p.includes('proveedores.gestionar') && !p.includes('proveedores.crear');
+}
+
+/**
+ * 🛡️ R2: mapa ruta→permiso. [MÉTODO, regex de req.path, clave].
+ * Lo que NO está en la tabla = solo autenticación (auth pública, /api/me, portal proveedor).
+ * El orden no importa: los regex están anclados (^...$) y no se solapan.
+ */
+const RUTAS_PERMISO = [
+  // ---- Lectura de proveedores/documentos/ciclos (docs.ver) ----
+  ['GET', /^\/api\/admin\/proveedores$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/stats$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/stats\/tendencia$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/proveedor\/\d+$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/proveedor\/\d+\/historial$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/proveedor\/\d+\/documentos\/zip$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/proveedor\/\d+\/evaluacion$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/proveedor\/\d+\/evaluacion\/download$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/documento\/\d+\/verificar-integridad$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/ciclos$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/ciclos\/anos$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/ciclos\/\d+\/documentos$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/ciclos\/\d+\/zip$/, 'docs.ver'],
+  ['GET', /^\/api\/admin\/plantillas$/, 'docs.ver'],
+  // ---- Verificación (docs.verificar) ----
+  ['POST', /^\/api\/admin\/documento\/\d+\/verificar$/, 'docs.verificar'],
+  ['DELETE', /^\/api\/admin\/documento\/\d+$/, 'docs.verificar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/documento$/, 'docs.verificar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/documento\/\d+\/no-aplica$/, 'docs.verificar'],
+  // ---- Aprobar/rechazar: gate base docs.ver; el endpoint afina por estado (D5) ----
+  ['POST', /^\/api\/admin\/documento\/\d+\/estado$/, 'docs.ver'],
+  // ---- Evaluación inicial (evaluacion.gestionar) ----
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/evaluacion$/, 'evaluacion.gestionar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/evaluacion\/estado$/, 'evaluacion.gestionar'],
+  ['DELETE', /^\/api\/admin\/proveedor\/\d+\/evaluacion$/, 'evaluacion.gestionar'],
+  // ---- Inscripción (gestion.inscribir) ----
+  ['GET', /^\/api\/admin\/proveedor\/\d+\/gestion$/, 'gestion.inscribir'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/gestion$/, 'gestion.inscribir'],
+  // ---- Gestión de proveedores ----
+  ['POST', /^\/api\/admin\/proveedor$/, 'proveedores.crear'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/email$/, 'proveedores.gestionar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/tipo-persona$/, 'proveedores.gestionar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/reiniciar-proceso$/, 'proveedores.gestionar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/solicitar-actualizacion$/, 'proveedores.gestionar'],
+  ['DELETE', /^\/api\/admin\/proveedor\/\d+$/, 'proveedores.gestionar'],
+  // ---- Notas y recordatorios (D7: revisor no) ----
+  ['GET', /^\/api\/admin\/proveedor\/\d+\/notas$/, 'notas.enviar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/nota$/, 'notas.enviar'],
+  ['POST', /^\/api\/admin\/proveedor\/\d+\/recordatorio$/, 'notas.enviar'],
+  ['POST', /^\/api\/admin\/recordatorio-inactivos$/, 'notas.enviar'],
+  // ---- Plantillas (escritura) ----
+  ['POST', /^\/api\/admin\/plantilla$/, 'plantillas.gestionar'],
+  // ---- Configuración y vencimientos ----
+  ['GET', /^\/api\/admin\/configuracion$/, 'config.gestionar'],
+  ['PUT', /^\/api\/admin\/configuracion$/, 'config.gestionar'],
+  ['POST', /^\/api\/admin\/recalcular-vencimientos$/, 'config.gestionar'],
+  ['POST', /^\/api\/admin\/ejecutar-vencimientos$/, 'config.gestionar'],
+  ['POST', /^\/api\/admin\/forzar-vencimientos$/, 'config.gestionar'],
+  ['GET', /^\/api\/admin\/vencimientos-job$/, 'config.gestionar'],
+  // ---- Backups ----
+  ['GET', /^\/api\/admin\/backups$/, 'backups.gestionar'],
+  ['POST', /^\/api\/admin\/backups\/crear$/, 'backups.gestionar'],
+  ['GET', /^\/api\/admin\/backups\/[^/]+\/verificar$/, 'backups.gestionar'],
+  ['POST', /^\/api\/admin\/backups\/[^/]+\/restaurar$/, 'backups.gestionar'],
+  ['GET', /^\/api\/admin\/backups\/[^/]+$/, 'backups.gestionar'],
+  // ---- Exportaciones ----
+  ['GET', /^\/api\/admin\/proveedores\/export$/, 'exportar.datos'],
+  ['POST', /^\/api\/admin\/exportar-excel$/, 'exportar.datos'],
+  ['GET', /^\/api\/admin\/habeas-data$/, 'exportar.datos'],
+  ['GET', /^\/api\/admin\/habeas-data\/export$/, 'exportar.datos'],
+  // ---- Métricas (D6: revisor no) ----
+  ['GET', /^\/api\/admin\/stats\/productividad$/, 'metricas.ver'],
+  // ---- Auditoría (D9) ----
+  ['GET', /^\/api\/admin\/audit-log$/, 'auditoria.ver'],
+  ['GET', /^\/api\/admin\/audit-log\/export$/, 'auditoria.ver'],
+  ['GET', /^\/api\/admin\/actividad$/, 'auditoria.ver'],
+  ['GET', /^\/api\/admin\/logs-seguridad$/, 'auditoria.ver'],
+  ['GET', /^\/api\/admin\/logs-seguridad\/export$/, 'auditoria.ver'],
+  // ---- 🆕 R3: Equipo/staff (reservada ⇒ solo superadmin) ----
+  ['GET', /^\/api\/admin\/usuarios$/, 'usuarios.gestionar'],
+  ['POST', /^\/api\/admin\/usuarios$/, 'usuarios.gestionar'],
+  ['PUT', /^\/api\/admin\/usuarios\/\d+\/permisos$/, 'usuarios.gestionar'],
+  ['PUT', /^\/api\/admin\/usuarios\/\d+\/activo$/, 'usuarios.gestionar'],
+  // ---- Baja de miembro (reservada: solo superadmin) ----
+  ['DELETE', /^\/api\/admin\/usuarios\/\d+$/, 'usuarios.gestionar'],
+  // ---- 🆕 R4.1: cambio de email y superadmin (reservada ⇒ solo superadmin) ----
+  ['PUT', /^\/api\/admin\/usuarios\/\d+\/email$/, 'usuarios.gestionar'],
+  ['PUT', /^\/api\/admin\/usuarios\/\d+\/superadmin$/, 'usuarios.gestionar'],
+  // ---- Reservadas superadmin (nunca concedidas desde el JSON) ----
+  ['POST', /^\/api\/admin\/limpiar-sesiones$/, 'sesiones.limpiar'],
+  ['POST', /^\/api\/admin\/limpiar-rate-limits$/, 'rate_limits.limpiar'],
+  ['GET', /^\/api\/admin\/configuracion-seguridad$/, 'seguridad.diagnosticar'],
+  ['GET', /^\/api\/admin\/diagnosticar-cifrado$/, 'seguridad.diagnosticar']
+];
+
+/**
+ * 🛡️ R2: middleware de permisos. Sin sesión → deja pasar (responderá 401
+ * requiereLogin/requiereAdmin después). Superadmin → bypass (D1).
+ * Deniego ⇒ 403 + log logs_seguridad 'acceso_denegado'.
+ */
+function middlewareRBAC(req, res, next) {
+  const u = req.session && req.session.usuario;
+  if (!u) return next();
+  if (res.locals.esSuper) return next();
+  const regla = RUTAS_PERMISO.find(r => r[0] === req.method && r[1].test(req.path));
+  if (!regla) return next(); // ruta fuera del catálogo: solo autenticación
+  const clave = regla[2];
+  if (tienePermisoReq(res, clave)) return next();
+  registrarLogSeguridad(u.id, u.email, 'acceso_denegado', false, `${req.method} ${req.path} requiere permiso "${clave}"`, req);
+  return res.status(403).json({ error: 'Acceso denegado: tu perfil no tiene este permiso.', requiere_permiso: clave });
+}
+
+// ==========================================
+// 5. MIDDLEWARES DE AUTENTICACIÓN
+// ==========================================
+function requiereLogin(req, res, next) {
+if (!req.session.usuario) return res.status(401).json({ error: 'No autorizado' });
+// 🛡️ R2 (D8): red de seguridad ante cuentas desactivadas con sesión viva
+if (res.locals.activoUsuario === 0) return res.status(403).json({ error: 'Cuenta desactivada. Contacta al administrador.' });
+next();
+}
 function requiereAdmin(req, res, next) {
-  if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.status(403).json({ error: 'Acceso denegado' });
-  next();
+if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.status(403).json({ error: 'Acceso denegado' });
+// 🛡️ R2 (D8): admin desactivado no opera aunque conserve cookie
+if (res.locals.activoUsuario === 0) return res.status(403).json({ error: 'Cuenta desactivada. Contacta al administrador.' });
+next();
 }
 
 function requiereHabeasData(req, res, next) {
@@ -1762,14 +1946,20 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/me', (req, res) => {
-  if (!req.session.usuario) return res.json({ usuario: null });
-
-  const u = db.prepare('SELECT debe_cambiar_password FROM usuarios WHERE id = ?').get(req.session.usuario.id);
-
-  res.json({
-    usuario: req.session.usuario,
-    debe_cambiar_password: u?.debe_cambiar_password === 1
-  });
+if (!req.session.usuario) return res.json({ usuario: null });
+// 🛡️ R2: el cliente conoce permisos/rol completo para el gating de UI (R4).
+// El server sigue siendo la autoridad: esto es solo presentación.
+const u = db.prepare('SELECT debe_cambiar_password, permisos, es_superadmin, activo FROM usuarios WHERE id = ?').get(req.session.usuario.id);
+let permisosMe = [];
+try { permisosMe = JSON.parse(u?.permisos || '[]'); } catch (e) { permisosMe = []; }
+if (!Array.isArray(permisosMe)) permisosMe = [];
+res.json({
+usuario: req.session.usuario,
+debe_cambiar_password: u?.debe_cambiar_password === 1,
+permisos: permisosMe,
+es_superadmin: u?.es_superadmin === 1,
+activo: u?.activo === 1
+});
 });
 
 app.post('/api/recuperar-password', async (req, res) => {
@@ -2800,10 +2990,15 @@ app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
     const filtroVerificacion = req.query.filtroVerificacion || null;
     const modulo = req.query.modulo || null;
 
-    let whereConditions = [];
-    let params = [];
-
-    if (modulo && modulo !== 'registrados') {
+ let whereConditions = [];
+ let params = [];
+ // 🛡️ R2 (D6): perfil revisor (solo lectura) consulta ÚNICAMENTE etapa registrado.
+ // Se combina con cualquier condición de módulo: si pedía verificacion/aprobacion/
+ // inscripcion, el AND de etapas deja el listado vacío (sin fuga de datos).
+ if (esSoloLectorReq(res)) {
+   whereConditions.push(`p.etapa = 'registrado'`);
+ }
+ if (modulo && modulo !== 'registrados') {
       let etapa = null;
 
       switch (modulo) {
@@ -2990,18 +3185,16 @@ p.todos_verificados = p.todos_verificados === 1;
 });
 
 app.get('/api/admin/ciclos', requiereAdmin, (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
-
-    const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
-    const año = req.query.año ? parseInt(req.query.año) : null;
-    const rfc = req.query.rfc ? `%${req.query.rfc}%` : null;
-    const estado = req.query.estado || null;
-
-    let whereConditions = [];
-    let params = [];
+try {
+const page = parseInt(req.query.page) || 1;
+const limit = parseInt(req.query.limit) || 20;
+const offset = (page - 1) * limit;
+const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+ const año = req.query.año ? parseInt(req.query.año) : null;
+ const rfc = req.query.rfc ? `%${req.query.rfc}%` : null;
+ const estado = (req.query.estado || '').trim() || null;  // 🛡️ FIX: trim para evitar espacios
+ let whereConditions = [];
+ let params = [];
 
     if (busqueda) {
       whereConditions.push(`(
@@ -3023,10 +3216,14 @@ app.get('/api/admin/ciclos', requiereAdmin, (req, res) => {
       params.push(rfc);
     }
 
-    if (estado && ['activo', 'cerrado', 'rechazado'].includes(estado)) {
-      whereConditions.push(`c.estado = ?`);
-      params.push(estado);
-    }
+ // 🛡️ R2 (D6): revisor solo ve ciclos de proveedores actualmente registrados
+ if (esSoloLectorReq(res)) {
+   whereConditions.push(`p.etapa = 'registrado'`);
+ }
+ if (estado && ['activo', 'cerrado', 'rechazado'].includes(estado)) {
+   whereConditions.push(`c.estado = ?`);
+   params.push(String(estado));
+ }
 
     const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
@@ -3083,17 +3280,15 @@ app.get('/api/admin/ciclos/:id/documentos', requiereAdmin, (req, res) => {
   try {
     const cicloId = parseInt(req.params.id);
 
-const ciclo = db.prepare(`
-SELECT c.*, p.razon_social, u.email, p.evaluacion_inicial, p.evaluacion_estado, p.evaluacion_fecha
-FROM ciclos_actualizacion c
-JOIN proveedores p ON c.proveedor_id = p.id
-JOIN usuarios u ON p.usuario_id = u.id
-WHERE c.id = ?
-`).get(cicloId);
-
-    if (!ciclo) {
-      return res.status(404).json({ error: 'Ciclo no encontrado' });
-    }
+const ciclo = db.prepare(`SELECT c.*, p.razon_social, u.email, p.evaluacion_inicial, p.evaluacion_estado, p.evaluacion_fecha, p.etapa FROM ciclos_actualizacion c JOIN proveedores p ON c.proveedor_id = p.id JOIN usuarios u ON p.usuario_id = u.id WHERE c.id = ?`).get(cicloId);
+if (!ciclo) {
+  return res.status(404).json({ error: 'Ciclo no encontrado' });
+}
+// 🛡️ R2 (D6): revisor solo consulta ciclos de proveedores registrados
+if (esSoloLectorReq(res) && ciclo.etapa !== 'registrado') {
+  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Ciclo ${cicloId} bloqueado para perfil revisor`, req);
+  return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
+}
 
     const documentos = db.prepare(`
       SELECT d.*,
@@ -3123,16 +3318,15 @@ app.get('/api/admin/ciclos/:id/zip', requiereAdmin, async (req, res) => {
   const cicloId = parseInt(req.params.id);
 
   try {
-    const ciclo = db.prepare(`
-SELECT c.*, p.razon_social, p.id as proveedor_id, p.evaluacion_inicial, p.evaluacion_estado, p.evaluacion_fecha
-FROM ciclos_actualizacion c
-JOIN proveedores p ON c.proveedor_id = p.id
-WHERE c.id = ?
-`).get(cicloId);
-
-    if (!ciclo) {
-      return res.status(404).json({ error: 'Ciclo no encontrado' });
-    }
+const ciclo = db.prepare(`SELECT c.*, p.razon_social, p.id as proveedor_id, p.evaluacion_inicial, p.evaluacion_estado, p.evaluacion_fecha, p.etapa FROM ciclos_actualizacion c JOIN proveedores p ON c.proveedor_id = p.id WHERE c.id = ?`).get(cicloId);
+if (!ciclo) {
+  return res.status(404).json({ error: 'Ciclo no encontrado' });
+}
+// 🛡️ R2 (D6): revisor solo descarga ZIP de ciclos de proveedores registrados
+if (esSoloLectorReq(res) && ciclo.etapa !== 'registrado') {
+  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `ZIP del ciclo ${cicloId} bloqueado para perfil revisor`, req);
+  return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
+}
 
 const documentos = db.prepare(`
 SELECT archivo, nombre_original, tipo, estado
@@ -3549,6 +3743,10 @@ res.status(500).json({ error: 'Error al obtener estadísticas' });
 // ==========================================
 app.get('/api/admin/stats/tendencia', requiereAdmin, (req, res) => {
 try {
+// 🚀 R4-perf: caché TTL (≈100 queries por llamada); se invalida con cada mutación
+if (tendCache.data && (Date.now() - tendCache.ts) < TEND_TTL_MS) {
+return res.json(tendCache.data);
+}
 const dias = [];
 const nuevosPorDia = [];
 const etapas = ['verificacion', 'aprobacion', 'inscripcion', 'registrado', 'rechazado'];
@@ -3591,12 +3789,10 @@ etapas.forEach(etapa => {
 porEtapa[etapa] = db.prepare(`SELECT COUNT(*) as cnt FROM proveedores WHERE etapa = ?`).get(etapa).cnt;
 });
 
-res.json({
-dias,
-nuevos_por_dia: nuevosPorDia,
-por_etapa: porEtapa,
-por_etapa_dia: porEtapaDia
-});
+const payloadTend = { dias, nuevos_por_dia: nuevosPorDia, por_etapa: porEtapa, por_etapa_dia: porEtapaDia };
+tendCache.data = payloadTend;
+tendCache.ts = Date.now();
+res.json(payloadTend);
 } catch (err) {
 console.error('❌ Error obteniendo tendencia:', err);
 res.status(500).json({ error: 'Error al obtener tendencia' });
@@ -4265,26 +4461,42 @@ console.log(`✅ Correo de ${esRenovacion ? 'actualización aprobada' : 'felicit
   }
 });
 
+// ==========================================
+// 🔍 GET /api/admin/proveedor/:id — Detalle completo del proveedor
+// ==========================================
 app.get('/api/admin/proveedor/:id', requiereAdmin, (req, res) => {
+const proveedorId = parseInt(req.params.id);
 const p = db.prepare(`
-SELECT p.*, u.email, u.nombre_empresa, p.numero_registro, p.tipo_gestion, p.notas_gestion, p.fecha_gestion,
-CAST(julianday(datetime('now','-05:00')) - julianday(COALESCE((SELECT MAX(h.creado_en) FROM historial h WHERE h.proveedor_id = p.id AND h.accion IN ('cambio_etapa','registro','solicitud_actualizacion','rechazo_limpiado','etapa_normalizada','evaluacion_rechazada_con_retroceso','evaluacion_rechazada_actualizacion','vencimiento_automatico','vencimiento_forzado','proceso_reiniciado')), u.creado_en)) AS INTEGER) AS dias_en_etapa
-FROM proveedores p
-JOIN usuarios u ON p.usuario_id = u.id
-WHERE p.id = ?
-`).get(req.params.id);
+  SELECT p.*, u.email, u.nombre_empresa,
+         p.numero_registro, p.tipo_gestion, p.notas_gestion, p.fecha_gestion,
+         CAST(julianday(datetime('now','-05:00')) - julianday(COALESCE(
+           (SELECT MAX(h.creado_en) FROM historial h
+            WHERE h.proveedor_id = p.id
+              AND h.accion IN ('cambio_etapa','registro','solicitud_actualizacion',
+                               'rechazo_limpiado','etapa_normalizada',
+                               'evaluacion_rechazada_con_retroceso',
+                               'evaluacion_rechazada_actualizacion',
+                               'vencimiento_automatico','vencimiento_forzado',
+                               'proceso_reiniciado')),
+           u.creado_en)) AS INTEGER) AS dias_en_etapa
+  FROM proveedores p
+  JOIN usuarios u ON p.usuario_id = u.id
+  WHERE p.id = ?
+`).get(proveedorId);
 
-  if (!p) {
-    return res.status(404).json({ error: 'Proveedor no encontrado' });
-  }
+if (!p) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-  const docs = db.prepare(`
-    SELECT *
-    FROM documentos
-    WHERE proveedor_id = ?
-      AND es_historico = 0
-    ORDER BY tipo, id
-  `).all(p.id);
+// 🛡️ R2 (D6): revisor = activos e históricos pero SOLO etapa registrado
+if (esSoloLectorReq(res) && p.etapa !== 'registrado') {
+  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+    'acceso_denegado', false,
+    `Detalle de proveedor ${proveedorId} (etapa ${p.etapa}) bloqueado para perfil revisor`, req);
+  return res.status(403).json({
+    error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.'
+  });
+}
+
+const docs = db.prepare(`SELECT * FROM documentos WHERE proveedor_id = ? AND es_historico = 0 ORDER BY tipo, id`).all(p.id);
 
   const documentos_historicos = db.prepare(`
     SELECT *
@@ -4318,6 +4530,21 @@ app.post('/api/admin/documento/:id/estado', requiereAdmin, (req, res) => {
       error: 'Este documento es histórico y no puede modificarse.'
     });
   }
+
+    // 🛡️ R2 (D5): aprobar = solo perfil aprobador; rechazar = verificador Y aprobador.
+  // El gate base de la tabla exige docs.rechazar; aquí se afina por estado solicitado.
+  if (estado === 'aprobado' && !tienePermisoReq(res, 'docs.aprobar')) {
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Aprobar documento ${doc.id} sin permiso docs.aprobar`, req);
+    return res.status(403).json({ error: 'Acceso denegado: solo el perfil aprobador puede aprobar documentos.', requiere_permiso: 'docs.aprobar' });
+  }
+if (estado === 'rechazado' && !tienePermisoReq(res, 'docs.rechazar')) {
+  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Rechazar documento ${doc.id} sin permiso docs.rechazar`, req);
+  return res.status(403).json({ error: 'Acceso denegado: tu perfil no puede rechazar documentos.', requiere_permiso: 'docs.rechazar' });
+}
+if (estado === 'pendiente' && !tienePermisoReq(res, 'docs.verificar')) {
+  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Revertir documento ${doc.id} a pendiente sin permiso docs.verificar`, req);
+  return res.status(403).json({ error: 'Acceso denegado: tu perfil no puede revertir documentos a pendiente.', requiere_permiso: 'docs.verificar' });
+}
 
   console.log(`📌 [ESTADO DOCUMENTO] ID ${doc.id} → ${estado} (comentario: ${comentario || 'N/A'}) por ${req.session.usuario.email}`);
 
@@ -4927,15 +5154,15 @@ app.get('/api/admin/proveedor/:id/documentos/zip', requiereAdmin, async (req, re
   }
 
   try {
-    const proveedor = db.prepare(`
-      SELECT id, razon_social, evaluacion_inicial
-      FROM proveedores
-      WHERE id = ?
-    `).get(proveedorId);
-
-    if (!proveedor) {
-      return res.status(404).json({ error: 'Proveedor no encontrado' });
-    }
+const proveedor = db.prepare(`SELECT id, razon_social, evaluacion_inicial, etapa FROM proveedores WHERE id = ?`).get(proveedorId);
+if (!proveedor) {
+   return res.status(404).json({ error: 'Proveedor no encontrado' });
+ }
+// 🛡️ R2 (D6): revisor solo descarga ZIP de proveedores registrados
+if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
+   registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `ZIP de proveedor ${proveedorId} (etapa ${proveedor.etapa}) bloqueado para perfil revisor`, req);
+   return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
+ }
 
     const documentos = db.prepare(`
       SELECT id, archivo, nombre_original, tipo
@@ -5791,12 +6018,12 @@ const usuario = req.session.usuario;
 if (usuario.rol === 'admin') {
 tieneAcceso = true;
 // 📄 E8: se traen NIT, razón social y fecha de subida para el nombre descriptivo
-documentoInfo = db.prepare(`
-SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social
-FROM documentos d
-JOIN proveedores p ON d.proveedor_id = p.id
-WHERE d.archivo = ?
-`).get(req.params.path);
+// 🛡️ R2 (D6): + etapa del proveedor para aplicar el filtro revisor
+documentoInfo = db.prepare(`SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social, p.etapa FROM documentos d JOIN proveedores p ON d.proveedor_id = p.id WHERE d.archivo = ?`).get(req.params.path);
+if (esSoloLectorReq(res) && documentoInfo && documentoInfo.etapa !== 'registrado') {
+  tieneAcceso = false;
+  registrarLogSeguridad(usuario.id, usuario.email, 'acceso_denegado', false, `Uploads de proveedor en etapa ${documentoInfo.etapa} bloqueado para perfil revisor`, req);
+}
 } else {
 const prov = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(usuario.id);
 if (prov) {
@@ -5873,32 +6100,39 @@ app.get('/api/admin/audit-log', requiereAdmin, (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
         const offset = (page - 1) * limit;
-        const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
-        const accion = req.query.accion || null;
-        const usuario = req.query.usuario || null;
-
-        let whereConditions = [];
-        let params = [];
-
-        if (busqueda) {
-            whereConditions.push(`(
-                h.detalle LIKE ? OR
-                h.usuario_nombre LIKE ? OR
-                h.accion LIKE ? OR
-                h.documento_tipo LIKE ?
-            )`);
-            for (let i = 0; i < 4; i++) params.push(busqueda);
-        }
-        if (accion) {
-            whereConditions.push(`h.accion = ?`);
-            params.push(accion);
-        }
-        if (usuario) {
-            whereConditions.push(`h.usuario_nombre LIKE ?`);
-            params.push(`%${usuario}%`);
-        }
-
-        const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+     const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+     const accion = req.query.accion || null;
+     const usuario = req.query.usuario || null;
+     const fechaDesde = req.query.fecha_desde || null;
+     const fechaHasta = req.query.fecha_hasta || null;
+     let whereConditions = [];
+     let params = [];
+     if (busqueda) {
+         whereConditions.push(`(
+             h.detalle LIKE ? OR
+             h.usuario_nombre LIKE ? OR
+             h.accion LIKE ? OR
+             h.documento_tipo LIKE ?
+         )`);
+         for (let i = 0; i < 4; i++) params.push(busqueda);
+     }
+     if (accion) {
+         whereConditions.push(`h.accion = ?`);
+         params.push(accion);
+     }
+     if (usuario) {
+         whereConditions.push(`h.usuario_nombre LIKE ?`);
+         params.push(`%${usuario}%`);
+     }
+     if (fechaDesde) {
+         whereConditions.push(`h.creado_en >= ?`);
+         params.push(fechaDesde);
+     }
+     if (fechaHasta) {
+         whereConditions.push(`h.creado_en <= datetime(?, '+23 hours', '+59 minutes', '+59 seconds')`);
+         params.push(fechaHasta);
+     }
+     const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
         const total = db.prepare(`
             SELECT COUNT(*) as count FROM historial h ${whereClause}
@@ -5945,27 +6179,34 @@ app.get('/api/admin/audit-log', requiereAdmin, (req, res) => {
 // 📜 Exportar auditoría a CSV
 app.get('/api/admin/audit-log/export', requiereAdmin, (req, res) => {
     try {
-        const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
-        const accion = req.query.accion || null;
-        const usuario = req.query.usuario || null;
-
-        let whereConditions = [];
-        let params = [];
-
-        if (busqueda) {
-            whereConditions.push(`(h.detalle LIKE ? OR h.usuario_nombre LIKE ? OR h.accion LIKE ?)`);
-            for (let i = 0; i < 3; i++) params.push(busqueda);
-        }
-        if (accion) {
-            whereConditions.push(`h.accion = ?`);
-            params.push(accion);
-        }
-        if (usuario) {
-            whereConditions.push(`h.usuario_nombre LIKE ?`);
-            params.push(`%${usuario}%`);
-        }
-
-        const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+     const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+     const accion = req.query.accion || null;
+     const usuario = req.query.usuario || null;
+     const fechaDesde = req.query.fecha_desde || null;
+     const fechaHasta = req.query.fecha_hasta || null;
+    let whereConditions = [];
+     let params = [];
+     if (busqueda) {
+         whereConditions.push(`(h.detalle LIKE ? OR h.usuario_nombre LIKE ? OR h.accion LIKE ?)`);
+         for (let i = 0; i < 3; i++) params.push(busqueda);
+     }
+     if (accion) {
+         whereConditions.push(`h.accion = ?`);
+         params.push(accion);
+     }
+     if (usuario) {
+         whereConditions.push(`h.usuario_nombre LIKE ?`);
+         params.push(`%${usuario}%`);
+     }
+     if (fechaDesde) {
+         whereConditions.push(`h.creado_en >= ?`);
+         params.push(fechaDesde);
+     }
+     if (fechaHasta) {
+         whereConditions.push(`h.creado_en <= datetime(?, '+23 hours', '+59 minutes', '+59 seconds')`);
+         params.push(fechaHasta);
+     }
+     const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
         const registros = db.prepare(`
             SELECT
@@ -6010,6 +6251,729 @@ app.get('/api/admin/audit-log/export', requiereAdmin, (req, res) => {
         console.error('❌ Error exportando auditoría:', err.message);
         res.status(500).json({ error: 'Error al exportar: ' + err.message });
     }
+});
+
+// ==========================================
+// 📊 R1: AUDITORÍA — ACTIVIDAD AGREGADA + LOGS DE SEGURIDAD
+// ==========================================
+
+/**
+ * GET /api/admin/actividad
+ * Resumen agregado por usuario: cuántas acciones hizo cada uno,
+ * desglose por tipo de acción y última actividad.
+ * Filtros: fecha_desde, fecha_hasta, busqueda (nombre usuario).
+ */
+app.get('/api/admin/actividad', requiereAdmin, (req, res) => {
+try {
+    const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+    const fechaDesde = req.query.fecha_desde || null;
+    const fechaHasta = req.query.fecha_hasta || null;
+    let whereConditions = [`h.usuario_nombre <> 'Sistema'`];
+    let params = [];
+    if (busqueda) {
+        whereConditions.push(`h.usuario_nombre LIKE ?`);
+        params.push(busqueda);
+    }
+    if (fechaDesde) {
+        whereConditions.push(`h.creado_en >= ?`);
+        params.push(fechaDesde);
+    }
+    if (fechaHasta) {
+        whereConditions.push(`h.creado_en <= datetime(?, '+23 hours', '+59 minutes', '+59 seconds')`);
+        params.push(fechaHasta);
+    }
+    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const resumen = db.prepare(`
+        SELECT
+            h.usuario_nombre,
+            COUNT(*) as total_acciones,
+            MAX(h.creado_en) as ultima_actividad,
+            SUM(CASE WHEN h.accion LIKE '%verificado%' THEN 1 ELSE 0 END) as verificaciones,
+            SUM(CASE WHEN h.accion LIKE '%aprobado%' OR h.accion = 'documento_aprobado' THEN 1 ELSE 0 END) as aprobaciones,
+            SUM(CASE WHEN h.accion LIKE '%rechazado%' OR h.accion = 'documento_rechazado' THEN 1 ELSE 0 END) as rechazos,
+            SUM(CASE WHEN h.accion IN ('documento_subido','documento_reemplazado') THEN 1 ELSE 0 END) as subidas,
+            SUM(CASE WHEN h.accion = 'nota_agregada' THEN 1 ELSE 0 END) as notas,
+            SUM(CASE WHEN h.accion = 'recordatorio_enviado' THEN 1 ELSE 0 END) as recordatorios,
+            SUM(CASE WHEN h.accion = 'gestion_actualizada' THEN 1 ELSE 0 END) as gestiones,
+            SUM(CASE WHEN h.accion = 'cambio_etapa' THEN 1 ELSE 0 END) as cambios_etapa
+        FROM historial h
+        ${whereClause}
+        GROUP BY h.usuario_nombre
+        ORDER BY total_acciones DESC
+    `).all(...params);
+    const totalGlobal = resumen.reduce((acc, u) => acc + u.total_acciones, 0);
+    res.json({ data: resumen, total_global: totalGlobal });
+} catch (err) {
+    console.error('❌ Error obteniendo actividad agregada:', err.message);
+    res.status(500).json({ error: 'Error al obtener actividad: ' + err.message });
+}
+});
+
+/**
+ * GET /api/admin/logs-seguridad
+ * Visor paginado de la tabla logs_seguridad.
+ * Filtros: busqueda, accion, exitoso (1/0), usuario, fecha_desde, fecha_hasta.
+ */
+app.get('/api/admin/logs-seguridad', requiereAdmin, (req, res) => {
+try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+    const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+    const accion = req.query.accion || null;
+    const exitoso = req.query.exitoso !== undefined && req.query.exitoso !== '' ? parseInt(req.query.exitoso) : null;
+    const usuario = req.query.usuario ? `%${req.query.usuario}%` : null;
+    const fechaDesde = req.query.fecha_desde || null;
+    const fechaHasta = req.query.fecha_hasta || null;
+    let whereConditions = [];
+    let params = [];
+    if (busqueda) {
+        whereConditions.push(`(l.detalle LIKE ? OR l.email LIKE ? OR l.accion LIKE ?)`);
+        for (let i = 0; i < 3; i++) params.push(busqueda);
+    }
+    if (accion) {
+        whereConditions.push(`l.accion = ?`);
+        params.push(accion);
+    }
+    if (exitoso !== null && !isNaN(exitoso)) {
+        whereConditions.push(`l.exitoso = ?`);
+        params.push(exitoso);
+    }
+    if (usuario) {
+        whereConditions.push(`l.email LIKE ?`);
+        params.push(usuario);
+    }
+    if (fechaDesde) {
+        whereConditions.push(`l.creado_en >= ?`);
+        params.push(fechaDesde);
+    }
+    if (fechaHasta) {
+        whereConditions.push(`l.creado_en <= datetime(?, '+23 hours', '+59 minutes', '+59 seconds')`);
+        params.push(fechaHasta);
+    }
+    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const total = db.prepare(`SELECT COUNT(*) as count FROM logs_seguridad l ${whereClause}`).get(...params).count;
+    const registros = db.prepare(`
+        SELECT l.id, l.usuario_id, l.email, l.accion, l.ip_origen, l.user_agent,
+               l.detalle, l.exitoso, l.creado_en
+        FROM logs_seguridad l
+        ${whereClause}
+        ORDER BY l.creado_en DESC
+        LIMIT ? OFFSET ?
+    `).all(...params, limit, offset);
+    const totalPages = Math.ceil(total / limit);
+    res.json({ data: registros, total, page, limit, totalPages });
+} catch (err) {
+    console.error('❌ Error cargando logs de seguridad:', err.message);
+    res.status(500).json({ error: 'Error al cargar logs: ' + err.message });
+}
+});
+
+/**
+ * GET /api/admin/logs-seguridad/export
+ * Exporta logs de seguridad a CSV con los mismos filtros que el visor.
+ */
+app.get('/api/admin/logs-seguridad/export', requiereAdmin, (req, res) => {
+try {
+    const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
+    const accion = req.query.accion || null;
+    const exitoso = req.query.exitoso !== undefined && req.query.exitoso !== '' ? parseInt(req.query.exitoso) : null;
+    const usuario = req.query.usuario ? `%${req.query.usuario}%` : null;
+    const fechaDesde = req.query.fecha_desde || null;
+    const fechaHasta = req.query.fecha_hasta || null;
+    let whereConditions = [];
+    let params = [];
+    if (busqueda) {
+        whereConditions.push(`(l.detalle LIKE ? OR l.email LIKE ? OR l.accion LIKE ?)`);
+        for (let i = 0; i < 3; i++) params.push(busqueda);
+    }
+    if (accion) { whereConditions.push(`l.accion = ?`); params.push(accion); }
+    if (exitoso !== null && !isNaN(exitoso)) { whereConditions.push(`l.exitoso = ?`); params.push(exitoso); }
+    if (usuario) { whereConditions.push(`l.email LIKE ?`); params.push(usuario); }
+    if (fechaDesde) { whereConditions.push(`l.creado_en >= ?`); params.push(fechaDesde); }
+    if (fechaHasta) { whereConditions.push(`l.creado_en <= datetime(?, '+23 hours', '+59 minutes', '+59 seconds')`); params.push(fechaHasta); }
+    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const registros = db.prepare(`
+        SELECT l.id, l.email, l.accion, l.ip_origen, l.detalle, l.exitoso, l.creado_en
+        FROM logs_seguridad l ${whereClause}
+        ORDER BY l.creado_en DESC LIMIT 10000
+    `).all(...params);
+    const headers = ['ID', 'Email', 'Acción', 'IP Origen', 'Detalle', 'Exitoso', 'Fecha'];
+    const rows = registros.map(r => [
+        r.id,
+        csvEscapar(r.email || ''),
+        csvEscapar(r.accion || ''),
+        csvEscapar(r.ip_origen || ''),
+        csvEscapar(r.detalle || ''),
+        r.exitoso ? 'Sí' : 'No',
+        csvEscapar(r.creado_en || '')
+    ]);
+    const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=logs_seguridad_${fechaArchivo()}.csv`);
+    res.send(csv);
+} catch (err) {
+    console.error('❌ Error exportando logs de seguridad:', err.message);
+    res.status(500).json({ error: 'Error al exportar: ' + err.message });
+}
+});
+
+// ==========================================
+// 👥 R3: STAFF ENDPOINTS — Gestión de usuarios admin
+// ==========================================
+
+// ---- GET /api/admin/usuarios — Listar staff (solo superadmin) ----
+app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
+  // 🛡️ Solo superadmin puede gestionar el equipo
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin gestiona el equipo.' });
+  }
+  try {
+    const usuarios = db.prepare(`
+      SELECT id, email, rol, nombre_empresa, permisos, es_superadmin, activo,
+             creado_en, debe_cambiar_password
+      FROM usuarios
+      WHERE rol = 'admin'
+      ORDER BY es_superadmin DESC, id ASC
+    `).all();
+
+    const data = usuarios.map(u => {
+      let permisosArr = [];
+      try { permisosArr = JSON.parse(u.permisos || '[]'); } catch (e) { permisosArr = []; }
+      return {
+        id: u.id,
+        email: u.email,
+        nombre_empresa: u.nombre_empresa,
+        permisos: Array.isArray(permisosArr) ? permisosArr : [],
+        es_superadmin: u.es_superadmin === 1,
+        activo: u.activo !== 0,
+        creado_en: u.creado_en,
+        debe_cambiar_password: u.debe_cambiar_password === 1
+      };
+    });
+
+    res.json({ data });
+  } catch (err) {
+    console.error('❌ Error listando staff:', err.message);
+    res.status(500).json({ error: 'Error al listar el equipo' });
+  }
+});
+
+// ---- POST /api/admin/usuarios — Invitar nuevo admin (token 7d) ----
+app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin invita al equipo.' });
+  }
+
+  const { email, nombre_empresa, permisos_iniciales } = req.body || {};
+  if (!email || !String(email).trim()) {
+    return res.status(400).json({ error: 'El correo es obligatorio' });
+  }
+  const emailNuevo = String(email).trim().toLowerCase();
+  if (!EMAIL_REGEX.test(emailNuevo)) {
+    return res.status(400).json({ error: 'Formato de correo inválido' });
+  }
+
+  // Validar permisos_iniciales: solo claves del catálogo conmutable
+  let permisosValidos = [];
+  if (Array.isArray(permisos_iniciales)) {
+    permisosValidos = permisos_iniciales.filter(p => PERMISOS_CONMUTABLES.includes(p));
+  }
+
+  try {
+    const existente = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE').get(emailNuevo);
+    if (existente) {
+      return res.status(409).json({ error: 'Ese correo ya está registrado.' });
+    }
+
+    // Password aleatoria temporal (el usuario la cambiará con el token)
+    const passwordTemp = generarPasswordAleatoria(16);
+    const hash = bcrypt.hashSync(passwordTemp, 12);
+
+    const result = db.prepare(`
+      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password,
+                            permisos, es_superadmin, activo)
+      VALUES (?, ?, 'admin', ?, 1, ?, 0, 1)
+    `).run(emailNuevo, hash, nombre_empresa || '', JSON.stringify(permisosValidos));
+
+    const nuevoId = result.lastInsertRowid;
+
+    // Token de activación de un solo uso (7 días)
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiracion = new Date(Date.now() + 7 * 24 * 3600000).toISOString()
+      .replace('T', ' ').substring(0, 19);
+
+    db.prepare(`
+      INSERT INTO password_resets (usuario_id, token, expiracion)
+      VALUES (?, ?, ?)
+    `).run(nuevoId, tokenHash, expiracion);
+
+    const enlaceActivacion = `${APP_URL_NORMALIZADO}/restablecer-password.html?token=${token}`;
+
+    // Enviar correo de invitación
+    try {
+      const htmlInvitacion = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #8600dd 0%, #6b00b0 100%);
+                      color: white; padding: 30px; text-align: center;
+                      border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
+            <h1 style="margin: 0;">Has sido invitado al Portal de Proveedores</h1>
+          </div>
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb;
+                      border-top: none; border-radius: 0 0 8px 8px;">
+            <p>Hola${nombre_empresa ? ' ' + escapeHtml(nombre_empresa) : ''},</p>
+            <p>El administrador te ha invitado a formar parte del equipo de gestión
+               del Portal de Proveedores UNAB.</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${enlaceActivacion}"
+                 style="background: #8600dd; color: white; padding: 15px 30px;
+                        text-decoration: none; border-radius: 6px;
+                        display: inline-block; font-weight: bold;">
+                Activar cuenta y crear contraseña
+              </a>
+            </div>
+            <p style="word-break: break-all; background: #f3f4f6; padding: 10px;
+                      border-radius: 4px; font-size: 0.85rem;">
+              ${enlaceActivacion}
+            </p>
+            <p>Este enlace expira en <strong>7 días</strong>.
+               Después de activar tu cuenta, deberás cambiar la contraseña
+               en tu primer inicio de sesión.</p>
+          </div>
+        </div>
+      `;
+      await enviarEmail(emailNuevo, 'Invitación — Portal de Proveedores UNAB', htmlInvitacion);
+    } catch (emailErr) {
+      console.error('❌ Error enviando invitación:', emailErr.message);
+    }
+
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+      'staff_invitado', true, `Invitado: ${emailNuevo}`, req);
+
+    res.json({
+      ok: true,
+      mensaje: `Invitación enviada a ${emailNuevo}. El enlace expira en 7 días.`,
+      usuarioId: nuevoId
+    });
+  } catch (err) {
+    console.error('❌ Error invitando usuario:', err.message);
+    res.status(500).json({ error: 'Error al invitar al usuario' });
+  }
+});
+
+// ---- PUT /api/admin/usuarios/:id/permisos — Cambiar permisos ----
+app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin cambia permisos.' });
+  }
+
+  const targetId = parseInt(req.params.id);
+  const { permisos } = req.body || {};
+
+  if (!Array.isArray(permisos)) {
+    return res.status(400).json({ error: 'permisos debe ser un array de claves.' });
+  }
+
+  // Solo claves del catálogo conmutable
+  const permisosLimpios = permisos.filter(p => PERMISOS_CONMUTABLES.includes(p));
+
+  try {
+    const target = db.prepare('SELECT id, email, es_superadmin FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
+    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
+
+    // 🛡️ D8: nadie se degrada a sí mismo
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({
+        error: 'No puedes modificar tus propios permisos. Pide a otro superadmin que lo haga.'
+      });
+    }
+
+    db.prepare('UPDATE usuarios SET permisos = ? WHERE id = ?')
+      .run(JSON.stringify(permisosLimpios), targetId);
+
+    // 🔒 Destruir sesiones activas del usuario modificado
+    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+      'staff_permisos_cambiados', true,
+      `Usuario ${target.email}: ${permisosLimpios.join(', ') || 'sin permisos'} · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
+
+    res.json({
+      ok: true,
+      mensaje: `Permisos actualizados para ${target.email}. Sesiones activas cerradas (${sesionesCerradas}).`,
+      sesiones_cerradas: sesionesCerradas
+    });
+  } catch (err) {
+    console.error('❌ Error cambiando permisos:', err.message);
+    res.status(500).json({ error: 'Error al cambiar permisos' });
+  }
+});
+
+// ---- PUT /api/admin/usuarios/:id/activo — Activar/desactivar ----
+app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin activa/desactiva cuentas.' });
+  }
+
+  const targetId = parseInt(req.params.id);
+  const { activo } = req.body || {};
+  const nuevoEstado = activo === true || activo === 1 ? 1 : 0;
+
+  try {
+    const target = db.prepare('SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
+    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
+
+    // 🛡️ D8: nadie se desactiva a sí mismo
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({
+        error: 'No puedes desactivar tu propia cuenta.'
+      });
+    }
+
+    // 🛡️ D8: último superadmin activo es intocable
+    if (target.es_superadmin === 1 && nuevoEstado === 0) {
+      const superadminsActivos = db.prepare(
+        'SELECT COUNT(*) as count FROM usuarios WHERE es_superadmin = 1 AND activo = 1'
+      ).get().count;
+      if (superadminsActivos <= 1) {
+        return res.status(409).json({
+          error: 'No puedes desactivar al último superadmin activo del sistema.'
+        });
+      }
+    }
+
+    db.prepare('UPDATE usuarios SET activo = ? WHERE id = ?').run(nuevoEstado, targetId);
+
+    // 🔒 Destruir sesiones si se desactiva
+    let sesionesCerradas = 0;
+    if (nuevoEstado === 0) {
+      sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+    }
+
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+      nuevoEstado ? 'staff_activado' : 'staff_desactivado', true,
+      `Usuario ${target.email} → ${nuevoEstado ? 'ACTIVO' : 'INACTIVO'}${sesionesCerradas ? ` · ${sesionesCerradas} sesión(es) cerrada(s)` : ''}`, req);
+
+    res.json({
+      ok: true,
+      mensaje: `${target.email} ${nuevoEstado ? 'activado' : 'desactivado'} correctamente.`,
+      sesiones_cerradas: sesionesCerradas
+    });
+  } catch (err) {
+    console.error('❌ Error activando/desactivando:', err.message);
+    res.status(500).json({ error: 'Error al cambiar estado' });
+  }
+});
+
+// ---- PUT /api/admin/usuarios/:id/superadmin — Promover/quitar superadmin ----
+app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado.' });
+  }
+
+  const targetId = parseInt(req.params.id);
+  const { es_superadmin } = req.body || {};
+  const nuevoValor = es_superadmin === true || es_superadmin === 1 ? 1 : 0;
+
+  try {
+    const target = db.prepare('SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
+    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
+
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({
+        error: 'No puedes modificar tu propio rol de superadmin.'
+      });
+    }
+
+    // 🛡️ D8: no quitar superadmin al último activo
+    if (target.es_superadmin === 1 && nuevoValor === 0) {
+      const superadminsActivos = db.prepare(
+        'SELECT COUNT(*) as count FROM usuarios WHERE es_superadmin = 1 AND activo = 1'
+      ).get().count;
+      if (superadminsActivos <= 1) {
+        return res.status(409).json({
+          error: 'No puedes quitar el superadmin al último superadmin activo.'
+        });
+      }
+    }
+
+    db.prepare('UPDATE usuarios SET es_superadmin = ? WHERE id = ?').run(nuevoValor, targetId);
+
+    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+      nuevoValor ? 'staff_promovido_superadmin' : 'staff_degradado', true,
+      `Usuario ${target.email} → ${nuevoValor ? 'SUPERADMIN' : 'admin regular'}`, req);
+
+    res.json({
+      ok: true,
+      mensaje: `${target.email} ${nuevoValor ? 'promovido a superadmin' : 'degradado a admin regular'}.`,
+      sesiones_cerradas: sesionesCerradas
+    });
+  } catch (err) {
+    console.error('❌ Error cambiando superadmin:', err.message);
+    res.status(500).json({ error: 'Error al cambiar rol' });
+  }
+});
+
+// ==========================================
+// 👥 R3: STAFF ENDPOINTS (invitar, listar, permisos, activar/desactivar)
+// Alcance: solo superadmin (clave reservada 'usuarios.gestionar' + doble
+// chequeo res.locals.esSuper). Candados D8: nadie se auto-modifica; el
+// último superadmin activo es intocable (409). Toda mutación destruye las
+// sesiones del afectado y deja log en logs_seguridad.
+// ==========================================
+
+// ---- GET /api/admin/usuarios — listado del equipo (solo superadmin) ----
+app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin gestiona el equipo.' });
+  }
+  try {
+    const rows = db.prepare(`
+      SELECT id, email, nombre_empresa, permisos, es_superadmin, activo, creado_en, debe_cambiar_password
+      FROM usuarios
+      WHERE rol = 'admin'
+      ORDER BY es_superadmin DESC, id ASC
+    `).all();
+    const data = rows.map(u => {
+      let perms = [];
+      try { perms = JSON.parse(u.permisos || '[]'); } catch (e) { perms = []; }
+      return {
+        id: u.id,
+        email: u.email,
+        nombre_empresa: u.nombre_empresa || '',
+        permisos: Array.isArray(perms) ? perms : [],
+        es_superadmin: u.es_superadmin === 1,
+        activo: u.activo !== 0,
+        creado_en: u.creado_en,
+        debe_cambiar_password: u.debe_cambiar_password === 1
+      };
+    });
+    // El catálogo viaja con la respuesta: R4 pintará la matriz desde una sola fuente
+    res.json({ data, catalogo: PERMISOS_CONMUTABLES });
+  } catch (err) {
+    console.error('❌ Error listando staff:', err.message);
+    res.status(500).json({ error: 'Error al cargar el equipo' });
+  }
+});
+
+// ---- POST /api/admin/usuarios — invitación con token de 7 días ----
+app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin invita al equipo.' });
+  }
+  const { email, nombre_empresa, permisos } = req.body || {};
+  if (!email || !String(email).trim()) return res.status(400).json({ error: 'El email es obligatorio' });
+  const emailNuevo = String(email).trim().toLowerCase();
+  if (!EMAIL_REGEX.test(emailNuevo)) return res.status(400).json({ error: 'Formato de email inválido' });
+  // Solo claves conmutables al invitar; las reservadas nunca viven en el JSON (D2)
+  const permisosIniciales = Array.isArray(permisos)
+    ? permisos.filter(p => PERMISOS_CONMUTABLES.includes(p))
+    : [];
+  try {
+    const existente = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE').get(emailNuevo);
+    if (existente) return res.status(409).json({ error: 'Ese email ya está registrado.' });
+    // Contraseña aleatoria que NUNCA se envía: la activa el invitado con token de un solo uso
+    const passwordTemp = generarPasswordAleatoria(16);
+    const hash = bcrypt.hashSync(passwordTemp, 12);
+    const result = db.prepare(`
+      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password, permisos, es_superadmin, activo)
+      VALUES (?, ?, 'admin', ?, 1, ?, 0, 1)
+    `).run(emailNuevo, hash, nombre_empresa || '', JSON.stringify(permisosIniciales));
+    const nuevoId = result.lastInsertRowid;
+    // Token de activación 7 días, guardado como hash SHA-256 (M1)
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiracion = new Date(Date.now() + 7 * 24 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+    db.prepare(`INSERT INTO password_resets (usuario_id, token, expiracion) VALUES (?, ?, ?)`).run(nuevoId, tokenHash, expiracion);
+    const enlaceActivacion = `${APP_URL_NORMALIZADO}/restablecer-password.html?token=${token}`;
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'staff_invitado', true,
+      `Invitación a ${emailNuevo} con permisos [${permisosIniciales.join(', ')}]`, req);
+    // Correo fire-and-forget: no bloquea la respuesta HTTP
+    enviarEmail(
+      emailNuevo,
+      '👥 Invitación al Portal de Proveedores UNAB',
+      emailInvitacionStaff(emailNuevo, req.session.usuario.email, enlaceActivacion)
+    ).then(r => {
+      if (r.ok) console.log(`✅ Invitación de staff enviada a ${emailNuevo}`);
+      else console.error(`❌ Error enviando invitación a ${emailNuevo}: ${r.error}`);
+    }).catch(e => console.error('❌ Error enviando invitación:', e.message));
+    res.json({ ok: true, mensaje: `Invitación enviada a ${emailNuevo}. El enlace expira en 7 días.`, usuarioId: nuevoId });
+  } catch (err) {
+    console.error('❌ Error invitando staff:', err.message);
+    res.status(500).json({ error: 'Error al crear la invitación' });
+  }
+});
+
+// ---- PUT /api/admin/usuarios/:id/permisos — cambio de permisos (D8) ----
+app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) return res.status(403).json({ error: 'Acceso denegado.' });
+  const targetId = parseInt(req.params.id, 10);
+  const { permisos } = req.body || {};
+  if (!Array.isArray(permisos)) return res.status(400).json({ error: 'permisos debe ser un array de claves' });
+  const permisosLimpios = permisos.filter(p => PERMISOS_CONMUTABLES.includes(p));
+  try {
+    const target = db.prepare(`SELECT id, email FROM usuarios WHERE id = ? AND rol = 'admin'`).get(targetId);
+    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
+    // 🛡️ D8: nadie modifica sus propios permisos
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({ error: 'No puedes modificar tus propios permisos. Pide a otro superadmin que lo haga.' });
+    }
+    db.prepare(`UPDATE usuarios SET permisos = ? WHERE id = ?`).run(JSON.stringify(permisosLimpios), targetId);
+    // 🔒 Cambiar permisos invalida sesiones activas del afectado (regla §8)
+    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'staff_permisos_cambiados', true,
+      `${target.email} → [${permisosLimpios.join(', ')}] · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
+    res.json({ ok: true, mensaje: `Permisos actualizados para ${target.email}.`, sesiones_cerradas: sesionesCerradas });
+  } catch (err) {
+    console.error('❌ Error cambiando permisos:', err.message);
+    res.status(500).json({ error: 'Error al cambiar permisos' });
+  }
+});
+
+// ---- PUT /api/admin/usuarios/:id/activo — activar/desactivar (D8) ----
+app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) return res.status(403).json({ error: 'Acceso denegado.' });
+  const targetId = parseInt(req.params.id, 10);
+  const { activo } = req.body || {};
+  const nuevoEstado = (activo === true || activo === 1 || activo === '1') ? 1 : 0;
+  try {
+    const target = db.prepare(`SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = 'admin'`).get(targetId);
+    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
+    // 🛡️ D8: nadie se desactiva a sí mismo
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({ error: 'No puedes desactivar tu propia cuenta.' });
+    }
+    // 🛡️ D8: el último superadmin activo es intocable
+    if (nuevoEstado === 0 && target.es_superadmin === 1) {
+      const superActivos = db.prepare(`SELECT COUNT(*) AS c FROM usuarios WHERE rol = 'admin' AND es_superadmin = 1 AND activo = 1`).get().c;
+      if (superActivos <= 1) {
+        return res.status(409).json({ error: 'No puedes desactivar al último superadmin activo del sistema.' });
+      }
+    }
+    db.prepare(`UPDATE usuarios SET activo = ? WHERE id = ?`).run(nuevoEstado, targetId);
+    let sesionesCerradas = 0;
+    if (nuevoEstado === 0) sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+      nuevoEstado === 1 ? 'staff_activado' : 'staff_desactivado', true,
+      `${target.email} → ${nuevoEstado === 1 ? 'ACTIVO' : 'INACTIVO'}${sesionesCerradas ? ` · ${sesionesCerradas} sesión(es) cerrada(s)` : ''}`, req);
+        res.json({
+      ok: true,
+      mensaje: `${target.email} ahora está ${nuevoEstado === 1 ? 'activo' : 'inactivo'}.`,
+      sesiones_cerradas: sesionesCerradas
+    });
+  } catch (err) {
+    console.error('❌ Error cambiando estado:', err.message);
+    res.status(500).json({ error: 'Error al cambiar el estado' });
+  }
+});
+
+// ---- 🆕 DELETE /api/admin/usuarios/:id — eliminar miembro del equipo (D8) ----
+// Baja definitiva de una cuenta admin: cierra sus sesiones activas y elimina
+// sus tokens de recuperación (FK ON DELETE CASCADE en password_resets).
+// Candados: nadie se elimina a sí mismo · el último superadmin activo es intocable.
+// Auditoría: historial y logs_seguridad conservan el email como texto (sin FK huérfanas).
+app.delete('/api/admin/usuarios/:id', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) {
+    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin elimina miembros.' });
+  }
+  const targetId = parseInt(req.params.id, 10);
+  if (!Number.isInteger(targetId) || targetId <= 0) {
+    return res.status(400).json({ error: 'ID de usuario inválido' });
+  }
+  try {
+    const target = db.prepare(`SELECT id, email, rol, es_superadmin, activo FROM usuarios WHERE id = ?`).get(targetId);
+    if (!target || target.rol !== 'admin') {
+      return res.status(404).json({ error: 'Usuario admin no encontrado' });
+    }
+    // 🛡️ D8: nadie se elimina a sí mismo
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({ error: 'No puedes eliminar tu propia cuenta.' });
+    }
+    // 🛡️ D8: el último superadmin activo es intocable
+    if (target.es_superadmin === 1) {
+      const superActivos = db.prepare(`SELECT COUNT(*) AS c FROM usuarios WHERE rol = 'admin' AND es_superadmin = 1 AND activo = 1`).get().c;
+      if (superActivos <= 1) {
+        return res.status(409).json({ error: 'No puedes eliminar al último superadmin activo del sistema.' });
+      }
+    }
+    // 🔒 Sesiones fuera antes del DELETE (evita sesiones huérfanas con cookie viva)
+    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+    db.prepare(`DELETE FROM usuarios WHERE id = ?`).run(targetId);
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'staff_eliminado', true,
+      `Miembro eliminado: ${target.email} · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
+    res.json({ ok: true, mensaje: `Miembro ${target.email} eliminado permanentemente.`, sesiones_cerradas: sesionesCerradas });
+  } catch (err) {
+    console.error('❌ Error eliminando miembro:', err.message);
+    res.status(500).json({ error: 'Error al eliminar el miembro' });
+  }
+});
+
+// ---- 🆕 R4.1: cambiar email de un miembro del equipo ----
+// Conserva flag superadmin, permisos e historial. Cierra sesiones del afectado
+// (salvo si eres tú mismo: tu sesión continúa con el correo nuevo).
+app.put('/api/admin/usuarios/:id/email', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) return res.status(403).json({ error: 'Acceso denegado.' });
+  const targetId = parseInt(req.params.id, 10);
+  const { email } = req.body || {};
+  if (!email || !String(email).trim()) return res.status(400).json({ error: 'El email es obligatorio' });
+  const emailNuevo = String(email).trim().toLowerCase();
+  if (!EMAIL_REGEX.test(emailNuevo)) return res.status(400).json({ error: 'Formato de email inválido' });
+  try {
+    const target = db.prepare(`SELECT id, email, rol FROM usuarios WHERE id = ?`).get(targetId);
+    if (!target || target.rol !== 'admin') return res.status(404).json({ error: 'Usuario admin no encontrado' });
+    if (emailNuevo === String(target.email).toLowerCase()) return res.status(400).json({ error: 'El email nuevo es igual al actual' });
+    const dup = db.prepare(`SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE AND id != ?`).get(emailNuevo, targetId);
+    if (dup) return res.status(409).json({ error: 'Ese email ya está registrado por otra cuenta.' });
+    db.prepare(`UPDATE usuarios SET email = ? WHERE id = ?`).run(emailNuevo, targetId);
+    let sesionesCerradas = 0;
+    if (targetId === req.session.usuario.id) {
+      req.session.usuario.email = emailNuevo; // cambio propio: la sesión continúa
+    } else {
+      sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+    }
+    registrarLogSeguridad(req.session.usuario.id, emailNuevo, 'email_admin_cambiado', true,
+      `Miembro ${target.email} → ${emailNuevo}${sesionesCerradas ? ` · ${sesionesCerradas} sesión(es) cerrada(s)` : ' · sesión propia conservada'}`, req);
+    res.json({ ok: true, mensaje: `Correo actualizado a ${emailNuevo}.`, sesiones_cerradas: sesionesCerradas });
+  } catch (err) {
+    console.error('❌ Error cambiando email del miembro:', err.message);
+    res.status(500).json({ error: 'Error al cambiar el email' });
+  }
+});
+
+// ---- 🆕 R4.1: promover/degradar superadmin (D8) ----
+// Candados: nadie cambia su propio superadmin · el último superadmin activo
+// no se degrada · promover exige miembro ACTIVO. Siempre cierra sesiones del destino.
+app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
+  if (!res.locals.esSuper) return res.status(403).json({ error: 'Acceso denegado.' });
+  const targetId = parseInt(req.params.id, 10);
+  const { es_superadmin } = req.body || {};
+  const nuevo = (es_superadmin === true || es_superadmin === 1) ? 1 : 0;
+  try {
+    const target = db.prepare(`SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = 'admin'`).get(targetId);
+    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
+    if (targetId === req.session.usuario.id) {
+      return res.status(409).json({ error: 'No puedes cambiar tu propio estado de superadmin.' });
+    }
+    if (nuevo === 0) {
+      const superActivos = db.prepare(`SELECT COUNT(*) AS c FROM usuarios WHERE rol = 'admin' AND es_superadmin = 1 AND activo = 1`).get().c;
+      if (superActivos <= 1) return res.status(409).json({ error: 'No puedes degradar al último superadmin activo del sistema.' });
+    }
+    if (nuevo === 1 && target.activo !== 1) {
+      return res.status(409).json({ error: 'Activa primero al miembro antes de promoverlo a superadmin.' });
+    }
+    db.prepare(`UPDATE usuarios SET es_superadmin = ? WHERE id = ?`).run(nuevo, targetId);
+    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
+    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
+      nuevo === 1 ? 'superadmin_promovido' : 'superadmin_degradado', true,
+      `${target.email} → ${nuevo === 1 ? 'SUPERADMIN' : 'admin regular'} · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
+    res.json({ ok: true, mensaje: `${target.email} ahora es ${nuevo === 1 ? 'superadmin' : 'admin regular'}.`, sesiones_cerradas: sesionesCerradas });
+  } catch (err) {
+    console.error('❌ Error cambiando superadmin:', err.message);
+    res.status(500).json({ error: 'Error al cambiar el rol' });
+  }
 });
 
 // ==========================================

@@ -56,6 +56,22 @@ let noAplicaChanged = false;
 let historicosCache = [];
 let documentosActivosCache = []; // 🆕 C1: docs activos del proveedor abierto en el modal
 let revisionEnfocada = { activa: false, modo: 'verificacion', cola: [], indice: 0 }; // 🆕 C1
+// 🛡️ R4: RBAC en cliente (D2/D6). El server sigue siendo la autoridad (403);
+// aquí solo ocultamos/deshabilitamos lo que el perfil no puede usar.
+let permisosActuales = [];
+let esSuperadminUI = false;
+function tienePermisoUI(clave) {
+  if (esSuperadminUI) return true;
+  return permisosActuales.includes(clave);
+}
+// 🛡️ R4 (D6): revisor = solo docs.ver sin permisos de acción → solo lectura
+function esSoloLectorUI() {
+  if (esSuperadminUI) return false;
+  return tienePermisoUI('docs.ver') &&
+    !tienePermisoUI('docs.verificar') && !tienePermisoUI('docs.aprobar') &&
+    !tienePermisoUI('docs.rechazar') && !tienePermisoUI('gestion.inscribir') &&
+    !tienePermisoUI('proveedores.gestionar') && !tienePermisoUI('proveedores.crear');
+}
 // ⚡ F2: SUB-PESTAÑAS LAZY — flags por pestaña y por apertura de proveedor.
 // Evita renderizar históricos/notas/recordatorios al abrir el modal:
 // cada sub-pestaña se construye solo la primera vez que se visita.
@@ -565,6 +581,9 @@ if (proveedorActualId) cargarNotas();
 }
 
 function recargarVistaActual() {
+// 🚀 R4-perf: el eco de socket de una acción PROPIA ya tuvo su reload explícito;
+// no duplicar el recargo (era lo que se sentía como "se demora recargando").
+if (esAccionPropia()) return;
 if (timeoutRecargar) clearTimeout(timeoutRecargar);
 timeoutRecargar = setTimeout(() => {
 if (moduloActual === 'configuracion') {
@@ -591,6 +610,10 @@ try {
 const me = await (await fetchAPI('/api/me')).json();
 if (!me.usuario) return window.location.href = 'index.html';
 if (me.usuario.rol !== 'admin') return window.location.href = 'proveedor.html';
+// 🛡️ R4: permisos una sola vez por sesión + gating inicial de sidebar/KPIs/subtabs
+permisosActuales = Array.isArray(me.permisos) ? me.permisos : [];
+esSuperadminUI = me.es_superadmin === true;
+aplicarGatingRBAC();
 document.getElementById('userEmail').textContent = me.usuario.email;
 const av = document.getElementById('userAvatar');
 if (av) av.textContent = ((me.usuario.email || 'UN').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase()) || 'UN';
@@ -814,7 +837,9 @@ const MODULOS_TITULO = {
 registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
 inscripcion: 'Inscripción', rechazados: 'Rechazados', historial: 'Historial de actualizaciones',
 configuracion: 'Configuración', plantillas: 'Plantillas', inactivos: '🕐 Inactivos (+7 días sin documentos)',
-metricas: '📊 Métricas de productividad'
+metricas: '📊 Métricas de productividad',
+auditoria: '📊 Auditoría',
+equipo: '👥 Equipo'
 };
 function marcarModuloAdmin(mod) {
     document.querySelectorAll('.ad-item[data-mod]').forEach(b => b.classList.toggle('active', b.dataset.mod === mod));
@@ -967,6 +992,21 @@ function cargarModulo(modulo) {
 if (modulo === 'historial') { cargarHistorial(1); return; }
 if (modulo === 'plant' || modulo === 'plantillas') { renderizarPlantillas(); return; }
 if (modulo === 'metricas') { cargarMetricas(); return; }
+if (modulo === 'auditoria') { cargarAuditoria(); return; }
+// 🛡️ R4: módulo Equipo solo superadmin (D4)
+if (modulo === 'equipo') {
+  if (!esSuperadminUI) { renderAccesoDenegado(); return; }
+  cargarEquipo(); return;
+}
+// 🛡️ R4: guard de módulo por permiso (el server también responde 403)
+const MODULO_PERMISO = {
+  verificacion: 'docs.verificar', aprobacion: 'docs.aprobar',
+  inscripcion: 'gestion.inscribir', metricas: 'metricas.ver',
+  auditoria: 'auditoria.ver', configuracion: 'config.gestionar'
+};
+if (MODULO_PERMISO[modulo] && !tienePermisoUI(MODULO_PERMISO[modulo])) {
+  renderAccesoDenegado(); return;
+}
 const botonesAccion = modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
 <button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
@@ -1056,6 +1096,7 @@ ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.n
 </div>
 `;
 contenedor.innerHTML = html;
+aplicarGatingBotones(); // 🛡️ R4: oculta acciones sin permiso tras cada render
 cargarProveedoresPorModulo(modulo, 1);
 const buscador = document.getElementById('buscador');
 if (buscador) {
@@ -1083,7 +1124,9 @@ const titulos = {
 'aprobacion': '📋 Aprobación y evaluación inicial',
 'inscripcion': '📝 Inscripción y actualización',
 'plant': '📄 Plantillas',
-'inactivos': '🕐 Proveedores inactivos (más de 7 días sin subir documentos)'
+'inactivos': '🕐 Proveedores inactivos (más de 7 días sin subir documentos)',
+'auditoria': '📊 Auditoría del sistema',
+'equipo': '👥 Equipo y permisos'
 };
 return titulos[modulo] || 'Módulo';
 }
@@ -1119,7 +1162,8 @@ limiteActual = result.limit || 50;
 
 aplicarFiltrosLocal();
 actualizarPaginacion();
-await actualizarEstadisticasGlobales();
+// 🚀 R4-perf: KPIs/sparklines fuera del camino crítico (no bloquean el listado)
+actualizarEstadisticasGlobales();
 if (modulo === 'registrados') actualizarContadoresEstado();
 } catch (err) {
 console.error('❌ Error cargando proveedores:', err);
@@ -1509,7 +1553,7 @@ const verificado = d.verificado === 1;
 const aprobado = d.estado === 'aprobado';
 const rechazado = d.estado === 'rechazado';
 const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica');
-const checkDeshabilitado = rechazado || aprobado || esNoAplica;
+const checkDeshabilitado = rechazado || aprobado || esNoAplica || !tienePermisoUI('docs.verificar');
 let extraInfo = '';
 if (modo === 'verificacion') {
 extraInfo += `
@@ -1539,11 +1583,11 @@ ${esNoAplica
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
-${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">${ICONOS.x} Rechazar</button>` : ''}
-${modo === 'verificacion' && !aprobado ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumentoAdmin(${d.id}, ${proveedor.id})"> ${ICONOS.trash} Eliminar</button>` : ''}
+${modo === 'verificacion' && !aprobado && tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " onclick= "rechazar(${d.id}) " >${ICONOS.x} Rechazar </button >` : ''}
+${modo === 'verificacion' && !aprobado && tienePermisoUI('docs.verificar') ? ` <button class= "btn btn-sm btn-danger " onclick= "eliminarDocumentoAdmin(${d.id}, ${proveedor.id}) " > ${ICONOS.trash} Eliminar </button >` : ''}
 ${modo === 'aprobacion' && verificado && !aprobado ? `
-<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">${ICONOS.check} Aprobar</button>
-<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">${ICONOS.x} Rechazar</button>
+${tienePermisoUI('docs.aprobar') ? ` <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstado(${d.id},'aprobado') " >${ICONOS.check} Aprobar </button >` : ''}
+${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " onclick= "rechazar(${d.id}) " >${ICONOS.x} Rechazar </button >` : ''}
 ` : ''}
 </div>
 </div>`;
@@ -1556,9 +1600,9 @@ const noAplicaChecked = sub.some(d => d.no_aplica === 1);
 const tieneArchivosReales = sub.some(d => d.archivo && d.archivo !== 'no_aplica');
 const checkboxDisabled = tieneArchivosReales && !noAplicaChecked;
 const docId = sub.length > 0 ? sub[0].id : '';
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;width:100%;box-sizing:border-box;">
-<label style="display:flex;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
-<input type="checkbox" class="checkbox-no-aplica-admin" style="flex-shrink:0;width:auto;margin-top:0.15rem;"
+html += `<div class="box-noaplica">
+ <label style="display:flex;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
+ <input type="checkbox" class="checkbox-no-aplica-admin" style="flex-shrink:0;width:auto;margin-top:0.15rem;"
 data-docid="${docId}" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}"
 ${noAplicaChecked ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
 <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Este documento no aplica para este proveedor</span>
@@ -1580,9 +1624,9 @@ const maxExp = req.cantidadMax || 3;
 const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
 const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
 const maxAlcanzado = subidosValidos >= maxExp;
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;width:100%;box-sizing:border-box;">
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-<span style="font-size:0.85rem;color:#065f46;">
+html += `<div class="box-exito">
+ <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+ <span style="font-size:0.85rem;color:#065f46;">
 📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
@@ -1611,9 +1655,9 @@ html += `<form class="form-upload dropzone form-upload-admin" data-tipo="${req.t
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
 </form>`;
 } else if (req.tipo !== 'experiencia' && noAplica) {
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;width:100%;box-sizing:border-box;">
-<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
-</div>`;
+html += `<div class="box-noaplica">
+ <small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+ </div>`;
 }
 }
 html += '</div>';
@@ -1741,8 +1785,8 @@ ${proveedor.evaluacion_inicial ? `
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
 ${(proveedor.evaluacion_estado === 'pendiente' || proveedor.evaluacion_estado === 'rechazado') ? `
-${todosAprobados ? `
-<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstadoEvaluacion(${proveedor.id},'aprobado')">✅ Aprobar evaluación</button>
+${todosAprobados && tienePermisoUI('evaluacion.gestionar') ? `
+ <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstadoEvaluacion(${proveedor.id},'aprobado') " >✅ Aprobar evaluación </button >
 ${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">❌ Rechazar evaluación</button>` : ''}
 <button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">${ICONOS.trash} Eliminar</button>
 ` : `
@@ -1752,15 +1796,16 @@ ${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-d
 </div>
 </div>
 ` : `
-<div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
-<p>⚠️ Aún no se ha subido la evaluación inicial. Sube el PDF a continuación.</p>
-</div>
-<form id="formEvaluacion" enctype="multipart/form-data" class="form-upload dropzone">
+<div class="box-noaplica" style="margin-bottom:1rem;">
+ <p>⚠️ Aún no se ha subido la evaluación inicial. Sube el PDF a continuación.</p>
+ </div>
+${tienePermisoUI('evaluacion.gestionar') ? `
+ <form id= "formEvaluacion " enctype= "multipart/form-data " class= "form-upload dropzone " >
 <div class="dz-icon">${ICONOS.upload}</div>
 <div class="dz-text"><strong>Evaluación Inicial</strong><small>Adjunta el PDF de evaluación firmado · PDF · máx. 15 MB</small></div>
 <input type="file" name="archivo" required accept=".pdf">
-<button type="submit" class="btn" style="background:#8600dd;">${ICONOS.upload} Subir evaluación</button>
-</form>
+ <button type= "submit " class= "btn " style= "background:#8600dd; " >${ICONOS.upload} Subir evaluación </button >
+ </form >` : ''}
 `}
 </div>
 `;
@@ -1850,9 +1895,10 @@ html += `
 <div class="alert alert-info" style="margin-bottom:1rem;">
 <strong>ℹ️ Nota:</strong> Al guardar con un número de registro, los <strong>documentos activos</strong> del proveedor se asociarán automáticamente a ese ciclo. Los documentos de ciclos anteriores quedan conservados en la pestaña <strong>📦 Históricos</strong>.
 </div>
-<form id="formGestion" style="background:#f9fafb;padding:1.5rem;border-radius:8px;">
-<div class="form-group">
-<label for="numeroRegistro">📋 Fecha Movimiento</label>
+${tienePermisoUI('gestion.inscribir') ? `
+ <form id="formGestion" style="background:#f9fafb;padding:1.5rem;border-radius:8px;">
+ <div class="form-group">
+ <label for="numeroRegistro">📋 Fecha Movimiento</label>
 <input type="text" id="numeroRegistro" value="${escapeHtml(proveedor.numero_registro || '')}" placeholder="Ej: Día Mes Año 01012000">
 </div>
 <div class="form-group">
@@ -1881,8 +1927,8 @@ html += `
 </select>
 <small style="color:#6b7280;font-size:0.8rem;">Define la documentación requerida del proveedor. Normalmente lo selecciona el propio proveedor en "Mis datos".</small>
 </div>
-<button type="submit" class="btn" style="background:#059669;">${ICONOS.save} Guardar gestión</button>
-</form>
+ <button type= "submit " class= "btn " style= "background:#059669; " >${ICONOS.save} Guardar gestión </button >
+ </form >` : '<div class="alert alert-info" style="margin-top:1rem;">ℹ️ Tu perfil no tiene permiso de inscripción (solo consulta).</div>'}
 </div>
 `;
 document.getElementById('modalContenidoDocs').innerHTML = html;
@@ -1907,6 +1953,10 @@ const numHistoricos = (historicos || []).length;
 const map = {};
 docs.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
 let html = '';
+// 🛡️ R4 (D6): aviso de modo solo lectura para perfil revisor
+if (esSoloLectorUI()) {
+  html += `<div class="alert alert-info" style="margin-bottom:1rem;">ℹ️ <strong>Modo solo lectura:</strong> tu perfil puede consultar y descargar documentos activos e históricos, pero no ejecutar acciones.</div>`;
+}
 // 🆕 FIX PUNTO 2: si el proveedor vencido/rechazado aún no define su tipo de persona,
 // mostrar el bloque de definición (reutiliza renderDefinirTipoPersona y guardarTipoPersona).
 if (!p.tipo_proveedor) {
@@ -1916,8 +1966,7 @@ html += `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0 0 2px;">
 <strong>Email:</strong> <span id="emailActualProv">${escapeHtml(p.email || '—')}</span>
-<button class="btn btn-sm btn-secondary" onclick="editarEmailProveedor(${p.id}, '${escapeAttr(p.email || '')}')" style="padding:0.2rem 0.6rem;font-size:0.78rem;">✏️ Cambiar</button>
-</div>
+${tienePermisoUI('proveedores.gestionar') ? ` <button class= "btn btn-sm btn-secondary " onclick= "editarEmailProveedor(${p.id}, '${escapeAttr(p.email || '')}') " style= "padding:0.2rem 0.6rem;font-size:0.78rem; " >✏️ Cambiar </button >` : ''}</div>
 <div id="contenedorEditarEmail" style="display:none;margin:0.3rem 0 0.4rem;"></div>
 <strong>NIT/RUT:</strong> ${escapeHtml(p.rfc || '—')}<br>
 <strong>Representante:</strong> ${escapeHtml(p.representante || '—')}<br>
@@ -1948,12 +1997,13 @@ ${soloLectura && !esRechazado ? `
 <strong style="color:#1e40af;">🔄 Actualización anual disponible</strong>
 <p style="margin:0.3rem 0 0 0;color:#1e40af;font-size:0.9rem;">Puedes solicitar al proveedor que actualice sus documentos para el nuevo período. Sus documentos actuales se archivarán en el histórico.</p>
 </div>
-<button class="btn" style="background:#2563eb;color:white;white-space:nowrap;"
-  data-id="${p.id}"
-  data-nombre="${escapeAttr(p.razon_social || p.nombre_empresa || 'Proveedor')}"
-  onclick="abrirSolicitudActualizacion(this)">
-  🔄 Solicitar actualización
-</button>
+${tienePermisoUI('proveedores.gestionar') ? `
+ <button class= "btn " style= "background:#2563eb;color:white;white-space:nowrap; "
+data-id= "${p.id} "
+data-nombre= "${escapeAttr(p.razon_social || p.nombre_empresa || 'Proveedor')} "
+onclick= "abrirSolicitudActualizacion(this) " >
+🔄 Solicitar actualización
+ </button >` : ''}
 </div>
 </div>
 <div class="alert alert-info" style="margin-bottom:1rem;">
@@ -2001,7 +2051,7 @@ sub.forEach(d => {
 const verificado = d.verificado === 1;
 const mostrarCheck = !soloLectura && d.estado !== 'aprobado';
 const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica'); // 🆕 sin archivo físico
-const checkDeshabilitado = d.estado === 'rechazado' || soloLectura || esNoAplica;
+const checkDeshabilitado = d.estado === 'rechazado' || soloLectura || esNoAplica || !tienePermisoUI('docs.verificar');
 
 const extraCheck = mostrarCheck ? `
 <br><label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:pointer;margin-top:0.2rem;">
@@ -2020,8 +2070,8 @@ ${esNoAplica
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 ${!soloLectura ? `
-<button class="btn btn-sm" style="background:#059669;" onclick="cambiarEstado(${d.id},'aprobado')">${ICONOS.check} Aprobar</button>
-<button class="btn btn-sm btn-danger" onclick="rechazar(${d.id})">${ICONOS.x} Rechazar</button>
+${tienePermisoUI('docs.aprobar') ? ` <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstado(${d.id},'aprobado') " >${ICONOS.check} Aprobar </button >` : ''}
+${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " onclick= "rechazar(${d.id}) " >${ICONOS.x} Rechazar </button >` : ''}
 ` : ''}
 </div>
 </div>`;
@@ -2032,9 +2082,9 @@ if (!soloLectura && req.opcional) {
 // 🆕 FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
 const tieneArchivosReales = sub.some(d => d.archivo && d.archivo !== 'no_aplica');
 const checkboxDisabled = tieneArchivosReales && !noAplica;
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
-<label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
-<input type="checkbox" class="checkbox-no-aplica-admin"
+html += `<div class="box-noaplica">
+ <label style="display:flex;align-items:center;gap:0.5rem;cursor:${checkboxDisabled ? 'not-allowed' : 'pointer'};">
+ <input type="checkbox" class="checkbox-no-aplica-admin"
 data-docid="${sub[0]?.id || ''}" data-tipo="${req.tipo}" data-proveedorid="${p.id}"
 ${noAplica ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
 <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Marcar como "No Aplica" para este proveedor</span>
@@ -2051,9 +2101,9 @@ if (!soloLectura && req.tipo === 'experiencia') {
 const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
 const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
 const maxAlcanzado = subidosValidos >= maxExp;
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
+html += `<div class="box-exito">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-<span style="font-size:0.85rem;color:#065f46;">
+ <span style="font-size:0.85rem;color:#065f46;">
 📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
@@ -2080,9 +2130,9 @@ html += `<form class="form-upload dropzone form-upload-admin" data-tipo="${req.t
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">${label}</button>
 </form>`;
 } else if (!soloLectura && req.tipo !== 'experiencia' && noAplica) {
-html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
-<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
-</div>`;
+html += `<div class="box-noaplica">
+ <small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+ </div>`;
 }
 html += '</div>';
 });
@@ -2102,9 +2152,9 @@ ${p.evaluacion_inicial ? `
 </div>
 </div>
 ` : `
-<div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
-<p>⚠️ No hay evaluación inicial subida.</p>
-</div>
+<div class="box-noaplica" style="margin-bottom:1rem;">
+ <p>⚠️ No hay evaluación inicial subida.</p>
+ </div>
 `}
 </div>
 `;
@@ -2720,9 +2770,8 @@ function renderizarFormularioConfiguracion(config) {
             <button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">➕ Crear backup ahora</button>
             <button class="btn btn-secondary" onclick="cargarBackups()">🔄 Actualizar lista</button>
         </div>
-        <div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div>
-    </div>
-    `;
+<div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div> </div>`;
+aplicarGatingBotones(); // 🛡️ R4: backups/acciones urgentes según permiso
 }
 
 // ==========================================
@@ -2894,8 +2943,7 @@ try {
 const res = await fetchAPI(`/api/admin/documento/${docId}`, { method: 'DELETE' });
 if (res.ok) {
 mostrarAlerta('👌 Documento eliminado', 'success');
-await recargarVistaProveedor();
-await cargarProveedoresPorModulo(moduloActual, paginaActual);
+await Promise.all([recargarVistaProveedor(), cargarProveedoresPorModulo(moduloActual, paginaActual)]);
 } else {
 const r = await res.json();
 mostrarAlerta(`❌ ${r.error || 'Error al eliminar'}`);
@@ -2956,7 +3004,7 @@ mostrarAlerta('❌ Error al subir el documento: ' + err.message);
 setTimeout(() => { adminFormSubmitted = false; }, 500);
 }
 }
-if (e.target.id === 'formEvaluacion') {
+if (e.target.id && e.target.id.trim() === 'formEvaluacion') {
 e.preventDefault();
 const fd = new FormData(e.target);
 try {
@@ -2972,7 +3020,7 @@ console.error('Error subiendo evaluación:', err);
 mostrarAlerta('Error al subir evaluación');
 }
 }
-if (e.target.id === 'formGestion') {
+if (e.target.id && e.target.id.trim() === 'formGestion') {
 e.preventDefault();
 const proveedorId = proveedorActualId;
 const numero_registro = document.getElementById('numeroRegistro').value.trim();
@@ -4194,7 +4242,10 @@ return [
 { tipo: 'accion', nombre: 'Ir a: Configuración', run: () => { cargarConfiguracion(); } },
 { tipo: 'accion', nombre: 'Ir a: Plantillas', run: () => { renderizarPlantillas(); } },
 { tipo: 'accion', nombre: '➕ Crear proveedor', run: () => mostrarModalCrearProveedor() },
-{ tipo: 'accion', nombre: '💾 Crear backup ahora', run: () => crearBackupAhora() }
+{ tipo: 'accion', nombre: '💾 Crear backup ahora', run: () => crearBackupAhora() },
+{ tipo: 'accion', nombre: 'Ir a: Métricas', run: () => { moduloActual = 'metricas'; cargarMetricas(); } },
+{ tipo: 'accion', nombre: 'Ir a: Auditoría', run: () => { moduloActual = 'auditoria'; cargarAuditoria(); } },
+{ tipo: 'accion', nombre: 'Ir a: Equipo', run: () => { moduloActual = 'equipo'; cargarModulo('equipo'); } }
 ];
 }
 function abrirCtrlK() {
@@ -4334,6 +4385,735 @@ if (e.key === 'ArrowDown') { e.preventDefault(); ctrlKState.sel = Math.min(ctrlK
 if (e.key === 'ArrowUp') { e.preventDefault(); ctrlKState.sel = Math.max(ctrlKState.sel - 1, 0); renderCtrlK(); return; }
 if (e.key === 'Enter') { e.preventDefault(); ejecutarCtrlK(ctrlKState.sel); return; }
 });
+
+// ==========================================
+// 📊 R1: MÓDULO AUDITORÍA (3 sub-tabs)
+// ==========================================
+let auditoriaTab = 'actividad';
+let auditoriaFiltros = { busqueda: '', fecha_desde: '', fecha_hasta: '', accion: '', usuario: '', exitoso: '' };
+let auditoriaLogsPagina = 1;
+let auditoriaLogsTotalPaginas = 1;
+
+async function cargarAuditoria() {
+const contenedor = document.getElementById('contenedor-modulos');
+if (!contenedor) return;
+contenedor.innerHTML = `
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+<h3 style="margin:0;">📊 Auditoría del sistema</h3>
+</div>
+<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--color-borde);flex-wrap:wrap;">
+<button class="tab active" data-atab="actividad" onclick="cambiarTabAuditoria('actividad', this)">📋 Actividad por usuario</button>
+<button class="tab" data-atab="historial" onclick="cambiarTabAuditoria('historial', this)">📜 Historial detalle</button>
+<button class="tab" data-atab="logs" onclick="cambiarTabAuditoria('logs', this)">🔐 Logs de seguridad</button>
+</div>
+<div id="auditoriaContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">⏳ Cargando…</p></div>
+</div>`;
+renderTabAuditoria();
+}
+
+function cambiarTabAuditoria(tab, btn) {
+auditoriaTab = tab;
+document.querySelectorAll('[data-atab]').forEach(t => t.classList.remove('active'));
+if (btn) btn.classList.add('active');
+renderTabAuditoria();
+}
+
+async function renderTabAuditoria() {
+const cont = document.getElementById('auditoriaContenido');
+if (!cont) return;
+if (auditoriaTab === 'actividad') await renderAuditoriaActividad(cont);
+else if (auditoriaTab === 'historial') await renderAuditoriaHistorial(cont);
+else if (auditoriaTab === 'logs') await renderAuditoriaLogs(cont);
+}
+
+// ---- Sub-tab 1: Actividad agregada por usuario ----
+async function renderAuditoriaActividad(cont) {
+const f = auditoriaFiltros;
+cont.innerHTML = `
+<div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1rem;margin-bottom:0.8rem;align-items:end;">
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar usuario</label>
+<input type="text" id="audBusqueda" placeholder="Email del operador…" value="${escapeHtml(f.busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Desde</label>
+<input type="date" id="audFechaDesde" value="${escapeHtml(f.fecha_desde)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Hasta</label>
+<input type="date" id="audFechaHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">🔍 Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">🗑️ Limpiar</button>
+</div>
+</div>
+</div>
+<div id="audActividadTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">⏳ Cargando actividad…</p></div>`;
+try {
+let url = '/api/admin/actividad?_=1';
+if (f.busqueda) url += `&busqueda=${encodeURIComponent(f.busqueda)}`;
+if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
+if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
+const res = await fetchAPI(url);
+if (!res.ok) throw new Error((await res.json()).error || 'Error');
+const data = await res.json();
+const usuarios = data.data || [];
+if (!usuarios.length) {
+document.getElementById('audActividadTabla').innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No hay actividad registrada con los filtros aplicados.</p>';
+return;
+}
+document.getElementById('audActividadTabla').innerHTML = `
+<div style="margin-bottom:0.8rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+<strong>📊 Total global: ${data.total_global} acciones · ${usuarios.length} operador(es)</strong>
+</div>
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+<thead>
+<tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
+<th style="padding:0.6rem;text-align:left;">Operador</th>
+<th style="padding:0.6rem;text-align:center;">Total</th>
+<th style="padding:0.6rem;text-align:center;">✅ Verif.</th>
+<th style="padding:0.6rem;text-align:center;">👍 Aprob.</th>
+<th style="padding:0.6rem;text-align:center;">👎 Rech.</th>
+<th style="padding:0.6rem;text-align:center;">📤 Subidas</th>
+<th style="padding:0.6rem;text-align:center;">📝 Notas</th>
+<th style="padding:0.6rem;text-align:center;">📨 Record.</th>
+<th style="padding:0.6rem;text-align:center;">📋 Gest.</th>
+<th style="padding:0.6rem;text-align:center;">🔄 Etapas</th>
+<th style="padding:0.6rem;text-align:center;">Última actividad</th>
+</tr>
+</thead>
+<tbody>
+${usuarios.map(u => `
+<tr style="border-bottom:1px solid #e5e7eb;">
+<td style="padding:0.55rem;font-weight:600;">${escapeHtml(u.usuario_nombre)}</td>
+<td style="padding:0.55rem;text-align:center;"><strong>${u.total_acciones}</strong></td>
+<td style="padding:0.55rem;text-align:center;">${u.verificaciones || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.aprobaciones || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.rechazos || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.subidas || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.notas || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.recordatorios || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.gestiones || 0}</td>
+<td style="padding:0.55rem;text-align:center;">${u.cambios_etapa || 0}</td>
+<td style="padding:0.55rem;text-align:center;font-size:0.8rem;">${formatearFecha(u.ultima_actividad)}</td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>`;
+} catch (e) {
+document.getElementById('audActividadTabla').innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+}
+}
+
+// ---- Sub-tab 2: Historial detalle (reutiliza /api/admin/audit-log) ----
+async function renderAuditoriaHistorial(cont) {
+const f = auditoriaFiltros;
+cont.innerHTML = `
+<div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.8rem;margin-bottom:0.8rem;align-items:end;">
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar</label>
+<input type="text" id="audHistBusqueda" placeholder="Detalle, usuario…" value="${escapeHtml(f.busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">👤 Operador</label>
+<input type="text" id="audHistUsuario" placeholder="Email…" value="${escapeHtml(f.usuario)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Desde</label>
+<input type="date" id="audHistDesde" value="${escapeHtml(f.fecha_desde)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Hasta</label>
+<input type="date" id="audHistHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">🔍 Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">🗑️</button>
+</div>
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm btn-success" onclick="exportarHistorialAuditoria()">📄 Exportar CSV</button>
+</div>
+</div>
+<div id="audHistTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">⏳ Cargando historial…</p></div>`;
+await cargarHistorialAuditoria(1);
+}
+
+async function cargarHistorialAuditoria(pagina) {
+const f = auditoriaFiltros;
+let url = `/api/admin/audit-log?page=${pagina}&limit=50`;
+if (f.busqueda) url += `&busqueda=${encodeURIComponent(f.busqueda)}`;
+if (f.usuario) url += `&usuario=${encodeURIComponent(f.usuario)}`;
+if (f.accion) url += `&accion=${encodeURIComponent(f.accion)}`;
+if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
+if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
+try {
+const res = await fetchAPI(url);
+if (!res.ok) throw new Error((await res.json()).error || 'Error');
+const data = await res.json();
+const registros = data.data || [];
+const cont = document.getElementById('audHistTabla');
+if (!cont) return;
+if (!registros.length) {
+cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No hay registros con los filtros aplicados.</p>';
+return;
+}
+const iconosAccion = {
+registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
+documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
+documento_verificado: '🔍', datos_actualizados: '✏️', recordatorio_enviado: '📨',
+nota_agregada: '📝', documento_no_aplica: '📋', gestion_actualizada: '📋',
+cambio_etapa: '🔄', evaluacion_subida: '📄', evaluacion_estado_cambiado: '📋',
+solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰', vencimiento_forzado: '⚡',
+proceso_reiniciado: '♻️', tipo_persona_definido: '🧾', email_cambiado: '📧',
+evaluacion_eliminada: '🗑️', login_exitoso: '🔐', login_fallido_admin: '⚠️'
+};
+cont.innerHTML = `
+<div style="margin-bottom:0.5rem;font-size:0.85rem;color:#6b7280;">
+Página ${data.page} de ${data.totalPages} (${data.total} registros)
+</div>
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+<thead>
+<tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
+<th style="padding:0.5rem;text-align:left;">Fecha</th>
+<th style="padding:0.5rem;text-align:left;">Operador</th>
+<th style="padding:0.5rem;text-align:left;">Acción</th>
+<th style="padding:0.5rem;text-align:left;">Detalle</th>
+<th style="padding:0.5rem;text-align:left;">Proveedor</th>
+<th style="padding:0.5rem;text-align:center;">IP</th>
+</tr>
+</thead>
+<tbody>
+${registros.map(r => `
+<tr style="border-bottom:1px solid #e5e7eb;">
+<td style="padding:0.45rem;font-size:0.8rem;white-space:nowrap;">${formatearFecha(r.creado_en)}</td>
+<td style="padding:0.45rem;font-weight:600;">${escapeHtml(r.usuario_nombre || 'Sistema')}</td>
+<td style="padding:0.45rem;">${iconosAccion[r.accion] || '📌'} ${escapeHtml(r.accion)}</td>
+<td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.detalle || '')}</td>
+<td style="padding:0.45rem;">${escapeHtml(r.razon_social || r.proveedor_email || '—')}</td>
+<td style="padding:0.45rem;text-align:center;font-family:monospace;font-size:0.75rem;">${escapeHtml(r.ip_origen || '—')}</td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.8rem;gap:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}>◀ Anterior</button>
+<span style="font-size:0.85rem;color:#6b7280;">Página ${data.page} de ${data.totalPages}</span>
+<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente ▶</button>
+</div>`;
+} catch (e) {
+const cont = document.getElementById('audHistTabla');
+if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+}
+}
+
+async function exportarHistorialAuditoria() {
+const f = auditoriaFiltros;
+let url = '/api/admin/audit-log/export?';
+if (f.busqueda) url += `&busqueda=${encodeURIComponent(f.busqueda)}`;
+if (f.usuario) url += `&usuario=${encodeURIComponent(f.usuario)}`;
+if (f.accion) url += `&accion=${encodeURIComponent(f.accion)}`;
+if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
+if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
+try {
+mostrarAlerta('⏳ Generando CSV…', 'info');
+const res = await fetchAPI(url);
+if (!res.ok) throw new Error((await res.json()).error || 'Error');
+const blob = await res.blob();
+descargarBlob(blob, `auditoria_historial_${fechaArchivo()}.csv`);
+mostrarAlerta('✅ Historial exportado', 'success');
+} catch (e) {
+mostrarAlerta('❌ Error exportando: ' + e.message, 'error');
+}
+}
+
+// ---- Sub-tab 3: Logs de seguridad ----
+async function renderAuditoriaLogs(cont) {
+const f = auditoriaFiltros;
+cont.innerHTML = `
+<div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.8rem;margin-bottom:0.8rem;align-items:end;">
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar</label>
+<input type="text" id="audLogBusqueda" placeholder="Email, detalle…" value="${escapeHtml(f.busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔘 Resultado</label>
+<select id="audLogExitoso" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<option value="">Todos</option>
+<option value="1" ${f.exitoso === '1' ? 'selected' : ''}>✅ Exitoso</option>
+<option value="0" ${f.exitoso === '0' ? 'selected' : ''}>❌ Fallido</option>
+</select>
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Desde</label>
+<input type="date" id="audLogDesde" value="${escapeHtml(f.fecha_desde)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Hasta</label>
+<input type="date" id="audLogHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">🔍 Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">🗑️</button>
+</div>
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm btn-success" onclick="exportarLogsAuditoria()">📄 Exportar CSV</button>
+</div>
+</div>
+<div id="audLogsTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">⏳ Cargando logs…</p></div>`;
+await cargarLogsAuditoria(1);
+}
+
+async function cargarLogsAuditoria(pagina) {
+const f = auditoriaFiltros;
+let url = `/api/admin/logs-seguridad?page=${pagina}&limit=50`;
+if (f.busqueda) url += `&busqueda=${encodeURIComponent(f.busqueda)}`;
+if (f.exitoso !== '') url += `&exitoso=${encodeURIComponent(f.exitoso)}`;
+if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
+if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
+try {
+const res = await fetchAPI(url);
+if (!res.ok) throw new Error((await res.json()).error || 'Error');
+const data = await res.json();
+const registros = data.data || [];
+const cont = document.getElementById('audLogsTabla');
+if (!cont) return;
+if (!registros.length) {
+cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No hay logs con los filtros aplicados.</p>';
+return;
+}
+cont.innerHTML = `
+<div style="margin-bottom:0.5rem;font-size:0.85rem;color:#6b7280;">
+Página ${data.page} de ${data.totalPages} (${data.total} registros)
+</div>
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+<thead>
+<tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
+<th style="padding:0.5rem;text-align:left;">Fecha</th>
+<th style="padding:0.5rem;text-align:left;">Email</th>
+<th style="padding:0.5rem;text-align:left;">Acción</th>
+<th style="padding:0.5rem;text-align:center;">Resultado</th>
+<th style="padding:0.5rem;text-align:left;">Detalle</th>
+<th style="padding:0.5rem;text-align:center;">IP</th>
+</tr>
+</thead>
+<tbody>
+${registros.map(r => `
+<tr style="border-bottom:1px solid #e5e7eb;${r.exitoso === 0 ? 'background:#fef2f2;' : ''}">
+<td style="padding:0.45rem;font-size:0.8rem;white-space:nowrap;">${formatearFecha(r.creado_en)}</td>
+<td style="padding:0.45rem;font-weight:600;">${escapeHtml(r.email || '—')}</td>
+<td style="padding:0.45rem;">${escapeHtml(r.accion)}</td>
+<td style="padding:0.45rem;text-align:center;">${r.exitoso ? '<span class="badge badge-aprobado">✅ Exitoso</span>' : '<span class="badge badge-rechazado">❌ Fallido</span>'}</td>
+<td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.detalle || '')}</td>
+<td style="padding:0.45rem;text-align:center;font-family:monospace;font-size:0.75rem;">${escapeHtml(r.ip_origen || '—')}</td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.8rem;gap:0.5rem;flex-wrap:wrap;">
+<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}>◀ Anterior</button>
+<span style="font-size:0.85rem;color:#6b7280;">Página ${data.page} de ${data.totalPages}</span>
+<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente ▶</button>
+</div>`;
+} catch (e) {
+const cont = document.getElementById('audLogsTabla');
+if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+}
+}
+
+async function exportarLogsAuditoria() {
+const f = auditoriaFiltros;
+let url = '/api/admin/logs-seguridad/export?';
+if (f.busqueda) url += `&busqueda=${encodeURIComponent(f.busqueda)}`;
+if (f.exitoso !== '') url += `&exitoso=${encodeURIComponent(f.exitoso)}`;
+if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
+if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
+try {
+mostrarAlerta('⏳ Generando CSV…', 'info');
+const res = await fetchAPI(url);
+if (!res.ok) throw new Error((await res.json()).error || 'Error');
+const blob = await res.blob();
+descargarBlob(blob, `logs_seguridad_${fechaArchivo()}.csv`);
+mostrarAlerta('✅ Logs exportados', 'success');
+} catch (e) {
+mostrarAlerta('❌ Error exportando: ' + e.message, 'error');
+}
+}
+
+// ---- Filtros compartidos de Auditoría ----
+function aplicarFiltrosAuditoria() {
+const get = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+if (auditoriaTab === 'actividad') {
+auditoriaFiltros.busqueda = get('audBusqueda');
+auditoriaFiltros.fecha_desde = get('audFechaDesde');
+auditoriaFiltros.fecha_hasta = get('audFechaHasta');
+renderAuditoriaActividad(document.getElementById('auditoriaContenido'));
+} else if (auditoriaTab === 'historial') {
+auditoriaFiltros.busqueda = get('audHistBusqueda');
+auditoriaFiltros.usuario = get('audHistUsuario');
+auditoriaFiltros.fecha_desde = get('audHistDesde');
+auditoriaFiltros.fecha_hasta = get('audHistHasta');
+cargarHistorialAuditoria(1);
+} else if (auditoriaTab === 'logs') {
+auditoriaFiltros.busqueda = get('audLogBusqueda');
+auditoriaFiltros.exitoso = get('audLogExitoso');
+auditoriaFiltros.fecha_desde = get('audLogDesde');
+auditoriaFiltros.fecha_hasta = get('audLogHasta');
+cargarLogsAuditoria(1);
+}
+}
+
+function limpiarFiltrosAuditoria() {
+auditoriaFiltros = { busqueda: '', fecha_desde: '', fecha_hasta: '', accion: '', usuario: '', exitoso: '' };
+renderTabAuditoria();
+}
+
+
+// ==========================================
+// 🛡️ R4: GATING RBAC DE UI (sidebar, KPIs, subtabs, botones)
+// ==========================================
+function renderAccesoDenegado() {
+  const contenedor = document.getElementById('contenedor-modulos');
+  if (!contenedor) return;
+  contenedor.innerHTML = `<div class="card"><div class="alert alert-error"> Acceso denegado: tu perfil no tiene permiso para este módulo.</div></div>`;
+}
+function aplicarGatingRBAC() {
+  // 1) Item Equipo (superadmin) — se inyecta si el markup no lo trae (sin tocar admin.html)
+  if (!document.querySelector('.ad-item[data-mod="equipo"]')) {
+    const ref = document.querySelector('.ad-item[data-mod="auditoria"]');
+    if (ref && ref.parentNode) {
+      const btn = document.createElement('button');
+      btn.className = 'ad-item';
+      btn.dataset.mod = 'equipo';
+      btn.setAttribute('onclick', 'cambiarModuloSidebar(this)');
+      btn.innerHTML = '<svg class="ico" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="txt">Equipo</span>';
+      ref.parentNode.insertBefore(btn, ref.nextSibling);
+    }
+  }
+  // 2) Sidebar por módulo
+  const reglasSidebar = {
+    verificacion: 'docs.verificar', aprobacion: 'docs.aprobar',
+    inscripcion: 'gestion.inscribir', metricas: 'metricas.ver',
+    auditoria: 'auditoria.ver', configuracion: 'config.gestionar',
+    historial: 'docs.ver', plantillas: 'docs.ver'
+  };
+  document.querySelectorAll('.ad-item[data-mod]').forEach(btn => {
+    const mod = btn.dataset.mod;
+    if (mod === 'equipo') { btn.style.display = esSuperadminUI ? '' : 'none'; return; }
+    const clave = reglasSidebar[mod];
+    if (clave) btn.style.display = tienePermisoUI(clave) ? '' : 'none';
+  });
+  // 3) KPIs que navegan a módulos gateados
+  const kpiReglas = { verificacion: 'docs.verificar', aprobacion: 'docs.aprobar', inscripcion: 'gestion.inscribir' };
+  document.querySelectorAll('.kpi-tab[data-modulo]').forEach(k => {
+    const clave = kpiReglas[k.dataset.modulo];
+    if (clave) k.style.display = tienePermisoUI(clave) ? '' : 'none';
+  });
+  // 4) Subtabs de notas/recordatorios/eliminar (D7: revisor no)
+  const subTabReglas = { notas: 'notas.enviar', rec: 'notas.enviar', eliminar: 'proveedores.gestionar' };
+  document.querySelectorAll('[data-stab]').forEach(t => {
+    const clave = subTabReglas[t.dataset.stab];
+    if (clave) t.style.display = tienePermisoUI(clave) ? '' : 'none';
+  });
+  aplicarGatingBotones();
+}
+function aplicarGatingBotones() {
+  const reglas = [
+    ['[onclick*="mostrarModalCrearProveedor"]', 'proveedores.crear'],
+    ['[onclick*="toggleExportDropdown"]', 'exportar.datos'],
+    ['[onclick*="exportarHabeasData"]', 'exportar.datos'],
+    ['[onclick*="recordarInactivos"]', 'notas.enviar'],
+    ['[onclick*="crearBackupAhora"]', 'backups.gestionar'],
+    ['[onclick*="forzarVencimientosAhora"]', 'config.gestionar'],
+    ['[onclick*="recalcularVencimientos"]', 'config.gestionar']
+  ];
+  reglas.forEach(([sel, clave]) => {
+    document.querySelectorAll(sel).forEach(el => {
+      el.style.display = tienePermisoUI(clave) ? '' : 'none';
+    });
+  });
+}
+// ==========================================
+// 👥 R4: MÓDULO EQUIPO (solo superadmin) — matriz de 15 switches + invitación
+// ==========================================
+let equipoCache = [];
+// 🏷️ R4-fix: catálogo LEGIBLE de la matriz de permisos (D2).
+// La clave técnica (data-clave / value) NO cambia: es el contrato con el server.
+// Solo cambia lo que ve el superadmin: grupo + nombre + ayuda.
+const PERMISOS_UI = [
+  { grupo: 'Documentos', clave: 'docs.ver', nombre: 'Ver documentos y expedientes', ayuda: 'Abrir, ver, descargar ZIP e históricos' },
+  { grupo: 'Documentos', clave: 'docs.verificar', nombre: 'Verificar documentos', ayuda: 'Marcar como verificado (etapa Verificación)' },
+  { grupo: 'Documentos', clave: 'docs.aprobar', nombre: 'Aprobar documentos', ayuda: 'Aprobar documentos verificados (etapa Aprobación)' },
+  { grupo: 'Documentos', clave: 'docs.rechazar', nombre: 'Rechazar documentos', ayuda: 'Rechazar con motivo (Verificación y Aprobación)' },
+  { grupo: 'Documentos', clave: 'evaluacion.gestionar', nombre: 'Gestionar evaluación inicial', ayuda: 'Subir, aprobar, rechazar o eliminar la evaluación' },
+  { grupo: 'Proveedores', clave: 'proveedores.crear', nombre: 'Crear proveedores', ayuda: 'Registrar proveedores desde el panel' },
+  { grupo: 'Proveedores', clave: 'proveedores.gestionar', nombre: 'Gestionar ficha de proveedor', ayuda: 'Editar email, tipo de persona, eliminar, pedir actualización' },
+  { grupo: 'Proveedores', clave: 'gestion.inscribir', nombre: 'Inscribir y registrar', ayuda: 'Guardar Fecha Movimiento y cerrar ciclo' },
+  { grupo: 'Comunicación', clave: 'notas.enviar', nombre: 'Enviar notas y recordatorios', ayuda: 'Escribir notas y recordatorios al proveedor' },
+  { grupo: 'Sistema', clave: 'plantillas.gestionar', nombre: 'Gestionar plantillas', ayuda: 'Subir y reemplazar formatos institucionales' },
+  { grupo: 'Sistema', clave: 'config.gestionar', nombre: 'Gestionar configuración', ayuda: 'Fecha fija de vencimiento y acciones urgentes' },
+  { grupo: 'Sistema', clave: 'backups.gestionar', nombre: 'Gestionar backups', ayuda: 'Crear, verificar, descargar y restaurar' },
+  { grupo: 'Sistema', clave: 'exportar.datos', nombre: 'Exportar datos', ayuda: 'CSV, Excel y Habeas Data' },
+  { grupo: 'Control', clave: 'auditoria.ver', nombre: 'Ver auditoría', ayuda: 'Actividad por usuario y logs de seguridad' },
+  { grupo: 'Control', clave: 'metricas.ver', nombre: 'Ver métricas', ayuda: 'Productividad de los últimos 7 días' }
+];
+// Matriz de switches de un usuario, agrupada y alineada (checkbox en columna fija)
+function renderMatrizPermisos(u, lista) {
+// 🩹 R4-fix: descarta entradas sin clave (evita matriz vacía o filas "undefined")
+const listaSegura = (Array.isArray(lista) ? lista : []).filter(p => p && p.clave && p.nombre);
+if (!listaSegura.length) return '<div class="eq-matriz"><small style="color:#6b7280;">Sin catálogo de permisos disponible.</small></div>';
+const grupos = [...new Set(listaSegura.map(p => p.grupo))];
+return `<div class="eq-matriz">` + grupos.map(gr => `<div class="eq-grupo"><div class="eq-grupo-titulo">${escapeHtml(gr)}</div> ${listaSegura.filter(p => p.grupo === gr).map(p =>`<label class="eq-check" title="${escapeAttr(p.ayuda)}">
+          <input type="checkbox" class="chk-permiso" data-uid="${u.id}" data-clave="${p.clave}" ${(u.permisos || []).includes(p.clave) ? 'checked' : ''}>
+          <span class="eq-nombre">${escapeHtml(p.nombre)}</span>
+          <span class="eq-ayuda">${escapeHtml(p.ayuda)}</span>
+        </label>`).join('')}
+    </div>`).join('') + `</div>`;
+}
+// Checklist del modal de invitación (mismos nombres, mismas claves)
+function renderChecklistInvitacion() {
+  const grupos = [...new Set(PERMISOS_UI.map(p => p.grupo))];
+  return `<div class="eq-matriz">` + grupos.map(gr => `
+    <div class="eq-grupo">
+      <div class="eq-grupo-titulo">${escapeHtml(gr)}</div>
+      ${PERMISOS_UI.filter(p => p.grupo === gr).map(p => `
+        <label class="eq-check" title="${escapeAttr(p.ayuda)}">
+          <input type="checkbox" class="chk-inv" value="${p.clave}">
+          <span class="eq-nombre">${escapeHtml(p.nombre)}</span>
+          <span class="eq-ayuda">${escapeHtml(p.ayuda)}</span>
+        </label>`).join('')}
+    </div>`).join('') + `</div>`;
+}
+async function cargarEquipo() {
+  const contenedor = document.getElementById('contenedor-modulos');
+  if (!contenedor) return;
+  contenedor.innerHTML = `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
+      <h3 style="margin:0;">👥 Equipo y permisos</h3>
+      <button class="btn btn-sm" style="background:#059669;" onclick="mostrarModalInvitar()">➕ Invitar miembro</button>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:1rem;">Los cambios de permisos o desactivación <strong>cierran la sesión activa</strong> del miembro afectado (debe volver a ingresar). Las 4 claves reservadas (usuarios.gestionar, sesiones.limpiar, rate_limits.limpiar, seguridad.diagnosticar) no se asignan: son del superadmin.</div>
+    <div id="equipoContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">⏳ Cargando equipo…</p></div>
+  </div>`;
+  try {
+    const res = await fetchAPI('/api/admin/usuarios');
+    if (!res.ok) throw new Error((await res.json()).error || 'Error');
+    const data = await res.json();
+equipoCache = data.data || [];
+// 🩹 R4-fix: el server puede omitir `catalogo` o devolverlo como array de claves (strings).
+// Lo normalizamos al catálogo UI (mismas claves que PERMISOS_CONMUTABLES del server).
+// Si no viene, usamos PERMISOS_UI completo (contraseña de claves idéntica).
+const catalogoServidor = Array.isArray(data.catalogo) ? data.catalogo : [];
+const clavesServidor = catalogoServidor.map(c => (typeof c === 'string' ? c : (c && c.clave))).filter(Boolean);
+const catalogo = clavesServidor.length
+  ? PERMISOS_UI.filter(p => clavesServidor.includes(p.clave))
+  : PERMISOS_UI;
+    const cont = document.getElementById('equipoContenido');
+    if (!equipoCache.length) { cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">Sin miembros registrados.</p>'; return; }
+    cont.innerHTML = equipoCache.map(u => `
+      <div class="card" style="background:#f9fafb;margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.8rem;">
+          <div>
+            <strong>${escapeHtml(u.email)}</strong>
+            ${u.es_superadmin ? '<span class="badge badge-aprobado" style="margin-left:0.4rem;">SUPERADMIN</span>' : ''}
+            ${u.activo ? '<span class="badge badge-aprobado" style="margin-left:0.4rem;">ACTIVO</span>' : '<span class="badge badge-rechazado" style="margin-left:0.4rem;">INACTIVO</span>'}
+            ${u.debe_cambiar_password ? '<span class="badge badge-pendiente" style="margin-left:0.4rem;">DEBE CAMBIAR CLAVE</span>' : ''}
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+${u.es_superadmin ? '' : `
+ <button class="btn btn-sm btn-secondary" onclick="togglePermisosMiembro(${u.id}, this)">👁️ Ver permisos</button>
+ <button class="btn btn-sm btn-secondary" onclick="guardarPermisosUsuario(${u.id})">💾 Guardar permisos</button>
+${u.activo
+? `<button class="btn btn-sm btn-danger" onclick="toggleActivoUsuario(${u.id}, 0, '${escapeAttr(u.email)}')">🚫 Desactivar</button>`
+: `<button class="btn btn-sm btn-success" onclick="toggleActivoUsuario(${u.id}, 1, '${escapeAttr(u.email)}')">✅ Activar</button>`}
+${!esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, true, '${escapeAttr(u.email)}')">⭐ Hacer superadmin</button>` : ''}
+`}
+${u.es_superadmin && !esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, false, '${escapeAttr(u.email)}')">⬇️ Quitar superadmin</button>` : ''}
+<button class="btn btn-sm btn-secondary" onclick="cambiarEmailMiembro(${u.id}, '${escapeAttr(u.email)}')">✏️ Cambiar email</button>
+${u.email === (document.getElementById('userEmail')?.textContent || '').trim() ? '' : `<button class="btn btn-sm btn-negro" onclick="eliminarMiembroEquipo(${u.id}, '${escapeAttr(u.email)}')">🗑️ Eliminar</button>`}
+          </div>
+        </div>
+        ${u.es_superadmin ? '<small style="color:#6b7280;">El superadmin tiene bypass total: no requiere switches.</small>' : `
+        <div id="eqPermisos-${u.id}" style="display:none;margin-top:0.4rem;">
+          ${renderMatrizPermisos(u, catalogo)}
+        </div>`}
+      </div>`).join('');
+  } catch (e) {
+    const cont = document.getElementById('equipoContenido');
+    if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+  }
+}
+// 🆕 R4-fix: mostrar/ocultar la matriz de permisos de un miembro (ahorra espacio vertical)
+function togglePermisosMiembro(uid, btn) {
+  const caja = document.getElementById('eqPermisos-' + uid);
+  if (!caja) return;
+  const abierto = caja.style.display !== 'none';
+  caja.style.display = abierto ? 'none' : 'block';
+  if (btn) btn.textContent = abierto ? '👁️ Ver permisos' : '🙈 Ocultar permisos';
+}
+// 🆕 R4-fix: eliminar miembro del equipo (baja definitiva con confirmación Swal).
+// El server aplica los candados D8 (no auto-eliminación, último superadmin intocable).
+async function eliminarMiembroEquipo(uid, email) {
+  const ok = await confirmarSwal({
+    titulo: '🗑️ Eliminar miembro del equipo',
+    texto: `Se eliminará permanentemente la cuenta ${email} y se cerrarán sus sesiones activas. Esta acción NO se puede deshacer.`,
+    textoConfirmar: 'Sí, eliminar'
+  });
+  if (!ok) return;
+  try {
+    const res = await fetchAPI(`/api/admin/usuarios/${uid}`, { method: 'DELETE' });
+    const r = await res.json().catch(() => ({}));
+    if (!res.ok) { mostrarAlerta('❌ ' + (r.error || 'Error al eliminar'), 'error'); return; }
+    mostrarAlerta('✅ ' + (r.mensaje || 'Miembro eliminado'), 'success');
+    await cargarEquipo();
+  } catch (e) {
+    mostrarAlerta('❌ Error de conexión', 'error');
+  }
+}
+// 🆕 R4.1: ¿el miembro es yo mismo? (oculta promover/degradar propios — D8)
+function esYoMiembro(u) {
+  return u.email === (document.getElementById('userEmail')?.textContent || '').trim();
+}
+// 🆕 R4.1: cambiar correo de un miembro (conserva superadmin, permisos e historial)
+async function cambiarEmailMiembro(uid, emailActual) {
+  const r = await Swal.fire({
+    title: '✏️ Cambiar correo del miembro',
+    html: `<p style="margin:0 0 .6rem 0;color:#6b7280;">Actual: <strong>${escapeHtml(emailActual)}</strong></p>`,
+    input: 'email',
+    inputValue: emailActual,
+    showCancelButton: true,
+    confirmButtonText: '💾 Guardar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#8600dd',
+    cancelButtonColor: '#6b7280',
+    inputValidator: (v) => (!v || !v.trim()) ? 'Escribe un correo válido.' : null
+  });
+  if (!r.isConfirmed) return;
+  try {
+    const res = await fetchAPI(`/api/admin/usuarios/${uid}/email`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: r.value.trim() })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Error');
+    mostrarAlerta('✅ ' + d.mensaje, 'success');
+    await cargarEquipo();
+  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+}
+// 🆕 R4.1: promover/degradar superadmin (D8: sin auto-cambio; último activo intocable)
+async function toggleSuperadminMiembro(uid, promover, email) {
+  const ok = await confirmarSwal({
+    titulo: promover ? '⭐ Hacer superadmin' : '⬇️ Quitar superadmin',
+    texto: promover
+      ? `${email} tendrá bypass total: equipo, permisos y todos los módulos.`
+      : `${email} pasará a admin regular: solo lo que permitan sus permisos.`,
+    peligro: !promover,
+    textoConfirmar: promover ? 'Sí, promover' : 'Sí, quitar'
+  });
+  if (!ok) return;
+  try {
+    const res = await fetchAPI(`/api/admin/usuarios/${uid}/superadmin`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ es_superadmin: promover ? 1 : 0 })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Error');
+    mostrarAlerta('✅ ' + d.mensaje, 'success');
+    await cargarEquipo();
+  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+}
+async function guardarPermisosUsuario(uid) {
+  const claves = [];
+  document.querySelectorAll(`.chk-permiso[data-uid="${uid}"]:checked`).forEach(c => claves.push(c.dataset.clave));
+  if (!await confirmarSwal({ titulo: '💾 Cambiar permisos', texto: 'Se cerrará la sesión activa del miembro afectado.', peligro: false, textoConfirmar: 'Sí, guardar' })) return;
+  try {
+    const res = await fetchAPI(`/api/admin/usuarios/${uid}/permisos`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ permisos: claves })
+    });
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.error || 'Error');
+    mostrarAlerta('✅ ' + r.mensaje, 'success');
+    await cargarEquipo();
+  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+}
+async function toggleActivoUsuario(uid, activo, email) {
+  const texto = activo ? `Activar a ${email}` : `Desactivar a ${email}. Sus sesiones activas se cerrarán.`;
+  if (!await confirmarSwal({ titulo: activo ? '✅ Activar miembro' : '🚫 Desactivar miembro', texto, peligro: !activo, textoConfirmar: 'Sí, continuar' })) return;
+  try {
+    const res = await fetchAPI(`/api/admin/usuarios/${uid}/activo`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activo })
+    });
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.error || 'Error');
+    mostrarAlerta('✅ ' + r.mensaje, 'success');
+    await cargarEquipo();
+  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+}
+function mostrarModalInvitar() {
+  const previo = document.getElementById('modalInvitarStaff');
+  if (previo) previo.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay active';
+  overlay.id = 'modalInvitarStaff';
+  overlay.style.zIndex = '9500';
+  overlay.innerHTML = `
+  <div class="modal" style="max-width:560px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h3 style="margin:0;">➕ Invitar miembro al equipo</h3>
+      <button class="btn btn-sm btn-secondary" onclick="cerrarModalInvitar()">✕ Cerrar</button>
+    </div>
+    <div class="form-group"><label>📧 Email corporativo *</label><input type="email" id="invEmail" placeholder="nombre@unab.edu.co"></div>
+    <div class="form-group"><label>🏷️ Nombre o área (opcional)</label><input type="text" id="invNombre" placeholder="Ej: Nayardy — Verificación"></div>
+    <div class="form-group"><label>🔑 Permisos iniciales</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;max-height:180px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;padding:0.6rem;">
+        ${renderChecklistInvitacion()}
+      </div>
+      <small style="color:#6b7280;">Recibirá un correo con enlace de activación válido por 7 días (un solo uso).</small>
+    </div>
+    <div id="invAlerta"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-secondary" style="flex:1;" onclick="cerrarModalInvitar()">Cancelar</button>
+      <button class="btn" style="flex:1;background:#059669;" onclick="enviarInvitacionStaff()">📨 Enviar invitación</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrarModalInvitar(); });
+}
+function cerrarModalInvitar() {
+  const m = document.getElementById('modalInvitarStaff');
+  if (m) m.remove();
+}
+async function enviarInvitacionStaff() {
+  const email = document.getElementById('invEmail').value.trim();
+  const nombre = document.getElementById('invNombre').value.trim();
+  const permisos = [];
+  document.querySelectorAll('.chk-inv:checked').forEach(c => permisos.push(c.value));
+  const alerta = document.getElementById('invAlerta');
+  if (!email) { alerta.innerHTML = '<div class="alert alert-error">Escribe un email válido.</div>'; return; }
+  try {
+    const res = await fetchAPI('/api/admin/usuarios', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, nombre_empresa: nombre, permisos })
+    });
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.error || 'Error');
+    cerrarModalInvitar();
+    mostrarAlerta('✅ ' + r.mensaje, 'success', 6000);
+    await cargarEquipo();
+  } catch (e) { alerta.innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`; }
+}
 // ==========================================
 // 🚀 INICIAR APLICACIÓN
 // ==========================================

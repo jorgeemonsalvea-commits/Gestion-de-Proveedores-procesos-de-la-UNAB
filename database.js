@@ -296,7 +296,13 @@ const migraciones = [
   { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
 // 🪪 G7: tipo de documento del proveedor (nit | cc | ce | pas).
 // El DEFAULT 'nit' hace backfill automático de todos los registros existentes.
-{ tabla: 'proveedores', campo: 'tipo_documento', tipo: "TEXT DEFAULT 'nit'" }
+{ tabla: 'proveedores', campo: 'tipo_documento', tipo: "TEXT DEFAULT 'nit'" },
+// 🛡️ R2 (Sprint 8): RBAC composable — migración ADITIVA, sin drops.
+// permisos = JSON array de claves conmutables (catálogo §8 del CONTEXTO).
+// es_superadmin = bypass total (D1). activo = candado de desactivación (D8).
+{ tabla: 'usuarios', campo: 'permisos', tipo: "TEXT DEFAULT '[]'" },
+{ tabla: 'usuarios', campo: 'es_superadmin', tipo: 'INTEGER DEFAULT 0' },
+{ tabla: 'usuarios', campo: 'activo', tipo: 'INTEGER DEFAULT 1' }
 ];
 
 let migracionesAplicadas = 0;
@@ -533,6 +539,21 @@ console.error(`   🔑 ${adminPass}
   }
 } else {
   console.log(`✅ Admin existente: ${adminEmail}`);
+}
+
+// 🛡️ R2 backfill RBAC (idempotente, seguro ante reinicios):
+// 1) Ningún NULL en las columnas nuevas.
+// 2) Si NO existe ningún superadmin, el/los admin(s) existentes se promocionan
+//    (caso seed: el admin actual conserva TODO su comportamiento).
+// 🆕 FIX: se ejecuta AQUÍ, DESPUÉS de crear el admin, para que el backfill
+// funcione correctamente tanto en producción como en tests.
+db.prepare(`UPDATE usuarios SET permisos = '[]' WHERE permisos IS NULL`).run();
+db.prepare(`UPDATE usuarios SET activo = 1 WHERE activo IS NULL`).run();
+db.prepare(`UPDATE usuarios SET es_superadmin = 0 WHERE es_superadmin IS NULL`).run();
+const haySuperadmin = db.prepare(`SELECT id FROM usuarios WHERE es_superadmin = 1`).get();
+if (!haySuperadmin) {
+  const rBack = db.prepare(`UPDATE usuarios SET es_superadmin = 1, activo = 1 WHERE rol = 'admin'`).run();
+  if (rBack.changes > 0) console.log(`🛡️ R2 backfill: ${rBack.changes} admin(s) existentes marcados como superadmin activos`);
 }
 
 // ==========================================
