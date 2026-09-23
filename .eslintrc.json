@@ -5,6 +5,8 @@
   "globals": {
     "Swal": "readonly",
     "io": "readonly",
+    "ICONOS": "readonly",
+    "ico": "readonly",
     "formatearFecha": "readonly",
     "escapeHtml": "readonly",
     "escapeAttr": "readonly",

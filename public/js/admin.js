@@ -1,12 +1,12 @@
 // ==========================================
-// 🔧 FUNCIÓN HELPER: fetchAPI
+//  FUNCIÓN HELPER: fetchAPI
 // ==========================================
 function fetchAPI(url, options = {}) {
-marcarAccionPropia(); // 🔔 D4: ventana de acción propia (1.5s) para que el eco del socket no suene
+marcarAccionPropia(); //  D4: ventana de acción propia (1.5s) para que el eco del socket no suene
 return fetch(url, { ...options, credentials: 'include' });
 }
 // ==========================================
-// 🌙 D1: MODO OSCURO — tema persistido + fallback al sistema operativo
+//  D1: MODO OSCURO — tema persistido + fallback al sistema operativo
 // Sin valor guardado sigue prefers-color-scheme (y reacciona a sus cambios).
 // ==========================================
 const TEMA_KEY = 'unab_tema';
@@ -37,10 +37,10 @@ if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro
 })();
 
 // ==========================================
-// 📋 VARIABLES GLOBALES
+//  VARIABLES GLOBALES
 // ==========================================
 let requeridos = [];
-let requeridosDefault = []; // 🆕 lista base (jurídica) para restaurar al cerrar modales
+let requeridosDefault = []; //  lista base (jurídica) para restaurar al cerrar modales
 let moduloActual = 'registrados';
 let proveedorActualId = null;
 let proveedorActualNombre = '';
@@ -48,15 +48,15 @@ let listaProveedoresCache = [];
 let listaFiltrada = [];
 let filtroEstadoActual = 'todos';
 let paginaActual = 1;
-let limiteActual = 50; // 📈 F5: página por defecto de 50 (agenda Sprint 6)
+let limiteActual = 50; //  F5: página por defecto de 50 (agenda Sprint 6)
 let totalPaginas = 1;
 let totalRegistros = 0;
 let adminFormSubmitted = false;
 let noAplicaChanged = false;
 let historicosCache = [];
-let documentosActivosCache = []; // 🆕 C1: docs activos del proveedor abierto en el modal
-let revisionEnfocada = { activa: false, modo: 'verificacion', cola: [], indice: 0 }; // 🆕 C1
-// 🛡️ R4: RBAC en cliente (D2/D6). El server sigue siendo la autoridad (403);
+let documentosActivosCache = []; //  C1: docs activos del proveedor abierto en el modal
+let revisionEnfocada = { activa: false, modo: 'verificacion', cola: [], indice: 0 }; //  C1
+//  R4: RBAC en cliente (D2/D6). El server sigue siendo la autoridad (403);
 // aquí solo ocultamos/deshabilitamos lo que el perfil no puede usar.
 let permisosActuales = [];
 let esSuperadminUI = false;
@@ -64,7 +64,7 @@ function tienePermisoUI(clave) {
   if (esSuperadminUI) return true;
   return permisosActuales.includes(clave);
 }
-// 🛡️ R4 (D6): revisor = solo docs.ver sin permisos de acción → solo lectura
+//  R4 (D6): revisor = solo docs.ver sin permisos de acción → solo lectura
 function esSoloLectorUI() {
   if (esSuperadminUI) return false;
   return tienePermisoUI('docs.ver') &&
@@ -72,7 +72,7 @@ function esSoloLectorUI() {
     !tienePermisoUI('docs.rechazar') && !tienePermisoUI('gestion.inscribir') &&
     !tienePermisoUI('proveedores.gestionar') && !tienePermisoUI('proveedores.crear');
 }
-// ⚡ F2: SUB-PESTAÑAS LAZY — flags por pestaña y por apertura de proveedor.
+//  F2: SUB-PESTAÑAS LAZY — flags por pestaña y por apertura de proveedor.
 // Evita renderizar históricos/notas/recordatorios al abrir el modal:
 // cada sub-pestaña se construye solo la primera vez que se visita.
 let subTabLoadFlags = { provId: null, historicos: false, hist: false, notas: false, rec: false };
@@ -88,7 +88,7 @@ subTabLoadFlags[t] = true;
 }
 
 // ==========================================
-// 📋 FUNCIONES AUXILIARES
+//  FUNCIONES AUXILIARES
 // ==========================================
 function fechaArchivo() {
 const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -101,12 +101,12 @@ a.href = u; a.download = n;
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 URL.revokeObjectURL(u);
 }
-// 🧩 F8: formatearFecha → /js/utils.js
-// 🧩 F8: escapeHtml → /js/utils.js
-// 🛡️ A1: escape para VALORES de atributos HTML (data-*, href). Escapa el delimitador " y &.
-// 🧩 F8: escapeAttr → /js/utils.js
+//  F8: formatearFecha → /js/utils.js
+//  F8: escapeHtml → /js/utils.js
+//  A1: escape para VALORES de atributos HTML (data-*, href). Escapa el delimitador " y &.
+//  F8: escapeAttr → /js/utils.js
 
-// 🛡️ ANTI-AUTOFILL: evita el dropdown "Información guardada" del navegador
+//  ANTI-AUTOFILL: evita el dropdown "Información guardada" del navegador
 // en TODOS los buscadores (incluido el input dinámico de SweetAlert2 Ctrl+K).
 // readonly hasta el foco: Chrome no despliega autofill sobre inputs readonly.
 function esBuscadorBlindable(el) {
@@ -128,7 +128,7 @@ el.setAttribute('name', 'q_' + Math.random().toString(36).substring(2, 10));
 el.setAttribute('readonly', 'readonly');
 if (document.activeElement === el) el.removeAttribute('readonly');
 }
-// 🆕 Libera readonly ANTES del foco (capture): teclados móviles sin retardo
+//  Libera readonly ANTES del foco (capture): teclados móviles sin retardo
 document.addEventListener('pointerdown', (e) => {
 if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.removeAttribute('readonly');
 }, true);
@@ -146,7 +146,7 @@ for (const n of m.addedNodes) {
 if (!n || n.nodeType !== 1) continue;
 if (esBuscadorBlindable(n)) blindarBuscador(n);
 if (n.querySelectorAll) n.querySelectorAll('input').forEach((i) => { if (esBuscadorBlindable(i)) blindarBuscador(i); });
-// ♿ D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
+//  D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
 if (n.classList && n.classList.contains('modal-overlay')) { n.setAttribute('role', 'dialog'); n.setAttribute('aria-modal', 'true'); }
 if (n.querySelectorAll) n.querySelectorAll('.modal-overlay').forEach(ov => { ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); });
 }
@@ -156,20 +156,10 @@ if (document.body) obsBlindaje.observe(document.body, { childList: true, subtree
 document.addEventListener('DOMContentLoaded', () => {
 document.querySelectorAll('input').forEach((i) => { if (esBuscadorBlindable(i)) blindarBuscador(i); });
 });
-// 🎨 Iconografía de línea UNAB v5 — reemplaza emojis en botones de acción
-const ICONOS = {
-check: '<svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
-x: '<svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-eye: '<svg class="ico" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
-download: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-upload: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
-trash: '<svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-zip: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
-plus: '<svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-save: '<svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
-};
+// Iconografía UNAB v5 → fuente única en /js/utils.js (ICONOS + helper ico()).
+// admin.js y proveedor.js consumen el catálogo global; aquí no se redecala nada.
 // ==========================================
-// 🔔 D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
+//  D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
 // ==========================================
 let sonidoActivado = localStorage.getItem('unab_sonido') !== 'off';
 let audioCtxD4 = null;
@@ -201,19 +191,19 @@ osc.start(t0); osc.stop(t0 + 0.2);
 }
 // Punto único de notificación: sonido siempre + contador de pestaña si está oculta.
 function notificarD4(tipo = 'info') {
-if (esAccionPropia()) return; // 🔇 no sonar por acciones propias
+if (esAccionPropia()) return; //  no sonar por acciones propias
 reproducirSonidoD4(tipo);
 if (document.hidden) {
 pendienesD4++;
-document.title = `(${pendienesD4}) 🔔 ${tituloBaseD4}`;
+document.title = `(${pendienesD4}) ${ico('bell')} ${tituloBaseD4}`;
 }
 }
 function resetearTituloD4() {
-// 🩹 D4-b: UN solo toast resumen al regresar (nunca uno por evento):
+//  D4-b: UN solo toast resumen al regresar (nunca uno por evento):
 // "3 eventos mientras no estabas · último: X subió Y"
 if (pendienesD4 > 0 && feedEventosD4.length) {
 const ultimo = feedEventosD4[0];
-mostrarNotificacion(`🔔 ${pendienesD4} evento(s) mientras no estabas · último: ${ultimo.titulo}`, 'info', 6000);
+mostrarNotificacion(`${ico('bell')} ${pendienesD4} evento(s) mientras no estabas · último: ${ultimo.titulo}`, 'info', 6000);
 }
 pendienesD4 = 0;
 document.title = tituloBaseD4;
@@ -229,7 +219,7 @@ if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
 if (sonidoActivado) reproducirSonidoD4('success'); // beep de prueba + desbloquea AudioContext
 }
 // ==========================================
-// 🔔 D4-b: FEED DE EVENTOS (campana con contador, bajo demanda, sin spam)
+//  D4-b: FEED DE EVENTOS (campana con contador, bajo demanda, sin spam)
 // ==========================================
 const feedEventosD4 = [];
 let feedNoLeidos = 0;
@@ -255,7 +245,7 @@ panel.innerHTML = feedEventosD4.map(ev => `
 <div>
 <div class="feed-titulo">${escapeHtml(ev.titulo)}</div>
 <div class="feed-detalle">${escapeHtml(ev.detalle)}</div>
-<div class="feed-detalle" style="font-size:.7rem;">🕐 ${ev.hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+<div class="feed-detalle" style="font-size:.7rem;">${ico('clock')} ${ev.hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
 </div>
 </div>`).join('');
 }
@@ -278,7 +268,7 @@ if (!panel) return;
 if (panel.classList.contains('open') && !e.target.closest('.feed-wrap')) togglePanelEventosD4();
 });
 // ==========================================
-// 🆕 C5: RENDERIZADORES DE MINI-GRÁFICOS SVG
+//  C5: RENDERIZADORES DE MINI-GRÁFICOS SVG
 // ==========================================
 /**
 * Sparkline: polyline SVG de tendencia (14 puntos).
@@ -347,21 +337,21 @@ return `<div class="donut-legend">` + segments.filter(s => s.value > 0).map(s =>
 ).join('') + `</div>`;
 }
 
-// 🛡️ Escapa celdas CSV y neutraliza inyección de fórmulas (= + - @) para Excel.
+//  Escapa celdas CSV y neutraliza inyección de fórmulas (= + - @) para Excel.
 function celdaCSV(c) {
 let s = String(c ?? '');
 if (/^[=+\-@]/.test(s)) s = "'" + s;
 return `"${s.replace(/"/g, '""')}"`;
 }
 
-// 🛡️ A1: abre el visor leyendo los datos desde data-attributes (evita inyectar el nombre en onclick)
-// 🧩 F8: verDocumentoBtn → /js/utils.js
-// 🏷️ Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
-// 🧩 F8: nombreFormato → /js/utils.js
+// ${ico('shield')} A1: abre el visor leyendo los datos desde data-attributes (evita inyectar el nombre en onclick)
+//  F8: verDocumentoBtn → /js/utils.js
+//  Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
+//  F8: nombreFormato → /js/utils.js
 
-// 🧩 F8: obtenerEstadoVencimiento → /js/utils.js
+//  F8: obtenerEstadoVencimiento → /js/utils.js
 
-// 🏷️ Estado legible para exportaciones (diferencia las etapas reales)
+//  Estado legible para exportaciones (diferencia las etapas reales)
 function estadoLegible(p) {
 const etapa = p.etapa || '';
 if (etapa === 'registrado') return 'Registrado';
@@ -375,10 +365,10 @@ if (p.estado_general === 'rechazado') return 'Rechazado';
 return 'Pendiente';
 }
 
-// 🧹 F11: badgeDiasEtapa eliminado (sin llamadores; el panel de contexto y
+//  F11: badgeDiasEtapa eliminado (sin llamadores; el panel de contexto y
 // el listado muestran días en etapa directo desde p.dias_en_etapa).
 // ==========================================
-// 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
+//  NOTIFICACIONES PUSH (TOAST) — SweetAlert2
 // ==========================================
 const SwalToast = (typeof Swal !== 'undefined') ? Swal.mixin({
     toast: true,
@@ -406,10 +396,10 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     container.appendChild(notif);
     setTimeout(() => notif.remove(), duracion);
 }
-// 🧹 F11: cerrarNotificacion eliminado (sin llamadores en admin; los toasts
+//  F11: cerrarNotificacion eliminado (sin llamadores en admin; los toasts
 // Swal se cierran solos por timer / mouseleave / botón de cierre).
 // ==========================================
-// 🎉 G10b: TOAST SWEETALERT2 — NUEVO PROVEEDOR REGISTRADO (con acción)
+//  G10b: TOAST SWEETALERT2 — NUEVO PROVEEDOR REGISTRADO (con acción)
 // ==========================================
 function toastNuevoProveedor(data = {}) {
   const nombre = data.nombre || 'Sin nombre';
@@ -420,7 +410,7 @@ function toastNuevoProveedor(data = {}) {
     showCloseButton: true,
     timer: 9000,
     timerProgressBar: true,
-    confirmButtonText: '🔍 Revisar',
+    confirmButtonText: `${ico('search')} Revisar`,
     confirmButtonColor: '#8600dd',
     didOpen: (self) => {
       self.addEventListener('mouseenter', Swal.stopTimer);
@@ -429,7 +419,7 @@ function toastNuevoProveedor(data = {}) {
   });
   SwalToastAccion.fire({
     icon: 'success',
-    title: '🎉 Nuevo proveedor registrado',
+    title: ' Nuevo proveedor registrado',
     html: `<strong style="color:#160a24;">${escapeHtml(nombre)}</strong><br><small style="color:#6b7280;">Entró a la etapa de Verificación</small>`
   }).then((r) => {
     if (r.isConfirmed && data.proveedorId) {
@@ -448,7 +438,7 @@ const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info' };
 mostrarNotificacion(msg, tiposMap[tipo] || 'info');
 }
 // ==========================================
-// 🍬 SWEETALERT2 — reemplazo de confirm()/prompt() nativos
+//  SWEETALERT2 — reemplazo de confirm()/prompt() nativos
 // ==========================================
 function confirmarSwal({ titulo = '¿Estás seguro?', texto = '', icono = 'warning', textoConfirmar = 'Sí, continuar', textoCancelar = 'Cancelar', peligro = true } = {}) {
 if (typeof Swal === 'undefined') return Promise.resolve(confirm(`${titulo}\n${texto}`));
@@ -484,7 +474,7 @@ inputValidator: obligatorio ? (v) => (!v || !v.trim()) ? 'Debes escribir un moti
 }
 
 // ==========================================
-// 📋 EXPORTAR HABEAS DATA A CSV
+//  EXPORTAR HABEAS DATA A CSV
 // ==========================================
 async function exportarHabeasData() {
 try {
@@ -508,13 +498,13 @@ mostrarAlerta('❌ Error al exportar: ' + err.message);
 }
 
 // ==========================================
-// 📡 SOCKET.IO - CONEXIÓN EN TIEMPO REAL
+//  SOCKET.IO - CONEXIÓN EN TIEMPO REAL
 // ==========================================
 let socket = null;
 let timeoutRecargar = null;
 
 function conectarSocket() {
-// ✅ Se conecta al mismo origen (funciona en local y en Railway/producción)
+//  Se conecta al mismo origen (funciona en local y en Railway/producción)
 socket = io({
 withCredentials: true,
 reconnection: true,
@@ -530,17 +520,17 @@ socket.on('connect_error', (err) => {
 });
 socket.on('disconnect', () => { console.log('🔌 Desconectado del servidor Socket.IO'); });
 
-// 🧹 F11: listeners duplicados de documento_actualizado/verificado fusionados
+//  F11: listeners duplicados de documento_actualizado/verificado fusionados
 // en el par de más abajo (evento de feed + recarga de vista en un solo handler).
 socket.on('documento_subido', (data) => {
 console.log('📤 Documento subido:', data);
 notificarD4('info');
-registrarEventoD4('📤', `${data.proveedorNombre || 'Un proveedor'} subió ${data.tipoNombre || data.tipo || 'un documento'}`, `Por: ${data.actor || 'el proveedor'}`);
+registrarEventoD4(ico('upload'),  `${data.proveedorNombre || 'Un proveedor'} subió ${data.tipoNombre || data.tipo || 'un documento'}` ,  `Por: ${data.actor || 'el proveedor'}` );
 recargarVistaActual();
 });
 socket.on('documento_verificado', (data) => {
 console.log('✅ Documento verificado:', data);
-registrarEventoD4('✅', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'}`, `Verificado por: ${data.actor || 'admin'}`);
+registrarEventoD4(ico('check'),  `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'}` ,  `Verificado por: ${data.actor || 'admin'}` );
 recargarVistaActual();
 });
 socket.on('documento_actualizado', (data) => {
@@ -551,11 +541,11 @@ recargarVistaActual();
 socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); notificarD4('info'); recargarVistaActual(); });
 socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); notificarD4('success'); recargarVistaActual(); });
 socket.on('proveedores_actualizados', () => { console.log('👥 Proveedores actualizados'); recargarVistaActual(); });
-// 🆕 G10b: toast en tiempo real cuando un proveedor se registra desde el portal público
+//  G10b: toast en tiempo real cuando un proveedor se registra desde el portal público
 socket.on('nuevo_proveedor_registrado', (data) => {
 console.log('🎉 [G10b] Evento recibido:', data);
 notificarD4('success');
-registrarEventoD4('🎉', `Nuevo proveedor: ${data.nombre || 'Sin nombre'}`, data.email || '');
+registrarEventoD4(ico('plus'),  `Nuevo proveedor: ${data.nombre || 'Sin nombre'}` , data.email || '');
   toastNuevoProveedor(data || {});
   actualizarEstadisticasGlobales();
   actualizarContadoresSidebar();
@@ -565,7 +555,7 @@ socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas a
 socket.on('vencimientos_procesados', (data) => {
 console.log('⏰ Vencimientos procesados:', data);
 notificarD4('warning');
-mostrarNotificacion(`📦 Vencimientos: ${data.movidos} movidos, ${data.notificados} notificados`, 'info');
+mostrarNotificacion(`${ico('archive')} Vencimientos: ${data.movidos} movidos, ${data.notificados} notificados`, 'info');
 recargarVistaActual();
 });
 socket.on('nuevo_recordatorio', (data) => {
@@ -581,7 +571,7 @@ if (proveedorActualId) cargarNotas();
 }
 
 function recargarVistaActual() {
-// 🚀 R4-perf: el eco de socket de una acción PROPIA ya tuvo su reload explícito;
+//  R4-perf: el eco de socket de una acción PROPIA ya tuvo su reload explícito;
 // no duplicar el recargo (era lo que se sentía como "se demora recargando").
 if (esAccionPropia()) return;
 if (timeoutRecargar) clearTimeout(timeoutRecargar);
@@ -603,14 +593,14 @@ timeoutRecargar = null;
 }
 
 // ==========================================
-// 🚀 INICIALIZACIÓN
+//  INICIALIZACIÓN
 // ==========================================
 async function init() {
 try {
 const me = await (await fetchAPI('/api/me')).json();
 if (!me.usuario) return window.location.href = 'index.html';
 if (me.usuario.rol !== 'admin') return window.location.href = 'proveedor.html';
-// 🛡️ R4: permisos una sola vez por sesión + gating inicial de sidebar/KPIs/subtabs
+//  R4: permisos una sola vez por sesión + gating inicial de sidebar/KPIs/subtabs
 permisosActuales = Array.isArray(me.permisos) ? me.permisos : [];
 esSuperadminUI = me.es_superadmin === true;
 aplicarGatingRBAC();
@@ -621,7 +611,7 @@ if (av) av.textContent = ((me.usuario.email || 'UN').replace(/[^a-zA-Z]/g, '').s
 const reqResp = await fetchAPI('/api/proveedor/requerimientos');
 if (reqResp.ok) {
 requeridos = await reqResp.json();
-requeridosDefault = requeridos.slice(); // 🆕
+requeridosDefault = requeridos.slice(); // 
 console.log('✅ Requerimientos cargados:', requeridos.length);
 } else {
 console.error('❌ Error al cargar requerimientos');
@@ -638,7 +628,7 @@ actualizarContadoresSidebar();
 configurarTabs();
 const cardInicial = document.querySelector('.kpi-tab[data-modulo="registrados"]:not([data-estado])');
 if (cardInicial) cardInicial.classList.add('kpi-active');
-// ♿ D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
+//  D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
 const bCamD2 = document.getElementById('btnCampanaD4');
 if (bCamD2 && !bCamD2.getAttribute('aria-label')) bCamD2.setAttribute('aria-label', 'Eventos en tiempo real');
 const bSonD2 = document.getElementById('btnSonidoD4');
@@ -648,7 +638,7 @@ ov.setAttribute('role', 'dialog');
 ov.setAttribute('aria-modal', 'true');
 });
 
-// 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
+//  D4: reflejar el estado persistido del sonido en el botón de la topbar
 const btnSonido = document.getElementById('btnSonidoD4');
 if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
 conectarSocket();
@@ -666,7 +656,7 @@ mostrarAlerta('Error al cargar: ' + err.message);
 }
 
 // ==========================================
-// 📄 CONTADOR DE PLANTILLAS (tarjeta visible)
+//  CONTADOR DE PLANTILLAS (tarjeta visible)
 // ==========================================
 async function actualizarContadorPlantillas() {
     const el = document.getElementById('card-plantillas');
@@ -681,11 +671,11 @@ async function actualizarContadorPlantillas() {
 }
 
 // ==========================================
-// 📊 ACTUALIZAR ESTADÍSTICAS GLOBALES
+//  ACTUALIZAR ESTADÍSTICAS GLOBALES
 // ==========================================
 async function actualizarEstadisticasGlobales() {
 try {
-// 🆕 C5: stats y tendencia en paralelo (una sola espera)
+//  C5: stats y tendencia en paralelo (una sola espera)
 const [statsRes, tendRes] = await Promise.all([
 fetchAPI('/api/admin/stats'),
 fetchAPI('/api/admin/stats/tendencia')
@@ -701,7 +691,7 @@ const setSide = (mod, v) => { const e = document.getElementById('side-' + mod); 
 setSide('registrados', stats.registrados); setSide('verificacion', stats.verificacion);
 setSide('aprobacion', stats.aprobacion); setSide('inscripcion', stats.inscripcion);
 setSide('rechazados', stats.rechazados); setSide('inactivos', stats.inactivos || 0);
-// 🆕 C5: sparklines de tendencia por etapa (14 días)
+//  C5: sparklines de tendencia por etapa (14 días)
 if (tendRes.ok) {
 const tend = await tendRes.json();
 const colores = {
@@ -723,7 +713,7 @@ console.error('❌ Error actualizando estadísticas:', err);
 }
 }
 // ==========================================
-// 📊 MÉTRICAS (módulo del sidebar) — productividad 7 días desde auditoría
+//  MÉTRICAS (módulo del sidebar) — productividad 7 días desde auditoría
 // ==========================================
 async function cargarMetricas() {
 const contenedor = document.getElementById('contenedor-modulos');
@@ -731,10 +721,10 @@ if (!contenedor) return;
 contenedor.innerHTML = `
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
-<h3 style="margin:0;">📊 Métricas de productividad</h3>
-<button class="btn btn-sm btn-secondary" onclick="cargarMetricas()">🔄 Actualizar</button>
+<h3 style="margin:0;">${ico('chart')} Métricas de productividad</h3>
+<button class="btn btn-sm btn-secondary" onclick="cargarMetricas()">${ico('refresh')} Actualizar</button>
 </div>
-<div id="metricasContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">⏳ Cargando métricas…</p></div>
+<div id="metricasContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">${ico('clock')} Cargando métricas…</p></div>
 </div>`;
 try {
 const r = await fetchAPI('/api/admin/stats/productividad');
@@ -759,18 +749,18 @@ const max = Math.max(1, ...dias.map(d => d.verificados + d.aprobados + d.rechaza
 document.getElementById('metricasContenido').innerHTML = `
 <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
 ${chips.map(c => `<span class="badge-count" style="border:1px solid ${c[2]}33;color:${c[2]};background:${c[2]}11;padding:.4rem .7rem;font-size:.85rem;">${c[0]}: <strong>${c[1] || 0}</strong></span>`).join('')}
-<span class="badge-count" style="border:1px solid #8600dd33;color:#8600dd;background:#8600dd11;padding:.4rem .7rem;font-size:.85rem;">⚡ Total acciones: <strong>${totalAcciones}</strong></span>
-<span class="badge-count" style="border:1px solid #05966933;color:#059669;background:#05966911;padding:.4rem .7rem;font-size:.85rem;">🏆 Mejor día: <strong>${mejorDia.dia === '—' ? '—' : mejorDia.dia.slice(8, 10) + '/' + mejorDia.dia.slice(5, 7)} (${mejorDia.tot})</strong></span>
+<span class="badge-count" style="border:1px solid #8600dd33;color:#8600dd;background:#8600dd11;padding:.4rem .7rem;font-size:.85rem;"> Total acciones: <strong>${totalAcciones}</strong></span>
+<span class="badge-count" style="border:1px solid #05966933;color:#059669;background:#05966911;padding:.4rem .7rem;font-size:.85rem;"> Mejor día: <strong>${mejorDia.dia === '—' ? '—' : mejorDia.dia.slice(8, 10) + '/' + mejorDia.dia.slice(5, 7)} (${mejorDia.tot})</strong></span>
 </div>
 <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:1rem;margin-bottom:1rem;">
-<h4 style="margin:0 0 .8rem 0;font-size:.9rem;">📈 Documentos procesados por día (verificados / aprobados / rechazados)</h4>
+<h4 style="margin:0 0 .8rem 0;font-size:.9rem;">${ico('chart')} Documentos procesados por día (verificados / aprobados / rechazados)</h4>
 ${dias.map(d => {
 const total = d.verificados + d.aprobados + d.rechazados;
 const w = n => Math.round((n / max) * 100);
 const partes = String(d.dia).split('-');
 const esHoy = d.dia === data.hoyCivil;
 return `
-<div class="prod-fila" title="${d.dia} · ✅${d.verificados} 👍${d.aprobados} 👎${d.rechazados} · 📝${d.notas} 📨${d.recordatorios} 📋${d.gestiones}">
+<div class="prod-fila" title="${d.dia} · ${ico('check')}${d.verificados} ${d.aprobados} ${d.rechazados} · ${d.notas} ${ico('send')}${d.recordatorios} ${ico('file-text')}${d.gestiones}">
 <span class="prod-dia${esHoy ? ' prod-hoy' : ''}">${partes[1]}/${partes[2]}</span>
 <span class="prod-barra">
 <span style="width:${w(d.verificados)}%;background:#059669;"></span>
@@ -785,12 +775,12 @@ return `
 <table style="width:100%;border-collapse:collapse;font-size:.88rem;">
 <thead><tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
 <th style="padding:.6rem;text-align:left;">Día</th>
-<th style="padding:.6rem;text-align:center;">✅ Verificados</th>
-<th style="padding:.6rem;text-align:center;">👍 Aprobados</th>
-<th style="padding:.6rem;text-align:center;">👎 Rechazados</th>
-<th style="padding:.6rem;text-align:center;">📝 Notas</th>
-<th style="padding:.6rem;text-align:center;">📨 Recordatorios</th>
-<th style="padding:.6rem;text-align:center;">📋 Gestiones</th>
+<th style="padding:.6rem;text-align:center;">${ico('check')} Verificados</th>
+<th style="padding:.6rem;text-align:center;"> Aprobados</th>
+<th style="padding:.6rem;text-align:center;"> Rechazados</th>
+<th style="padding:.6rem;text-align:center;"> Notas</th>
+<th style="padding:.6rem;text-align:center;">${ico('send')} Recordatorios</th>
+<th style="padding:.6rem;text-align:center;">${ico('file-text')} Gestiones</th>
 </tr></thead>
 <tbody>
 ${dias.slice().reverse().map(d => `
@@ -810,12 +800,12 @@ ${dias.slice().reverse().map(d => `
 } catch (e) {
 console.warn('⚠️ Métricas no disponibles:', e);
 const cont = document.getElementById('metricasContenido');
-if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error al cargar métricas: ${e.message}</div>`;
+if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error al cargar métricas: ${e.message}</div>`;
 }
 }
 
 // ==========================================
-// 📋 CONFIGURAR PESTAÑAS
+//  CONFIGURAR PESTAÑAS
 // ==========================================
 function configurarTabs() {
 document.querySelectorAll('.tab[data-tab]').forEach(tab => {
@@ -831,7 +821,7 @@ cargarModulo(tabId);
 }
 
 // ==========================================
-// 🧭 NAV SIDEBAR ADMIN (modelo convocatorias)
+//  NAV SIDEBAR ADMIN (modelo convocatorias)
 // ==========================================
 const MODULOS_TITULO = {
 registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
@@ -850,13 +840,13 @@ function marcarModuloAdmin(mod) {
     const crumb = document.getElementById('crumbModulo');
     if (crumb) crumb.textContent = MODULOS_TITULO[mod] || mod;
 }
-// 🔄 Sincroniza el estado visual (sidebar + KPIs + breadcrumb) desde el estado actual
+//  Sincroniza el estado visual (sidebar + KPIs + breadcrumb) desde el estado actual
 function sincronizarSidebarAdmin() {
     let efectivo = (moduloActual === 'registrados' && filtroEstadoActual === 'rechazado') ? 'rechazados' : moduloActual;
     if (efectivo === 'plant') efectivo = 'plantillas';
     marcarModuloAdmin(efectivo);
 }
-// 🔢 Refresca los badges contadores del sidebar desde /api/admin/stats
+//  Refresca los badges contadores del sidebar desde /api/admin/stats
 function actualizarContadoresSidebar() {
     fetchAPI('/api/admin/stats')
         .then(r => r.json())
@@ -894,12 +884,12 @@ function actualizarPanelContexto(p) {
       </div>`;
     return;
   }
-  // 🩹 FIX: contar TIPOS completos (aprobados >= cantidadMin, u opcional con "No aplica"),
+  //  FIX: contar TIPOS completos (aprobados >= cantidadMin, u opcional con "No aplica"),
 // mismo criterio que el listado y el portal del proveedor.
 // Contar archivos crudos daba 16/14 porque experiencia aporta 3 certificados.
 const mapDocs = {};
 (p.documentos || []).forEach(d => { (mapDocs[d.tipo] = mapDocs[d.tipo] || []).push(d); });
-// 🩹 C5-fix: mismo criterio que /api/admin/proveedores (p.aprobados):
+//  C5-fix: mismo criterio que /api/admin/proveedores (p.aprobados):
 // el tipo cuenta si sus docs aprobados >= cantidadMin. Los marcadores
 // "No aplica" aprobados en Revisión Enfocada tienen estado='aprobado',
 // por lo que entran aquí igual que en la fila del listado.
@@ -919,7 +909,7 @@ return aps >= r.cantidadMin;
       <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div><span class="lbl">Tiempo en etapa</span><span class="val">${p.dias_en_etapa != null ? p.dias_en_etapa + ' días' : '—'}</span></div></div>      <div class="ad-row"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><span class="lbl">Docs aprobados</span><span class="val">${aprobados}/${requeridos.length || 0}</span></div></div>
 ${(() => {
 const docs = p.documentos || [];
-// 🩹 C5-fix: segmentos MUTUAMENTE EXCLUYENTES. Antes un "No aplica"
+//  C5-fix: segmentos MUTUAMENTE EXCLUYENTES. Antes un "No aplica"
 // aprobado contaba en Aprobados Y en No aplica → centro inflado (20).
 const segs = [
 { label: 'Aprobados', value: docs.filter(d => d.estado === 'aprobado' && d.no_aplica !== 1).length, color: '#059669' },
@@ -936,7 +926,7 @@ return `<div class="donut-wrap">${renderDonutSVG(segs, 52)}${renderDonutLegend(s
 }
 
 // ==========================================
-// 🃏 TARJETAS-PESTAÑA (navegación principal)
+//  TARJETAS-PESTAÑA (navegación principal)
 // ==========================================
 function cambiarModuloCard(el) {
   const modulo = el.dataset.modulo;
@@ -959,7 +949,7 @@ cambiarModuloCard(e.target);
 });
 
 // ==========================================
-// 🧩 MENÚ DE ACCESOS (estilo portal UNAB)
+//  MENÚ DE ACCESOS (estilo portal UNAB)
 // ==========================================
 function toggleAppsMenu() {
 const p = document.getElementById('appsMenuPanel');
@@ -981,11 +971,11 @@ cargarModulo(mod);
 }
 
 // ==========================================
-// 🗂️ CARGAR MÓDULO
+//  CARGAR MÓDULO
 // ==========================================
 function cargarModulo(modulo) {
     const contenedor = document.getElementById('contenedor-modulos');
-    // 🩹 Normaliza el alias del sidebar: 'plantillas' → 'plant'
+    //  Normaliza el alias del sidebar: 'plantillas' → 'plant'
     if (modulo === 'plantillas') modulo = 'plant';
     sincronizarSidebarAdmin();
     if (modulo === 'configuracion') { cargarConfiguracion(); return; }
@@ -993,12 +983,12 @@ if (modulo === 'historial') { cargarHistorial(1); return; }
 if (modulo === 'plant' || modulo === 'plantillas') { renderizarPlantillas(); return; }
 if (modulo === 'metricas') { cargarMetricas(); return; }
 if (modulo === 'auditoria') { cargarAuditoria(); return; }
-// 🛡️ R4: módulo Equipo solo superadmin (D4)
+//  R4: módulo Equipo solo superadmin (D4)
 if (modulo === 'equipo') {
   if (!esSuperadminUI) { renderAccesoDenegado(); return; }
   cargarEquipo(); return;
 }
-// 🛡️ R4: guard de módulo por permiso (el server también responde 403)
+//  R4: guard de módulo por permiso (el server también responde 403)
 const MODULO_PERMISO = {
   verificacion: 'docs.verificar', aprobacion: 'docs.aprobar',
   inscripcion: 'gestion.inscribir', metricas: 'metricas.ver',
@@ -1011,17 +1001,17 @@ const botonesAccion = modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
 <button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
 <div class="dropdown" style="position:relative;display:inline-block;">
-<button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">📄 Exportar</button>
+<button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">${ico('file-text')} Exportar</button>
 <div id="exportDropdown" style="display:none;position:absolute;background:white;min-width:160px;box-shadow:0px 8px 16px rgba(0,0,0,0.2);border-radius:6px;z-index:10;margin-top:4px;border:1px solid #e5e7eb;overflow:hidden;">
-<button onclick="exportarCSV()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">📄 CSV</button>
-<button onclick="exportarExcel()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">📊 Excel (.xlsx)</button>
+<button onclick="exportarCSV()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">${ico('file-text')} CSV</button>
+<button onclick="exportarExcel()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">${ico('chart')} Excel (.xlsx)</button>
 </div>
 </div>
-<button class="btn btn-sm btn-secondary" onclick="exportarHabeasData()">📋 Habeas Data</button>
+<button class="btn btn-sm btn-secondary" onclick="exportarHabeasData()">${ico('file-text')} Habeas Data</button>
 </div>
 ` : (modulo === 'inactivos' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button class="btn btn-sm" style="background:#d97706;color:#fff;" onclick="recordarInactivos()">📨 Recordar a todos</button>
+<button class="btn btn-sm" style="background:#d97706;color:#fff;" onclick="recordarInactivos()">${ico('send')} Recordar a todos</button>
 </div>
 ` : '');
 
@@ -1037,15 +1027,15 @@ ${botonesAccion}
 <input type="text" id="buscador" placeholder="Buscar por nombre, NIT, email o representante..."
 autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false"
 style="width:100%;padding:0.7rem 1rem 0.7rem 2.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
-<span style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:#9ca3af;">🔍</span>
+<span style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:#9ca3af;">${ico('search')}</span>
 </div>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltros()">🗑️ Limpiar filtros</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltros()">${ico('trash')} Limpiar filtros</button>
 </div>
 ${modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-<button class="filtro-estado active" data-estado="todos" onclick="filtrarEstado('todos')">📋 Todos <span id="count-todos" class="badge-count">0</span></button>
-<button class="filtro-estado" data-estado="aprobado" onclick="filtrarEstado('aprobado')">✅ Aprobados <span id="count-aprobado" class="badge-count badge-aprobado">0</span></button>
-<button class="filtro-estado" data-estado="rechazado" onclick="filtrarEstado('rechazado')">❌ Rechazados <span id="count-rechazado" class="badge-count badge-rechazado">0</span></button>
+<button class="filtro-estado active" data-estado="todos" onclick="filtrarEstado('todos')">${ico('file-text')} Todos <span id="count-todos" class="badge-count">0</span></button>
+<button class="filtro-estado" data-estado="aprobado" onclick="filtrarEstado('aprobado')">${ico('check')} Aprobados <span id="count-aprobado" class="badge-count badge-aprobado">0</span></button>
+<button class="filtro-estado" data-estado="rechazado" onclick="filtrarEstado('rechazado')">${ico('x')} Rechazados <span id="count-rechazado" class="badge-count badge-rechazado">0</span></button>
 </div>
 ` : ''}
 
@@ -1059,16 +1049,16 @@ ${modulo === 'registrados' ? `
 </select>
 </div>
 <div style="flex:1;min-width:180px;">
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🏷️ Tipo de persona:</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;"> Tipo de persona:</label>
 <select id="filtroTipoPersona" onchange="paginaActual=1;cargarProveedoresPorModulo(moduloActual,1)" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="todos">Todos</option>
-<option value="juridica">🏢 Persona Jurídica</option>
-<option value="natural">🧍 Persona Natural</option>
-<option value="sindefinir">⚠️ Sin definir</option>
+<option value="juridica">${ico('briefcase')} Persona Jurídica</option>
+<option value="natural">${ico('user')} Persona Natural</option>
+<option value="sindefinir">${ico('alert')} Sin definir</option>
 </select>
 </div>
 <div style="flex:1;min-width:220px;">
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📄 Documento faltante:</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('file-text')} Documento faltante:</label>
 <select id="filtroDocFaltante" onchange="paginaActual=1;cargarProveedoresPorModulo(moduloActual,1)" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="todos">— Cualquiera —</option>
 ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.nombre)}</option>`).join('')}
@@ -1077,9 +1067,9 @@ ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.n
 </div>
 <div id="paginacion" style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;">
-<button id="btnAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPagina(-1)">◀ Anterior</button>
+<button id="btnAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPagina(-1)"> Anterior</button>
 <span id="infoPagina">Página 1 de 1</span>
-<button id="btnSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPagina(1)">Siguiente ▶</button>
+<button id="btnSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPagina(1)">Siguiente </button>
 </div>
 <div style="display:flex;gap:0.5rem;align-items:center;">
 <label style="font-size:0.85rem;">Mostrar:</label>
@@ -1096,11 +1086,11 @@ ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.n
 </div>
 `;
 contenedor.innerHTML = html;
-aplicarGatingBotones(); // 🛡️ R4: oculta acciones sin permiso tras cada render
+aplicarGatingBotones(); //  R4: oculta acciones sin permiso tras cada render
 cargarProveedoresPorModulo(modulo, 1);
 const buscador = document.getElementById('buscador');
 if (buscador) {
-// ⚡ F6: debounce 800ms — menos queries intermedias al teclear nombres largos.
+//  F6: debounce 800ms — menos queries intermedias al teclear nombres largos.
 // 300ms disparaba 3-4 peticiones por palabra; 800ms consulta al hacer pausa real.
 let debounceBusqueda = null;
 buscador.addEventListener('input', function() {
@@ -1119,20 +1109,20 @@ if (this.value === '') this.placeholder = 'Buscar por nombre, NIT, email o repre
 
 function getTituloModulo(modulo) {
 const titulos = {
-'registrados': '👥 Proveedores registrados',
-'verificacion': '✅ Verificación de documentos',
-'aprobacion': '📋 Aprobación y evaluación inicial',
-'inscripcion': '📝 Inscripción y actualización',
-'plant': '📄 Plantillas',
-'inactivos': '🕐 Proveedores inactivos (más de 7 días sin subir documentos)',
-'auditoria': '📊 Auditoría del sistema',
-'equipo': '👥 Equipo y permisos'
+'registrados': `${ico('users')} Proveedores registrados`,
+'verificacion': `${ico('check-circle')} Verificación de documentos`,
+'aprobacion': `${ico('check-circle')} Aprobación y evaluación inicial`,
+'inscripcion': `${ico('edit')} Inscripción y actualización`,
+'plant': `${ico('file-text')} Plantillas`,
+'inactivos': `${ico('clock')} Proveedores inactivos (más de 7 días sin subir documentos)`,
+'auditoria': `${ico('chart')} Auditoría del sistema`,
+'equipo': `${ico('users')} Equipo y permisos`
 };
 return titulos[modulo] || 'Módulo';
 }
 
 // ==========================================
-// 📋 CARGAR PROVEEDORES POR MÓDULO
+//  CARGAR PROVEEDORES POR MÓDULO
 // ==========================================
 async function cargarProveedoresPorModulo(modulo, pagina = 1) {
 try {
@@ -1144,7 +1134,7 @@ const filtroVerificacion = document.getElementById('filtroVerificacion')?.value 
 let url = `/api/admin/proveedores?page=${pagina}&limit=${limit}&estado=${estado}&modulo=${modulo}`;
 if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
 if (filtroVerificacion) url += `&filtroVerificacion=${encodeURIComponent(filtroVerificacion)}`;
-// 🆕 A2: filtros avanzados (tipo de persona + documento faltante)
+//  A2: filtros avanzados (tipo de persona + documento faltante)
 const tipoPersona = document.getElementById('filtroTipoPersona')?.value || 'todos';
 const docFaltante = document.getElementById('filtroDocFaltante')?.value || 'todos';
 if (tipoPersona && tipoPersona !== 'todos') url += `&tipoPersona=${encodeURIComponent(tipoPersona)}`;
@@ -1162,7 +1152,7 @@ limiteActual = result.limit || 50;
 
 aplicarFiltrosLocal();
 actualizarPaginacion();
-// 🚀 R4-perf: KPIs/sparklines fuera del camino crítico (no bloquean el listado)
+//  R4-perf: KPIs/sparklines fuera del camino crítico (no bloquean el listado)
 actualizarEstadisticasGlobales();
 if (modulo === 'registrados') actualizarContadoresEstado();
 } catch (err) {
@@ -1185,7 +1175,7 @@ if (cRech) cRech.textContent = rechazados;
 }
 
 // ==========================================
-// 📋 FUNCIONES DE PAGINACIÓN
+//  FUNCIONES DE PAGINACIÓN
 // ==========================================
 function actualizarPaginacion() {
 const info = document.getElementById('infoPagina');
@@ -1219,7 +1209,7 @@ cargarProveedoresPorModulo(moduloActual, 1);
 }
 
 // ==========================================
-// 🧹 FILTROS LOCALES
+//  FILTROS LOCALES
 // ==========================================
 function aplicarFiltrosLocal() {
 const ordenar = document.getElementById('ordenar')?.value || 'reciente';
@@ -1250,7 +1240,7 @@ if (buscador) { buscador.value = ''; buscador.blur(); }
 document.getElementById('ordenar').value = 'reciente';
 const filtroVerif = document.getElementById('filtroVerificacion');
 if (filtroVerif) filtroVerif.value = '';
-// 🆕 A2: restablecer filtros avanzados
+//  A2: restablecer filtros avanzados
 const fTipo = document.getElementById('filtroTipoPersona'); if (fTipo) fTipo.value = 'todos';
 const fDoc = document.getElementById('filtroDocFaltante'); if (fDoc) fDoc.value = 'todos';
 filtroEstadoActual = 'todos';
@@ -1262,7 +1252,7 @@ cargarProveedoresPorModulo(moduloActual, 1);
 }
 
 // ==========================================
-// 📋 RENDERIZAR PROVEEDORES
+//  RENDERIZAR PROVEEDORES
 // ==========================================
 function renderizarProveedores() {
 const cont = document.getElementById('listaProveedores');
@@ -1272,25 +1262,26 @@ cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No se
 return;
 }
 cont.innerHTML = listaFiltrada.map(p => {
-// 🏷️ Progreso del medidor según la pestaña: en Verificación cuenta tipos verificados (o no-aplica);
+//  Progreso del medidor según la pestaña: en Verificación cuenta tipos verificados (o no-aplica);
 // en Aprobación/Inscripción cuenta tipos aprobados. Así el medidor "sube" con la acción de cada pestaña.
 const progresoDocs = (moduloActual === 'verificacion') ? (p.verificados || 0) : (p.aprobados || 0);
 const labelDocs = (moduloActual === 'verificacion') ? 'Verificados' : 'Aprobados';
 let badgeModulo = '';
 if (moduloActual === 'verificacion') {
-badgeModulo = `<span class="badge badge-pendiente">⏳ Pendiente verificar</span>`;
+  badgeModulo = `<span class="badge badge-pendiente">${ico('clock')} Pendiente verificar</span>`;
 } else if (moduloActual === 'aprobacion') {
-badgeModulo = `<span class="badge badge-pendiente" style="background:#fbbf24;color:#78350f;">📋 En aprobación</span>`;
+  badgeModulo = `<span class="badge badge-pendiente" style="background:#fbbf24;color:#78350f;">${ico('check-circle')} En aprobación</span>`;
 } else if (moduloActual === 'inscripcion') {
-badgeModulo = `<span class="badge badge-aprobado">✅ En inscripción</span>`;
+  badgeModulo = `<span class="badge badge-aprobado">${ico('check')} En inscripción</span>`;
 } else if (moduloActual === 'inactivos') {
-badgeModulo = `<span class="badge badge-pendiente" style="background:#fef3c7;color:#92400e;">🕐 Sin documentos</span>`;
+  badgeModulo = `<span class="badge badge-pendiente" style="background:#fef3c7;color:#92400e;">${ico('clock')} Sin documentos</span>`;
 } else {
-badgeModulo = `<span class="badge badge-${p.estado_general}">${p.estado_general}</span>`;
+  badgeModulo = `<span class="badge badge-${p.estado_general}">${p.estado_general}</span>`;
 }
+
 let gestionIcon = '';
 if (p.numero_registro) {
-gestionIcon = `<span style="font-size:0.8rem;color:#6b7280;margin-left:0.3rem;">📋 ${escapeHtml(p.numero_registro)}</span>`;
+gestionIcon = `<span style="font-size:0.8rem;color:#6b7280;margin-left:0.3rem;">${ico('file-text')} ${escapeHtml(p.numero_registro)}</span>`;
 }
 return `
 <div class="proveedor-row" data-id="${p.id}" data-modulo="${moduloActual}" style="cursor:pointer;" title="Clic para abrir el proveedor">
@@ -1298,16 +1289,16 @@ return `
 <h4 style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem 1rem;margin:0;">
 <span style="flex:1;min-width:150px;">${escapeHtml(p.razon_social || p.nombre_empresa || 'Sin nombre')} ${gestionIcon}</span>
 <span style="display:flex;flex-wrap:wrap;gap:0.3rem;justify-content:flex-end;margin-left:auto;">
-${p.recordatorios_pendientes > 0 ? `<span class="badge-recordatorio">📨 ${p.recordatorios_pendientes}</span>` : ''}
-${p.notas_count > 0 ? `<span class="badge-recordatorio" style="background:#8b5cf6;">📝 ${p.notas_count}</span>` : ''}
+${p.recordatorios_pendientes > 0 ? `<span class="badge-recordatorio">${ico('send')} ${p.recordatorios_pendientes}</span>` : ''}
+${p.notas_count > 0 ? `<span class="badge-recordatorio" style="background:#8b5cf6;"> ${p.notas_count}</span>` : ''}
 ${p.todos_subidos && p.estado_general === 'pendiente' && moduloActual === 'registrados'
 ? (p.todos_verificados
-? `<span class="badge-verificado-pendiente">📋 Verificado - Pendiente aprobación</span>`
-: `<span class="badge-pendiente-verificar">⏳ Pendiente por verificar</span>`)
+? `<span class="badge-verificado-pendiente">${ico('file-text')} Verificado - Pendiente aprobación</span>`
+: `<span class="badge-pendiente-verificar">${ico('clock')} Pendiente por verificar</span>`)
 : ''}
 </span>
 </h4>
-<small>📧 ${escapeHtml(p.email)} · ${labelTipoDoc(p)}: ${escapeHtml(p.rfc || '—')} · 📞 ${escapeHtml(p.telefono || '—')}${moduloActual === 'inactivos' && p.creado_en ? ` · 📅 Registro: ${formatearFecha(p.creado_en)}` : ''}</small>
+<small>${ico('mail')} ${escapeHtml(p.email)} · ${labelTipoDoc(p)}: ${escapeHtml(p.rfc || '—')} ·  ${escapeHtml(p.telefono || '—')}${moduloActual === 'inactivos' && p.creado_en ? ` · ${ico('calendar')} Registro: ${formatearFecha(p.creado_en)}` : ''}</small>
 </div>
 ${moduloActual !== 'registrados' ? `
 <div style="text-align:center;">
@@ -1317,12 +1308,12 @@ ${moduloActual !== 'registrados' ? `
 </div>
 ` : ''}
 ${badgeModulo}
-<button class="btn btn-sm" onclick="verProveedor(${p.id}, '${moduloActual}')">🔍 Revisar</button>
+<button class="btn btn-sm" onclick="verProveedor(${p.id}, '${moduloActual}')">${ico('search')} Revisar</button>
 </div>
 `;
 }).join('');
 }
-// 🆕 UX: clic en la fila (fuera de botones/enlaces/inputs) abre el modal del proveedor
+//  UX: clic en la fila (fuera de botones/enlaces/inputs) abre el modal del proveedor
 document.addEventListener('click', function(e) {
 const row = e.target.closest('.proveedor-row');
 if (!row) return;
@@ -1331,7 +1322,7 @@ const id = parseInt(row.dataset.id, 10);
 if (!id) return;
 verProveedor(id, row.dataset.modulo || moduloActual);
 });
-// 🆕 UX: Enter en el buscador abre el primer resultado filtrado
+//  UX: Enter en el buscador abre el primer resultado filtrado
 document.addEventListener('keydown', function(e) {
 if (e.key !== 'Enter') return;
 if (!e.target || e.target.id !== 'buscador') return;
@@ -1340,14 +1331,14 @@ const primero = (listaFiltrada && listaFiltrada.length) ? listaFiltrada[0] : nul
 if (primero) verProveedor(primero.id, moduloActual);
 });
 // ==========================================
-// 🔍 VER PROVEEDOR (modal contextual)
+//  VER PROVEEDOR (modal contextual)
 // ==========================================
 async function verProveedor(id, modulo) {
 try {
 const response = await fetchAPI(`/api/admin/proveedor/${id}`);
 if (!response.ok) {
 const errorData = await response.json().catch(() => ({}));
-mostrarAlerta(`❌ Error al cargar proveedor: ${errorData.error || 'Proveedor no encontrado'}`);
+mostrarAlerta(`${ico('x')} Error al cargar proveedor: ${errorData.error || 'Proveedor no encontrado'}`);
 return;
 }
 const data = await response.json();
@@ -1359,9 +1350,9 @@ return;
 proveedorActualId = id;
 proveedorActualNombre = data.proveedor.razon_social || data.proveedor.nombre_empresa || `Proveedor ${id}`;
 data.proveedor.documentos = data.documentos || [];
-documentosActivosCache = data.documentos || []; // 🆕 C1
+documentosActivosCache = data.documentos || []; //  C1
 historicosCache = data.documentos_historicos || [];
-// ⚡ F2: flags lazy en cero para este proveedor + badge de históricos
+//  F2: flags lazy en cero para este proveedor + badge de históricos
 // pintado desde el conteo (sin construir el DOM de ciclos todavía).
 resetSubTabFlags(id);
 const badgeHistApertura = document.getElementById('countHistoricos');
@@ -1369,7 +1360,7 @@ if (badgeHistApertura) {
 if (historicosCache.length) { badgeHistApertura.textContent = historicosCache.length; badgeHistApertura.style.display = 'inline-block'; }
 else badgeHistApertura.style.display = 'none';
 }
-// 🆕 Cargar los requerimientos según el tipo de persona de ESTE proveedor
+//  Cargar los requerimientos según el tipo de persona de ESTE proveedor
 try {
 const tipoProv = data.proveedor.tipo_proveedor;
 if (tipoProv === 'natural' || tipoProv === 'juridica') {
@@ -1379,10 +1370,10 @@ const listaTipo = await rr.json();
 if (listaTipo.length) requeridos = listaTipo;
 }
 } else {
-requeridos = requeridosDefault.slice(); // 🆕 tipo sin definir → lista estándar
+requeridos = requeridosDefault.slice(); //  tipo sin definir → lista estándar
 }
 } catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
-// 🩹 C5-fix: el panel se pinta DESPUÉS de refrescar requeridos.
+//  C5-fix: el panel se pinta DESPUÉS de refrescar requeridos.
 // Antes calculaba con la lista del proveedor anterior (12/14 erróneo).
 actualizarPanelContexto(data.proveedor);
 document.getElementById('modalTitulo').textContent = proveedorActualNombre;
@@ -1399,7 +1390,7 @@ document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active
 document.querySelector('[data-stab="docs"]').classList.add('active');
 subTabs.forEach(t => document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== 'docs'));
 renderDocsCompleto(data.proveedor, data.documentos, historicosCache);
-// ⚡ F2: históricos ya NO se renderiza al abrir (lazy al primer clic en 📦)
+//  F2: históricos ya NO se renderiza al abrir (lazy al primer clic en )
 } else if (modulo === 'verificacion') {
 subTabsContainer.style.display = 'block';
 document.querySelectorAll('[data-stab]').forEach(t => t.classList.remove('active'));
@@ -1423,12 +1414,12 @@ renderGestion(data.proveedor, data.documentos);
 document.getElementById('modal').classList.add('active');
 } catch (error) {
 console.error('❌ Error en verProveedor:', error);
-mostrarAlerta(`❌ Error de conexión: ${error.message}`);
+mostrarAlerta(`${ico('x')} Error de conexión: ${error.message}`);
 }
 }
 
 // ==========================================
-// 📦 RENDERIZAR DOCUMENTOS HISTÓRICOS (solo lectura, agrupados por ciclo)
+//  RENDERIZAR DOCUMENTOS HISTÓRICOS (solo lectura, agrupados por ciclo)
 // ==========================================
 function renderHistoricosProveedor(proveedor, historicos) {
 const cont = document.getElementById('subTabHistoricos');
@@ -1458,7 +1449,7 @@ const ciclosOrdenados = Object.keys(porCiclo).sort((a, b) => String(b).localeCom
 
 let html = `
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>📦 Documentos históricos:</strong> Estos documentos fueron archivados automáticamente (por vencimiento o por solicitud de actualización) y son de <strong>solo lectura</strong>. Están agrupados por número de registro (ciclo).
+<strong>${ico('archive')} Documentos históricos:</strong> Estos documentos fueron archivados automáticamente (por vencimiento o por solicitud de actualización) y son de <strong>solo lectura</strong>. Están agrupados por número de registro (ciclo).
 </div>
 `;
 
@@ -1467,7 +1458,7 @@ const docs = porCiclo[ciclo];
 html += `
 <div class="card" style="margin-bottom:1rem;background:#f9fafb;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
-<h4 style="margin:0;">📋 Ciclo: ${escapeHtml(ciclo)}</h4>
+<h4 style="margin:0;">${ico('file-text')} Ciclo: ${escapeHtml(ciclo)}</h4>
 <span class="badge-count">${docs.length} documento(s)</span>
 </div>
 <div class="doc-grid">
@@ -1478,11 +1469,11 @@ const ev = obtenerEstadoVencimiento(d.fecha_vencimiento);
 html += `
 <div class="doc-row" style="background:#fff;">
 <div style="flex:1;min-width:200px;">
-<small>📎 ${nombreEscapado} <span class="badge badge-rechazado">histórico</span> <span class="badge badge-${d.estado || 'rechazado'}">${d.estado || 'rechazado'}</span></small>
-${d.comentario ? `<br><small style="color:#991b1b;">💬 ${escapeHtml(d.comentario)}</small>` : ''}
-<br><small style="color:#9ca3af;">📤 Subido: ${formatearFecha(d.subido_en)}</small>
-${d.fecha_archivado ? `<br><small style="color:#6b7280;">📦 Archivado: ${formatearFecha(d.fecha_archivado)}</small>` : ''}
-${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">📅 Vencimiento: ${formatearFecha(d.fecha_vencimiento)}</small> <span class="badge badge-${ev.clase}" style="font-size:0.7rem;">${ev.icono} ${ev.texto}</span>` : ''}
+<small>${ico('file')} ${nombreEscapado} <span class="badge badge-rechazado">histórico</span> <span class="badge badge-${d.estado || 'rechazado'}">${d.estado || 'rechazado'}</span></small>
+${d.comentario ? `<br><small style="color:#991b1b;"> ${escapeHtml(d.comentario)}</small>` : ''}
+<br><small style="color:#9ca3af;">${ico('upload')} Subido: ${formatearFecha(d.subido_en)}</small>
+${d.fecha_archivado ? `<br><small style="color:#6b7280;">${ico('archive')} Archivado: ${formatearFecha(d.fecha_archivado)}</small>` : ''}
+${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">${ico('calendar')} Vencimiento: ${formatearFecha(d.fecha_vencimiento)}</small> <span class="badge badge-${ev.clase}" style="font-size:0.7rem;">${ev.icono} ${ev.texto}</span>` : ''}
 </div>
 <div class="doc-row-actions">
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
@@ -1502,7 +1493,7 @@ cont.innerHTML = html;
 }
 
 // ==========================================
-// 📄 FUNCIONES DE RENDERIZADO
+//  FUNCIONES DE RENDERIZADO
 // ==========================================
 function renderDocumentosConBotones(proveedor, documentos, mostrarSubida = true, modo = 'verificacion') {
 if (!proveedor) {
@@ -1532,7 +1523,7 @@ requeridos.forEach((req, idx) => {
 const sub = map[req.tipo] || [];
 const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
 const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
-// 🆕 Cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
+//  Cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
 const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
 const puedeSubir = permiteMultiples
 ? true
@@ -1565,14 +1556,14 @@ ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
 ${rechazado ? '<small style="color:#dc2626;display:block;">⚠️ Documento rechazado - Debe corregirse</small>' : ''}
 `;
 } else if (modo === 'aprobacion') {
-if (esNoAplica) extraInfo += `<br><span style="color:#92400e;font-size:0.85rem;">📋 No aplica</span>`;
-else if (aprobado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
-else if (verificado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">✅ Verificado</span>`;
-else extraInfo += `<br><span style="color:#dc2626;font-size:0.85rem;">❌ No verificado</span>`;
+if (esNoAplica) extraInfo += `<br><span style="color:#92400e;font-size:0.85rem;">${ico('file-text')} No aplica</span>`;
+else if (aprobado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">${ico('check')} Aprobado</span>`;
+else if (verificado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">${ico('check')} Verificado</span>`;
+else extraInfo += `<br><span style="color:#dc2626;font-size:0.85rem;">${ico('x')} No verificado</span>`;
 } else {
-if (aprobado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>`;
-else if (rechazado) extraInfo += `<br><span style="color:#dc2626;font-size:0.85rem;">❌ Rechazado</span>`;
-else extraInfo += `<br><span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>`;
+if (aprobado) extraInfo += `<br><span style="color:#059669;font-size:0.85rem;">${ico('check')} Aprobado</span>`;
+else if (rechazado) extraInfo += `<br><span style="color:#dc2626;font-size:0.85rem;">${ico('x')} Rechazado</span>`;
+else extraInfo += `<br><span style="color:#d97706;font-size:0.85rem;">${ico('clock')} Pendiente</span>`;
 }
 html += `<div class="doc-row">
 ${infoDocRow(d, { conBadgeNoAplica: true, extra: extraInfo })}
@@ -1596,7 +1587,7 @@ ${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " on
 // ---- NO APLICA (solo verificación, documentos opcionales) ----
 if (modo === 'verificacion' && req.opcional) {
 const noAplicaChecked = sub.some(d => d.no_aplica === 1);
-// 🆕 FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
+//  FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
 const tieneArchivosReales = sub.some(d => d.archivo && d.archivo !== 'no_aplica');
 const checkboxDisabled = tieneArchivosReales && !noAplicaChecked;
 const docId = sub.length > 0 ? sub[0].id : '';
@@ -1605,7 +1596,7 @@ html += `<div class="box-noaplica">
  <input type="checkbox" class="checkbox-no-aplica-admin" style="flex-shrink:0;width:auto;margin-top:0.15rem;"
 data-docid="${docId}" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}"
 ${noAplicaChecked ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
-<span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Este documento no aplica para este proveedor</span>
+<span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">${ico('file-text')} Este documento no aplica para este proveedor</span>
 </label>
 <small style="color:#78350f;display:block;margin-top:0.3rem;">
 ${noAplicaChecked
@@ -1627,7 +1618,7 @@ const maxAlcanzado = subidosValidos >= maxExp;
 html += `<div class="box-exito">
  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
  <span style="font-size:0.85rem;color:#065f46;">
-📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
+${ico('file-text')} Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
@@ -1640,7 +1631,7 @@ ${(!maxAlcanzado || subidosRechazados > 0) && puedeSubir ? `
 </form>
 ` : `
 <span style="color:#6b7280;font-size:0.9rem;">
-${maxAlcanzado && subidosRechazados === 0 ? `✅ Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}
+${maxAlcanzado && subidosRechazados === 0 ? `${ico('check')} Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}
 </span>
 `}
 </div>
@@ -1656,7 +1647,7 @@ html += `<form class="form-upload dropzone form-upload-admin" data-tipo="${req.t
 </form>`;
 } else if (req.tipo !== 'experiencia' && noAplica) {
 html += `<div class="box-noaplica">
- <small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+ <small style="color:#92400e;">${ico('file-text')} Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
  </div>`;
 }
 }
@@ -1666,30 +1657,30 @@ html += '</div>';
 return html;
 }
 
-// 🆕 Bloque para definir tipo de persona cuando no está definido
+//  Bloque para definir tipo de persona cuando no está definido
 function renderDefinirTipoPersona(proveedor) {
 return `
 <div class="alert alert-warning" style="margin-bottom:1rem;background:#fef3c7;border-left:5px solid #f59e0b;padding:1.2rem;">
-<strong style="color:#92400e;">⚠️ Tipo de persona sin definir</strong>
+<strong style="color:#92400e;">${ico('alert')} Tipo de persona sin definir</strong>
 <p style="color:#78350f;margin:0.4rem 0 0 0;">
 Este proveedor aún no ha elegido si es <strong>Persona Natural</strong> o <strong>Persona Jurídica</strong>.
 La lista de documentos requeridos depende de esta definición. Puedes definirla tú como administrador (el proveedor también puede hacerlo en su pestaña "Mis datos").
 </p>
 </div>
 <div class="card" style="background:#f0f9ff;padding:1.5rem;margin-bottom:1rem;border:2px solid #bae6fd;">
-<h4 style="margin-bottom:0.8rem;">🧾 Definir tipo de persona</h4>
+<h4 style="margin-bottom:0.8rem;">${ico('file-text')} Definir tipo de persona</h4>
 <div style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipoPersonaDefinicion" value="juridica"> 🏢 Persona Jurídica
+<input type="radio" name="tipoPersonaDefinicion" value="juridica"> ${ico('briefcase')} Persona Jurídica
 </label>
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipoPersonaDefinicion" value="natural"> 🧍 Persona Natural
+<input type="radio" name="tipoPersonaDefinicion" value="natural"> ${ico('user')} Persona Natural
 </label>
 </div>
-<button class="btn" onclick="guardarTipoPersona(${proveedor.id})" style="background:#2563eb;">💾 Guardar tipo y cargar documentos</button>
+<button class="btn" onclick="guardarTipoPersona(${proveedor.id})" style="background:#2563eb;">${ico('save')} Guardar tipo y cargar documentos</button>
 </div>
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>ℹ️ Mientras tanto:</strong> La lista de documentos que se muestra abajo corresponde a la lista estándar (Persona Jurídica). Una vez definido el tipo, se recargará con los documentos correctos.
+<strong>${ico('info')} Mientras tanto:</strong> La lista de documentos que se muestra abajo corresponde a la lista estándar (Persona Jurídica). Una vez definido el tipo, se recargará con los documentos correctos.
 </div>
 `;
 }
@@ -1738,66 +1729,66 @@ async function guardarTipoPersona(proveedorId) {
 
 function renderVerificacionCompleta(proveedor, documentos) {
 let html = '';
-// 🆕 Si no hay tipo de persona definido, mostrar bloque de definición primero
+//  Si no hay tipo de persona definido, mostrar bloque de definición primero
 if (!proveedor.tipo_proveedor) {
 html += renderDefinirTipoPersona(proveedor);
 }
 html += `
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>✅ Módulo de Verificación:</strong> Marca el checkbox para verificar cada documento.
+<strong>${ico('check')} Módulo de Verificación:</strong> Marca el checkbox para verificar cada documento.
 Puedes rechazar un documento si está mal. También puedes marcar "No aplica" para documentos opcionales.
 Cuando todos estén verificados o marcados como "No aplica", el proveedor pasará automáticamente a Aprobación.
 </div>
 `;
 html += `
 <div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
-<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('verificacion')">🔍 Revisión enfocada (uno por uno)</button>
+<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('verificacion')">${ico('search')} Revisión enfocada (uno por uno)</button>
 </div>`;
 html += renderDocumentosConBotones(proveedor, documentos, true, 'verificacion');
 document.getElementById('modalContenidoDocs').innerHTML = html;
 }
 
 function renderAprobacionCompleta(proveedor, documentos) {
-// ✅ Un documento cuenta como "aprobado" si está aprobado o si es "no aplica"
+//  Un documento cuenta como "aprobado" si está aprobado o si es "no aplica"
 const todosAprobados = documentos.length > 0 && documentos.every(d => d.estado === 'aprobado' || d.no_aplica === 1);
 
 let html = `
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>📋 Módulo de Aprobación:</strong> Revisa los documentos (ya deben estar verificados).
+<strong>${ico('file-text')} Módulo de Aprobación:</strong> Revisa los documentos (ya deben estar verificados).
 Aprueba o rechaza cada documento. Cuando todos estén aprobados (o marcados como "No aplica"), podrás aprobar la Evaluación Inicial.
 </div>
 `;
 html += `
 <div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
-<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('aprobacion')">🔍 Revisión enfocada (aprobar uno por uno)</button>
+<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('aprobacion')">${ico('search')} Revisión enfocada (aprobar uno por uno)</button>
 </div>`;
 html += renderDocumentosConBotones(proveedor, documentos, false, 'aprobacion');
 
 html += `
 <div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
-<h4>📄 Evaluación Inicial</h4>
+<h4>${ico('file-text')} Evaluación Inicial</h4>
 ${proveedor.evaluacion_inicial ? `
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
-<p><strong>📎 Archivo:</strong> Evaluación Inicial.pdf</p>
-<p><strong>📋 Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
-<p><strong>📅 Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
+<p><strong>${ico('file')} Archivo:</strong> Evaluación Inicial.pdf</p>
+<p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>${ico('calendar')} Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
-<a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
+<a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 ${(proveedor.evaluacion_estado === 'pendiente' || proveedor.evaluacion_estado === 'rechazado') ? `
 ${todosAprobados && tienePermisoUI('evaluacion.gestionar') ? `
- <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstadoEvaluacion(${proveedor.id},'aprobado') " >✅ Aprobar evaluación </button >
-${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">❌ Rechazar evaluación</button>` : ''}
+ <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstadoEvaluacion(${proveedor.id},'aprobado') " >${ico('check')} Aprobar evaluación </button >
+${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">${ico('x')} Rechazar evaluación</button>` : ''}
 <button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">${ICONOS.trash} Eliminar</button>
 ` : `
-<button class="btn btn-sm" style="background:#9ca3af;cursor:not-allowed;" disabled>⚠️ Primero aprueba todos los documentos</button>
+<button class="btn btn-sm" style="background:#9ca3af;cursor:not-allowed;" disabled>${ico('alert')} Primero aprueba todos los documentos</button>
 `}
 ` : ''}
 </div>
 </div>
 ` : `
 <div class="box-noaplica" style="margin-bottom:1rem;">
- <p>⚠️ Aún no se ha subido la evaluación inicial. Sube el PDF a continuación.</p>
+ <p>${ico('alert')} Aún no se ha subido la evaluación inicial. Sube el PDF a continuación.</p>
  </div>
 ${tienePermisoUI('evaluacion.gestionar') ? `
  <form id= "formEvaluacion " enctype= "multipart/form-data " class= "form-upload dropzone " >
@@ -1813,7 +1804,7 @@ document.getElementById('modalContenidoDocs').innerHTML = html;
 }
 
 // ==========================================
-// 📝 RENDERIZAR MÓDULO INSCRIPCIÓN Y ACTUALIZACIÓN
+//  RENDERIZAR MÓDULO INSCRIPCIÓN Y ACTUALIZACIÓN
 // ==========================================
 function renderGestion(proveedor, documentos) {
 const map = {};
@@ -1821,14 +1812,14 @@ documentos.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d
 
 let html = `
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>📝 Inscripción y Actualización:</strong> Asigna número de registro, observaciones y tipo de gestión.
+<strong> Inscripción y Actualización:</strong> Asigna número de registro, observaciones y tipo de gestión.
 Al guardar, el proveedor pasará a "Registrado" si la evaluación está aprobada.
 </div>
 <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
-<p><strong>📋 Estado del proveedor:</strong> ${proveedor.estado_general}</p>
-<p><strong>📍 Etapa actual:</strong> ${proveedor.etapa || 'inscripcion'}</p>
-<p><strong>📋 Evaluación:</strong> ${proveedor.evaluacion_estado || 'pendiente'}</p>
-${proveedor.numero_registro ? `<p><strong>📋 Fecha Movimiento actual:</strong> ${escapeHtml(proveedor.numero_registro)}</p>` : ''}
+<p><strong>${ico('file-text')} Estado del proveedor:</strong> ${proveedor.estado_general}</p>
+<p><strong> Etapa actual:</strong> ${proveedor.etapa || 'inscripcion'}</p>
+<p><strong>${ico('file-text')} Evaluación:</strong> ${proveedor.evaluacion_estado || 'pendiente'}</p>
+${proveedor.numero_registro ? `<p><strong>${ico('file-text')} Fecha Movimiento actual:</strong> ${escapeHtml(proveedor.numero_registro)}</p>` : ''}
 </div>
 <div class="doc-grid">
 `;
@@ -1870,20 +1861,20 @@ html += '</div>';
 
 html += `
 <div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
-<h4>📄 Evaluación Inicial</h4>
+<h4>${ico('file-text')} Evaluación Inicial</h4>
 ${proveedor.evaluacion_inicial ? `
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
-<p><strong>📎 Archivo:</strong> Evaluación Inicial.pdf</p>
-<p><strong>📋 Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
-<p><strong>📅 Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
+<p><strong>${ico('file')} Archivo:</strong> Evaluación Inicial.pdf</p>
+<p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>${ico('calendar')} Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
-<a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
+<a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 </div>
 </div>
 ` : `
 <div style="background:#fef3c7;padding:1rem;border-radius:6px;border:1px solid #fcd34d;margin-bottom:1rem;">
-<p>⚠️ No hay evaluación inicial subida.</p>
+<p>${ico('alert')} No hay evaluación inicial subida.</p>
 </div>
 `}
 </div>
@@ -1891,18 +1882,18 @@ ${proveedor.evaluacion_inicial ? `
 
 html += `
 <div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
-<h4>📝 Gestión de Inscripción/Actualización</h4>
+<h4> Gestión de Inscripción/Actualización</h4>
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>ℹ️ Nota:</strong> Al guardar con un número de registro, los <strong>documentos activos</strong> del proveedor se asociarán automáticamente a ese ciclo. Los documentos de ciclos anteriores quedan conservados en la pestaña <strong>📦 Históricos</strong>.
+<strong>${ico('info')} Nota:</strong> Al guardar con un número de registro, los <strong>documentos activos</strong> del proveedor se asociarán automáticamente a ese ciclo. Los documentos de ciclos anteriores quedan conservados en la pestaña <strong>${ico('archive')} Históricos</strong>.
 </div>
 ${tienePermisoUI('gestion.inscribir') ? `
  <form id="formGestion" style="background:#f9fafb;padding:1.5rem;border-radius:8px;">
  <div class="form-group">
- <label for="numeroRegistro">📋 Fecha Movimiento</label>
+ <label for="numeroRegistro">${ico('file-text')} Fecha Movimiento</label>
 <input type="text" id="numeroRegistro" value="${escapeHtml(proveedor.numero_registro || '')}" placeholder="Ej: Día Mes Año 01012000">
 </div>
 <div class="form-group">
-<label for="observaciones">📝 Observaciones</label>
+<label for="observaciones"> Observaciones</label>
 <textarea id="observaciones" rows="4" placeholder="Detalles sobre esta inscripción o actualización...">${escapeHtml(proveedor.notas_gestion || '')}</textarea>
 </div>
 <div class="form-group">
@@ -1910,20 +1901,20 @@ ${tienePermisoUI('gestion.inscribir') ? `
 <div style="display:flex;gap:1rem;margin-top:0.3rem;">
 <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
 <input type="radio" name="tipoGestion" value="inscripcion" ${proveedor.tipo_gestion === 'inscripcion' || !proveedor.tipo_gestion ? 'checked' : ''}>
-📝 Inscripción
+ Inscripción
 </label>
 <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
 <input type="radio" name="tipoGestion" value="actualizacion" ${proveedor.tipo_gestion === 'actualizacion' ? 'checked' : ''}>
-🔄 Actualización
+${ico('refresh')} Actualización
 </label>
 </div>
 </div>
 <div class="form-group">
-<label for="tipoProveedor">🏷️ Tipo de persona</label>
+<label for="tipoProveedor"> Tipo de persona</label>
 <select id="tipoProveedor" style="width:100%;padding:0.65rem 0.8rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="">— Sin definir —</option>
-<option value="juridica" ${proveedor.tipo_proveedor === 'juridica' ? 'selected' : ''}>🏢 Persona Jurídica</option>
-<option value="natural" ${proveedor.tipo_proveedor === 'natural' ? 'selected' : ''}>🧍 Persona Natural</option>
+<option value="juridica" ${proveedor.tipo_proveedor === 'juridica' ? 'selected' : ''}>${ico('briefcase')} Persona Jurídica</option>
+<option value="natural" ${proveedor.tipo_proveedor === 'natural' ? 'selected' : ''}>${ico('user')} Persona Natural</option>
 </select>
 <small style="color:#6b7280;font-size:0.8rem;">Define la documentación requerida del proveedor. Normalmente lo selecciona el propio proveedor en "Mis datos".</small>
 </div>
@@ -1935,14 +1926,14 @@ document.getElementById('modalContenidoDocs').innerHTML = html;
 }
 
 // ==========================================
-// 📄 RENDERIZAR DOCUMENTOS COMPLETO (para registrados)
+//  RENDERIZAR DOCUMENTOS COMPLETO (para registrados)
 // ==========================================
 function renderDocsCompleto(p, docs, historicos) {
 if (!p) {
 document.getElementById('modalContenidoDocs').innerHTML = '<div class="alert alert-error">Error: No se pudo cargar la información del proveedor.</div>';
 return;
 }
-// 🆕 FIX PUNTO 2: los proveedores RECHAZADOS/VENCIDOS ya NO son solo lectura.
+//  FIX PUNTO 2: los proveedores RECHAZADOS/VENCIDOS ya NO son solo lectura.
 // El administrador puede subir documentos en su nombre para iniciar la actualización.
 // Solo los REGISTRADOS permanecen en modo solo lectura.
 const soloLectura = p.etapa === 'registrado';
@@ -1953,11 +1944,11 @@ const numHistoricos = (historicos || []).length;
 const map = {};
 docs.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
 let html = '';
-// 🛡️ R4 (D6): aviso de modo solo lectura para perfil revisor
+//  R4 (D6): aviso de modo solo lectura para perfil revisor
 if (esSoloLectorUI()) {
-  html += `<div class="alert alert-info" style="margin-bottom:1rem;">ℹ️ <strong>Modo solo lectura:</strong> tu perfil puede consultar y descargar documentos activos e históricos, pero no ejecutar acciones.</div>`;
+  html += `<div class="alert alert-info" style="margin-bottom:1rem;">${ico('info')} <strong>Modo solo lectura:</strong> tu perfil puede consultar y descargar documentos activos e históricos, pero no ejecutar acciones.</div>`;
 }
-// 🆕 FIX PUNTO 2: si el proveedor vencido/rechazado aún no define su tipo de persona,
+//  FIX PUNTO 2: si el proveedor vencido/rechazado aún no define su tipo de persona,
 // mostrar el bloque de definición (reutiliza renderDefinirTipoPersona y guardarTipoPersona).
 if (!p.tipo_proveedor) {
 html += renderDefinirTipoPersona(p);
@@ -1966,7 +1957,7 @@ html += `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0 0 2px;">
 <strong>Email:</strong> <span id="emailActualProv">${escapeHtml(p.email || '—')}</span>
-${tienePermisoUI('proveedores.gestionar') ? ` <button class= "btn btn-sm btn-secondary " onclick= "editarEmailProveedor(${p.id}, '${escapeAttr(p.email || '')}') " style= "padding:0.2rem 0.6rem;font-size:0.78rem; " >✏️ Cambiar </button >` : ''}</div>
+${tienePermisoUI('proveedores.gestionar') ? ` <button class= "btn btn-sm btn-secondary " onclick= "editarEmailProveedor(${p.id}, '${escapeAttr(p.email || '')}') " style= "padding:0.2rem 0.6rem;font-size:0.78rem; " >${ico('edit')} Cambiar </button >` : ''}</div>
 <div id="contenedorEditarEmail" style="display:none;margin:0.3rem 0 0.4rem;"></div>
 <strong>NIT/RUT:</strong> ${escapeHtml(p.rfc || '—')}<br>
 <strong>Representante:</strong> ${escapeHtml(p.representante || '—')}<br>
@@ -1977,12 +1968,12 @@ ${p.numero_registro ? `<br><strong>Fecha Movimiento:</strong> ${escapeHtml(p.num
 ${p.tipo_gestion ? `<br><strong>Tipo gestión:</strong> ${p.tipo_gestion === 'inscripcion' ? '📝 Inscripción' : '🔄 Actualización'}` : ''}
 ${p.tipo_proveedor ? `<br><strong>Tipo de proveedor:</strong> ${escapeHtml(p.tipo_proveedor)}` : ''}
 ${p.notas_gestion ? `<br><strong>Nota:</strong> ${escapeHtml(p.notas_gestion)}` : ''}
-${esRechazado ? `<br><span class="badge badge-rechazado" style="background:#dc2626;color:white;">❌ Rechazado</span>` : ''}
-${p.etapa === 'registrado' ? `<br><span class="badge badge-aprobado" style="background:#059669;color:white;">✅ Registrado</span>` : ''}
+${esRechazado ? `<br><span class="badge badge-rechazado" style="background:#dc2626;color:white;">${ico('x')} Rechazado</span>` : ''}
+${p.etapa === 'registrado' ? `<br><span class="badge badge-aprobado" style="background:#059669;color:white;">${ico('check')} Registrado</span>` : ''}
 </div>
 ${esRechazado ? `
 <div style="margin-top:1rem;padding:1.5rem;background:#fee2e2;border:2px solid #dc2626;border-radius:8px;text-align:center;">
-<p style="color:#991b1b;font-weight:600;margin-bottom:0.5rem;">⚠️ Este proveedor fue rechazado${esVencimiento ? ' por vencimiento de documentos' : ''}.</p>
+<p style="color:#991b1b;font-weight:600;margin-bottom:0.5rem;">${ico('alert')} Este proveedor fue rechazado${esVencimiento ? ' por vencimiento de documentos' : ''}.</p>
 <p style="color:#7f1d1d;margin-bottom:0;">
 ${esVencimiento
 ? 'Todos sus documentos fueron movidos a histórico (ver pestaña 📦 Históricos). Como administrador ya puedes subir documentos en nombre del proveedor para iniciar la actualización. El proveedor deberá seleccionar su tipo de persona y completar su documentación en el portal.'
@@ -1994,7 +1985,7 @@ ${soloLectura && !esRechazado ? `
 <div style="margin-bottom:1rem;padding:1rem;background:#dbeafe;border:1px solid #2563eb;border-radius:8px;">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
 <div>
-<strong style="color:#1e40af;">🔄 Actualización anual disponible</strong>
+<strong style="color:#1e40af;">${ico('refresh')} Actualización anual disponible</strong>
 <p style="margin:0.3rem 0 0 0;color:#1e40af;font-size:0.9rem;">Puedes solicitar al proveedor que actualice sus documentos para el nuevo período. Sus documentos actuales se archivarán en el histórico.</p>
 </div>
 ${tienePermisoUI('proveedores.gestionar') ? `
@@ -2002,23 +1993,23 @@ ${tienePermisoUI('proveedores.gestionar') ? `
 data-id= "${p.id} "
 data-nombre= "${escapeAttr(p.razon_social || p.nombre_empresa || 'Proveedor')} "
 onclick= "abrirSolicitudActualizacion(this) " >
-🔄 Solicitar actualización
+${ico('refresh')} Solicitar actualización
  </button >` : ''}
 </div>
 </div>
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>ℹ️ Modo solo lectura:</strong> Este proveedor está registrado. Puedes visualizar, descargar y solicitar actualización de documentos.
+<strong>${ico('info')} Modo solo lectura:</strong> Este proveedor está registrado. Puedes visualizar, descargar y solicitar actualización de documentos.
 </div>
 ` : ''}
 ${!soloLectura ? `
 <div class="alert alert-info" style="margin-bottom:1rem;">
-<strong>ℹ️ Información:</strong> Como administrador, puedes subir documentos en nombre del proveedor para agilizar el proceso de registro.
+<strong>${ico('info')} Información:</strong> Como administrador, puedes subir documentos en nombre del proveedor para agilizar el proceso de registro.
 </div>
 ` : ''}
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h4 style="margin:0;">Documentos activos</h4>
 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-${numHistoricos > 0 ? `<small style="color:#6b7280;">📦 ${numHistoricos} histórico(s) — ver pestaña "Históricos"</small>` : ''}
+${numHistoricos > 0 ? `<small style="color:#6b7280;">${ico('archive')} ${numHistoricos} histórico(s) — ver pestaña "Históricos"</small>` : ''}
 <button class="btn btn-success" onclick="descargarZIP(${p.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
 ${ICONOS.zip} Descargar activos en ZIP
 </button>
@@ -2031,7 +2022,7 @@ requeridos.forEach((req, idx) => {
 const sub = map[req.tipo] || [];
 const ok = sub.filter(d => d.estado === 'aprobado').length >= req.cantidadMin;
 const noAplica = sub.length > 0 && sub[0]?.no_aplica === 1;
-// 🆕 Cupo múltiple (experiencia): permite agregar hasta cantidadMax
+//  Cupo múltiple (experiencia): permite agregar hasta cantidadMax
 const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
 const puedeSubir = !soloLectura && (permiteMultiples
 ? true
@@ -2050,7 +2041,7 @@ html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
 sub.forEach(d => {
 const verificado = d.verificado === 1;
 const mostrarCheck = !soloLectura && d.estado !== 'aprobado';
-const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica'); // 🆕 sin archivo físico
+const esNoAplica = (d.no_aplica === 1 || d.archivo === 'no_aplica'); //  sin archivo físico
 const checkDeshabilitado = d.estado === 'rechazado' || soloLectura || esNoAplica || !tienePermisoUI('docs.verificar');
 
 const extraCheck = mostrarCheck ? `
@@ -2079,7 +2070,7 @@ ${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " on
 }
 
 if (!soloLectura && req.opcional) {
-// 🆕 FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
+//  FIX: solo contar archivos REALES; un marcador 'no_aplica' rechazado no debe bloquear el re-marcado
 const tieneArchivosReales = sub.some(d => d.archivo && d.archivo !== 'no_aplica');
 const checkboxDisabled = tieneArchivosReales && !noAplica;
 html += `<div class="box-noaplica">
@@ -2087,7 +2078,7 @@ html += `<div class="box-noaplica">
  <input type="checkbox" class="checkbox-no-aplica-admin"
 data-docid="${sub[0]?.id || ''}" data-tipo="${req.tipo}" data-proveedorid="${p.id}"
 ${noAplica ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
-<span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Marcar como "No Aplica" para este proveedor</span>
+<span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">${ico('file-text')} Marcar como "No Aplica" para este proveedor</span>
 </label>
 <small style="color:#78350f;display:block;margin-top:0.3rem;">
 ${noAplica ? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
@@ -2098,13 +2089,13 @@ ${noAplica ? '✅ Documento marcado como "No aplica". La carga de archivos está
 }
 
 if (!soloLectura && req.tipo === 'experiencia') {
-const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
+const maxExp = req.cantidadMax || 3; //  jurídico=3, natural=2
 const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
 const maxAlcanzado = subidosValidos >= maxExp;
 html += `<div class="box-exito">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
  <span style="font-size:0.85rem;color:#065f46;">
-📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
+${ico('file-text')} Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
 </span>
 ${!maxAlcanzado && puedeSubir ? `
@@ -2115,7 +2106,7 @@ ${!maxAlcanzado && puedeSubir ? `
 <button type="submit" class="btn btn-sm" style="background:#0284c7;">${ICONOS.upload} Subir PDF</button>
 </form>
 ` : `
-<span style="color:#6b7280;font-size:0.9rem;">${maxAlcanzado ? `✅ Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}</span>
+<span style="color:#6b7280;font-size:0.9rem;">${maxAlcanzado ? `${ico('check')} Máximo de ${maxExp} certificados alcanzado` : 'No disponible'}</span>
 `}
 </div>
 </div>`;
@@ -2131,7 +2122,7 @@ html += `<form class="form-upload dropzone form-upload-admin" data-tipo="${req.t
 </form>`;
 } else if (!soloLectura && req.tipo !== 'experiencia' && noAplica) {
 html += `<div class="box-noaplica">
- <small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+ <small style="color:#92400e;">${ico('file-text')} Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
  </div>`;
 }
 html += '</div>';
@@ -2140,20 +2131,20 @@ html += '</div>';
 
 html += `
 <div style="margin-top:2rem;border-top:2px solid #e5e7eb;padding-top:1.5rem;">
-<h4>📄 Evaluación Inicial</h4>
+<h4>${ico('file-text')} Evaluación Inicial</h4>
 ${p.evaluacion_inicial ? `
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
-<p><strong>📎 Archivo:</strong> Evaluación Inicial.pdf</p>
-<p><strong>📋 Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : p.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
-<p><strong>📅 Fecha:</strong> ${p.evaluacion_fecha ? formatearFecha(p.evaluacion_fecha) : ''}</p>
+<p><strong>${ico('file')} Archivo:</strong> Evaluación Inicial.pdf</p>
+<p><strong>${ico('file-text')} Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : p.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>${ico('calendar')} Fecha:</strong> ${p.evaluacion_fecha ? formatearFecha(p.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${p.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
-<a href="/api/admin/proveedor/${p.id}/evaluacion/download" class="btn btn-sm btn-success">⬇️ Descargar</a>
+<a href="/api/admin/proveedor/${p.id}/evaluacion/download" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 </div>
 </div>
 ` : `
 <div class="box-noaplica" style="margin-bottom:1rem;">
- <p>⚠️ No hay evaluación inicial subida.</p>
+ <p>${ico('alert')} No hay evaluación inicial subida.</p>
  </div>
 `}
 </div>
@@ -2162,7 +2153,7 @@ document.getElementById('modalContenidoDocs').innerHTML = html;
 }
 
 // ==========================================
-// 📄 PLANTILLAS
+//  PLANTILLAS
 // ==========================================
 function renderizarPlantillas() {
 const cont = document.getElementById('contenedor-modulos');
@@ -2190,7 +2181,7 @@ return;
 setTimeout(() => cargarPlantillas(), 300);
 return;
 }
-cargarPlantillas._intentos = 0; // 🆕 resetea el contador al cargar bien
+cargarPlantillas._intentos = 0; //  resetea el contador al cargar bien
 
     const plantillasRequeridas = requeridos.filter(r => r.esPlantilla === true);
     if (plantillasRequeridas.length === 0) {
@@ -2205,7 +2196,7 @@ cargarPlantillas._intentos = 0; // 🆕 resetea el contador al cargar bien
 const map = {};
 plantillas.forEach(p => map[p.tipo] = p);
 cont.innerHTML = '';
-// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por plantilla
+//  F7: DocumentFragment = un solo reflow al final en vez de uno por plantilla
 const fragPlantillas = document.createDocumentFragment();
 plantillasRequeridas.forEach(req => {
             const p = map[req.tipo];
@@ -2216,11 +2207,11 @@ plantillasRequeridas.forEach(req => {
                 <div style="margin-bottom:0.5rem;"><h4>${req.nombre}</h4></div>
                 ${p ? `
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:#f9fafb;border-radius:6px;margin-bottom:0.5rem;">
-                    <small>✅ ${p.nombre_original}</small>
+                    <small>${ico('check')} ${p.nombre_original}</small>
                     <a href="/plantillas/${p.archivo}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>
                 </div>
                 ` : `
-                <div class="alert" style="background:#fee2e2;color:#991b1b;padding:0.5rem;margin-bottom:0.5rem;">⚠️ Sin plantilla</div>
+                <div class="alert" style="background:#fee2e2;color:#991b1b;padding:0.5rem;margin-bottom:0.5rem;">${ico('alert')} Sin plantilla</div>
                 `}
                 <form class="form-plantilla" data-tipo="${req.tipo}" style="display:flex;gap:0.5rem;align-items:center;">
                     <input type="file" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx">
@@ -2256,7 +2247,7 @@ plantillasRequeridas.forEach(req => {
 }
 
 // ==========================================
-// 📜 HISTORIAL DE ACTUALIZACIONES
+//  HISTORIAL DE ACTUALIZACIONES
 // ==========================================
 let historialPaginaActual = 1;
 let historialLimiteActual = 20;
@@ -2288,31 +2279,31 @@ historialLimiteActual = data.limit || 20;
 let html = `
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
-<h3 style="margin:0;">📜 Historial de actualizaciones</h3>
+<h3 style="margin:0;">${ico('file-text')} Historial de actualizaciones</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-success" onclick="exportarHistorial()">📄 Exportar</button>
+<button class="btn btn-sm btn-success" onclick="exportarHistorial()">${ico('file-text')} Exportar</button>
 </div>
 </div>
 <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1.5rem;">
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1rem;margin-bottom:1rem;">
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('search')} Buscar</label>
 <input type="text" id="historialBusqueda" placeholder="Nombre, email..."
 value="${escapeHtml(busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Año</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Año</label>
 <select id="historialAno" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="">Todos</option>
 </select>
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🏢 NIT / RUT</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('briefcase')} NIT / RUT</label>
 <input type="text" id="historialRfc" placeholder="Ej: 900123456"
 value="${escapeHtml(rfc)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔘 Estado</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;"> Estado</label>
 <select id="historialEstado" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="">Todos</option>
 <option value="activo" ${estado === 'activo' ? 'selected' : ''}>Activo</option>
@@ -2322,14 +2313,14 @@ value="${escapeHtml(rfc)}" style="width:100%;padding:0.5rem;border:1px solid #d1
 </div>
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosHistorial()">🔍 Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosHistorial()">🗑️ Limpiar</button>
+<button class="btn btn-sm" onclick="aplicarFiltrosHistorial()">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosHistorial()">${ico('trash')} Limpiar</button>
 </div>
 <div id="paginacionHistorial" style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;">
-<button id="btnHistorialAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(-1)">◀ Anterior</button>
+<button id="btnHistorialAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(-1)"> Anterior</button>
 <span id="infoHistorialPagina">Página ${data.page} de ${data.totalPages} (${data.total} registros)</span>
-<button id="btnHistorialSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(1)">Siguiente ▶</button>
+<button id="btnHistorialSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(1)">Siguiente </button>
 </div>
 <div>
 <label style="font-size:0.85rem;">Mostrar:</label>
@@ -2357,7 +2348,7 @@ if (hr) hr.addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFilt
 } catch (err) {
 console.error('❌ Error cargando historial:', err);
 const contenedor = document.getElementById('contenedor-modulos');
-contenedor.innerHTML = `<div class="alert alert-error">❌ Error al cargar historial: ${err.message}</div>`;
+contenedor.innerHTML = `<div class="alert alert-error">${ico('x')} Error al cargar historial: ${err.message}</div>`;
 }
 }
 
@@ -2422,8 +2413,8 @@ html += `
 ${escapeHtml(c.rfc || '—')}
 </td>
 <td style="padding:0.7rem;text-align:center;">
-<button class="btn btn-sm btn-secondary" onclick="verCiclo(${c.id})">👁️ Ver docs</button>
-<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${c.id})">📦 ZIP</button>
+<button class="btn btn-sm btn-secondary" onclick="verCiclo(${c.id})">${ico('eye')} Ver docs</button>
+<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${c.id})">${ico('archive')} ZIP</button>
 </td>
 </tr>
 `;
@@ -2477,7 +2468,7 @@ cargarHistorial(1);
 }
 
 // ==========================================
-// 📂 VER CICLO (modal con documentos)
+//  VER CICLO (modal con documentos)
 // ==========================================
 async function verCiclo(cicloId) {
 try {
@@ -2504,13 +2495,13 @@ const evalBadge = evaluacion.es_historico === 1
 docsHtml += `
 <div class="doc-item" style="flex-direction:column;align-items:stretch;background:#f5f3ff;border:1px solid #c4b5fd;">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-<span><strong>📄 Evaluación Inicial</strong> ${evalBadge}</span>
+<span><strong>${ico('file-text')} Evaluación Inicial</strong> ${evalBadge}</span>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${evaluacion.archivo}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
-<a href="/uploads/${evaluacion.archivo}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
+<a href="/uploads/${evaluacion.archivo}?download=true" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 </div>
-${evaluacion.fecha ? `<small style="color:#6b7280;">📅 Fecha: ${formatearFecha(evaluacion.fecha)}</small>` : ''}
+${evaluacion.fecha ? `<small style="color:#6b7280;">${ico('calendar')} Fecha: ${formatearFecha(evaluacion.fecha)}</small>` : ''}
 </div>
 `;
 }
@@ -2518,7 +2509,7 @@ if (documentos && documentos.length > 0) {
 docsHtml += `
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h4 style="margin:0;">Documentos del ciclo ${escapeHtml(ciclo.numero_registro)}</h4>
-<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${ciclo.id})">📦 Descargar todos en ZIP</button>
+<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${ciclo.id})">${ico('archive')} Descargar todos en ZIP</button>
 </div>
 <div class="doc-grid">
 `;
@@ -2541,7 +2532,7 @@ ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
 : `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
-<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">⬇️ Descargar</a>
+<a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 `}
 </div>
 ${d.fecha_vencimiento ? `<small style="color:#6b7280;">Vence: ${formatearFecha(d.fecha_vencimiento)}</small>` : ''}
@@ -2556,7 +2547,7 @@ docsHtml += '<p style="color:#6b7280;">Este ciclo no tiene documentos asociados.
 modal.innerHTML = `
 <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-<h3 style="margin:0;">📂 Ciclo: ${escapeHtml(ciclo.numero_registro)}</h3>
+<h3 style="margin:0;"> Ciclo: ${escapeHtml(ciclo.numero_registro)}</h3>
 <button class="btn btn-sm btn-secondary" onclick="cerrarModalCiclo()">✕ Cerrar</button>
 </div>
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
@@ -2582,7 +2573,7 @@ if (modal) modal.remove();
 }
 
 // ==========================================
-// 📦 DESCARGAR ZIP DE CICLO
+//  DESCARGAR ZIP DE CICLO
 // ==========================================
 async function descargarZIPCiclo(cicloId) {
 try {
@@ -2612,7 +2603,7 @@ mostrarAlerta('❌ Error al descargar: ' + err.message);
 }
 
 // ==========================================
-// 📄 EXPORTAR HISTORIAL (CSV)
+//  EXPORTAR HISTORIAL (CSV)
 // ==========================================
 async function exportarHistorial() {
 try {
@@ -2643,7 +2634,7 @@ const a = document.createElement('a');
 a.href = urlBlob; a.download = `historial_ciclos_${fechaArchivo()}.csv`;
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 window.URL.revokeObjectURL(urlBlob);
-mostrarAlerta(`✅ Historial exportado (${ciclos.length} ciclos)`, 'success');
+mostrarAlerta(`${ico('check')} Historial exportado (${ciclos.length} ciclos)`, 'success');
 } catch (err) {
 console.error('❌ Error exportando historial:', err);
 mostrarAlerta('❌ Error al exportar: ' + err.message);
@@ -2651,21 +2642,21 @@ mostrarAlerta('❌ Error al exportar: ' + err.message);
 }
 
 // ==========================================
-// ⚙️ CONFIGURACIÓN DEL SISTEMA (FECHA FIJA)
+//  CONFIGURACIÓN DEL SISTEMA (FECHA FIJA)
 // ==========================================
 async function cargarConfiguracion() {
 const contenedor = document.getElementById('contenedor-modulos');
 let html = `
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
-<h3 style="margin:0;">⚙️ Configuración del sistema</h3>
+<h3 style="margin:0;">${ico('settings')} Configuración del sistema</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="recargarConfiguracion()">🔄 Recargar</button>
+<button class="btn btn-sm btn-secondary" onclick="recargarConfiguracion()">${ico('refresh')} Recargar</button>
 </div>
 </div>
 <div id="configuracionContenido">
 <div style="text-align:center;padding:2rem;">
-<div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+<div style="font-size:2rem;margin-bottom:0.5rem;">${ico('clock')}</div>
 <p>Cargando configuración...</p>
 </div>
 </div>
@@ -2687,12 +2678,12 @@ cargarBackups();
 } catch (err) {
 console.error('❌ Error cargando configuración:', err);
 const cont = document.getElementById('configuracionContenido');
-if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error al cargar configuración: ${err.message}</div>`;
+if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error al cargar configuración: ${err.message}</div>`;
 }
 }
 
 // ==========================================
-// ⚙️ RENDER DEL FORMULARIO DE CONFIGURACIÓN
+//  RENDER DEL FORMULARIO DE CONFIGURACIÓN
 // ==========================================
 function renderizarFormularioConfiguracion(config) {
     const cont = document.getElementById('configuracionContenido');
@@ -2710,76 +2701,76 @@ function renderizarFormularioConfiguracion(config) {
     const fechaActualizacion = config?.actualizado_en ? formatearFecha(config.actualizado_en) : 'Nunca';
     cont.innerHTML = `
     <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #e5e7eb;">
-        <h4 style="color:#dc2626;margin-bottom:0.5rem;">⚡ Acciones urgentes</h4>
+        <h4 style="color:#dc2626;margin-bottom:0.5rem;"> Acciones urgentes</h4>
         <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
             Esta acción moverá <strong>TODOS los documentos activos</strong> de <strong>TODOS los proveedores</strong> a histórico y los cambiará a estado RECHAZADO, sin importar su fecha de vencimiento.
         </p>
         <button class="btn btn-danger" onclick="forzarVencimientosAhora()" style="background:#dc2626;color:white;font-weight:bold;padding:0.8rem 2rem;">
-            ⚡ Forzar vencimiento de todos los documentos
+             Forzar vencimiento de todos los documentos
         </button>
         <small style="color:#6b7280;display:block;margin-top:0.5rem;">
-            ⚠️ Esta acción es irreversible. Se recomienda hacer una copia de seguridad antes.
+            ${ico('alert')} Esta acción es irreversible. Se recomienda hacer una copia de seguridad antes.
         </small>
     </div>
     <div style="background:#f0fdf4;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;border-left:4px solid #059669;">
-        <h4 style="color:#065f46;margin-bottom:0.5rem;">📋 Configuración actual</h4>
-        <p><strong>📅 Fecha fija de vencimiento:</strong> <span style="font-size:1.2rem;font-weight:700;color:#059669;">${fechaMostrada}</span></p>
-        <p><strong>🕐 Última actualización:</strong> ${fechaActualizacion}</p>
-        <p><strong>📝 Descripción:</strong> Fecha y hora a partir de la cual los documentos aprobados se considerarán vencidos.</p>
+        <h4 style="color:#065f46;margin-bottom:0.5rem;">${ico('file-text')} Configuración actual</h4>
+        <p><strong>${ico('calendar')} Fecha fija de vencimiento:</strong> <span style="font-size:1.2rem;font-weight:700;color:#059669;">${fechaMostrada}</span></p>
+        <p><strong>${ico('clock')} Última actualización:</strong> ${fechaActualizacion}</p>
+        <p><strong> Descripción:</strong> Fecha y hora a partir de la cual los documentos aprobados se considerarán vencidos.</p>
     </div>
     <div style="background:#f9fafb;padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;">
-        <h4 style="margin-bottom:0.5rem;">✏️ Modificar fecha fija de vencimiento</h4>
+        <h4 style="margin-bottom:0.5rem;">${ico('edit')} Modificar fecha fija de vencimiento</h4>
         <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
             Establece la fecha y hora exacta en que todos los documentos aprobados pasarán a vencidos.
             Esta fecha se aplicará a los documentos que se aprueben a partir de ahora.
         </p>
         <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
             <div style="flex:1;min-width:200px;">
-                <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Fecha y hora de vencimiento</label>
+                <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Fecha y hora de vencimiento</label>
                 <input type="datetime-local" id="fechaVencimientoInput" value="${fechaActual}"
                     style="width:100%;padding:0.7rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">
             </div>
-            <button class="btn" onclick="guardarConfiguracion()" style="background:#059669;">💾 Guardar</button>
+            <button class="btn" onclick="guardarConfiguracion()" style="background:#059669;">${ico('save')} Guardar</button>
         </div>
         <small style="color:#6b7280;display:block;margin-top:0.5rem;">
-            ⚠️ Este cambio afectará solo a los documentos que se aprueben a partir de ahora.
+            ${ico('alert')} Este cambio afectará solo a los documentos que se aprueben a partir de ahora.
         </small>
     </div>
     <div style="background:#fffbeb;padding:1.5rem;border-radius:8px;border:2px solid #f59e0b;">
-        <h4 style="color:#92400e;margin-bottom:0.5rem;">🔄 Recalcular fechas de vencimiento existentes</h4>
+        <h4 style="color:#92400e;margin-bottom:0.5rem;">${ico('refresh')} Recalcular fechas de vencimiento existentes</h4>
         <p style="color:#78350f;font-size:0.9rem;margin-bottom:1rem;">
             Aplica la fecha fija configurada a todos los documentos <strong>aprobados y activos</strong> (no históricos).
             Esto asignará la misma fecha y hora a todos los documentos aprobados.
         </p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <button class="btn btn-warning" onclick="recalcularVencimientos()" style="background:#d97706;color:white;">
-                🔄 Aplicar a todos (fecha fija)
+                ${ico('refresh')} Aplicar a todos (fecha fija)
             </button>
             <small style="color:#6b7280;display:block;margin-top:0.5rem;">
-                ⚠️ Esta acción puede afectar a muchos documentos. Se recomienda hacer una copia de seguridad antes.
+                ${ico('alert')} Esta acción puede afectar a muchos documentos. Se recomienda hacer una copia de seguridad antes.
             </small>
         </div>
     </div>
     <div style="background:#f0f9ff;padding:1.5rem;border-radius:8px;margin-top:1.5rem;border:2px solid #0284c7;">
-        <h4 style="color:#075985;margin-bottom:0.5rem;">💾 Backups de BD y documentos</h4>
+        <h4 style="color:#075985;margin-bottom:0.5rem;">${ico('save')} Backups de BD y documentos</h4>
         <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
             Copia automática cada 12 h (2 AM / 2 PM): base de datos completa + mirror de PDFs cifrados y plantillas.
             Crea, verifica, descarga (copia externa) o restaura sin usar consola.
         </p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
-            <button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">➕ Crear backup ahora</button>
-            <button class="btn btn-secondary" onclick="cargarBackups()">🔄 Actualizar lista</button>
+            <button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">${ico('plus')} Crear backup ahora</button>
+            <button class="btn btn-secondary" onclick="cargarBackups()">${ico('refresh')} Actualizar lista</button>
         </div>
 <div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div> </div>`;
-aplicarGatingBotones(); // 🛡️ R4: backups/acciones urgentes según permiso
+aplicarGatingBotones(); //  R4: backups/acciones urgentes según permiso
 }
 
 // ==========================================
-// ⏰ VENCIMIENTOS — LANZAMIENTO + POLLING DEL JOB (anti-congelamiento)
+//  VENCIMIENTOS — LANZAMIENTO + POLLING DEL JOB (anti-congelamiento)
 // ==========================================
 async function lanzarJobVencimientos(url, etiqueta) {
     try {
-        mostrarAlerta(`⏳ ${etiqueta}: iniciando en segundo plano...`, 'info');
+        mostrarAlerta(`${ico('clock')} ${etiqueta}: iniciando en segundo plano...`, 'info');
         const res = await fetchAPI(url, { method: 'POST' });
         const data = await res.json().catch(() => ({}));
         if (res.status === 409) { mostrarAlerta('⚠️ ' + (data.error || 'Ya hay un procesamiento en curso.'), 'warning'); return; }
@@ -2797,10 +2788,10 @@ async function pollJobVencimientos(etiqueta) {
                 const r = await fetchAPI('/api/admin/vencimientos-job');
                 const j = await r.json();
                 const pct = j.total ? Math.round((j.procesados / j.total) * 100) : 0;
-                console.log(`⏳ ${etiqueta}: ${j.procesados}/${j.total} (${pct}%) · movidos=${j.movidos} notificados=${j.notificados} errores=${j.errores}`);
+                console.log(`${ico('clock')} ${etiqueta}: ${j.procesados}/${j.total} (${pct}%) · movidos=${j.movidos} notificados=${j.notificados} errores=${j.errores}`);
                 if (!j.enCurso) {
                     clearInterval(iv);
-                    mostrarAlerta(`✅ ${etiqueta} completado: ${j.movidos} movidos, ${j.notificados} notificados, ${j.errores} errores`, 'success');
+                    mostrarAlerta(`${ico('check')} ${etiqueta} completado: ${j.movidos} movidos, ${j.notificados} notificados, ${j.errores} errores`, 'success');
                     recargarConfiguracion();
                     recargarVistaActual();
                     resolve();
@@ -2839,8 +2830,8 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ valor: fecha })
 });
 const data = await response.json();
-if (response.ok) { mostrarAlerta(`✅ ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
-else { mostrarAlerta(`❌ ${data.error || 'Error al guardar'}`, 'error'); }
+if (response.ok) { mostrarAlerta(`${ico('check')} ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
+else { mostrarAlerta(`${ico('x')} ${data.error || 'Error al guardar'}`, 'error'); }
 } catch (err) {
 console.error('❌ Error guardando configuración:', err);
 mostrarAlerta('❌ Error de conexión', 'error');
@@ -2855,8 +2846,8 @@ btn.disabled = true; btn.textContent = '⏳ Procesando...';
 try {
 const response = await fetchAPI('/api/admin/recalcular-vencimientos', { method: 'POST' });
 const data = await response.json();
-if (response.ok) { mostrarAlerta(`✅ ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
-else { mostrarAlerta(`❌ ${data.error || 'Error al recalcular'}`, 'error'); }
+if (response.ok) { mostrarAlerta(`${ico('check')} ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
+else { mostrarAlerta(`${ico('x')} ${data.error || 'Error al recalcular'}`, 'error'); }
 } catch (err) {
 console.error('❌ Error recalculando:', err);
 mostrarAlerta('❌ Error de conexión', 'error');
@@ -2864,7 +2855,7 @@ mostrarAlerta('❌ Error de conexión', 'error');
 }
 
 // ==========================================
-// 💾 BACKUPS (UI en Configuración)
+//  BACKUPS (UI en Configuración)
 // ==========================================
 async function cargarBackups() {
 const cont = document.getElementById('listaBackups');
@@ -2885,9 +2876,9 @@ backups.map(b => `
 <td style="padding:0.6rem;"><strong>${escapeHtml(b.nombre)}</strong></td>
 <td style="padding:0.6rem;text-align:center;">${(b.bytes / 1024 / 1024).toFixed(2)} MB</td>
 <td style="padding:0.6rem;text-align:center;white-space:nowrap;">
-<button class="btn btn-sm btn-secondary" onclick="verificarBackup('${escapeAttr(b.nombre)}')">🔍 Verificar</button>
-<a class="btn btn-sm btn-success" href="/api/admin/backups/${encodeURIComponent(b.nombre)}">⬇️ Descargar</a>
-<button class="btn btn-sm btn-warning" onclick="restaurarBackup('${escapeAttr(b.nombre)}')">♻️ Restaurar</button>
+<button class="btn btn-sm btn-secondary" onclick="verificarBackup('${escapeAttr(b.nombre)}')">${ico('search')} Verificar</button>
+<a class="btn btn-sm btn-success" href="/api/admin/backups/${encodeURIComponent(b.nombre)}">${ico('download')} Descargar</a>
+<button class="btn btn-sm btn-warning" onclick="restaurarBackup('${escapeAttr(b.nombre)}')"> Restaurar</button>
 </td>
 </tr>`).join('') + `</tbody></table></div>`;
 } catch (err) {
@@ -2911,14 +2902,14 @@ try {
 const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/verificar');
 const r = await res.json();
 if (res.ok && r.integro) {
-mostrarAlerta(`✅ ${nombre} ÍNTEGRO · usuarios: ${r.conteos.usuarios ?? '-'} · proveedores: ${r.conteos.proveedores ?? '-'} · documentos: ${r.conteos.documentos ?? '-'}`, 'success');
+mostrarAlerta(`${ico('check')} ${nombre} ÍNTEGRO · usuarios: ${r.conteos.usuarios ?? '-'} · proveedores: ${r.conteos.proveedores ?? '-'} · documentos: ${r.conteos.documentos ?? '-'}`, 'success');
 } else {
 mostrarAlerta('❌ ' + (r.mensaje || 'Backup dañado'), 'error');
 }
 } catch (err) { mostrarAlerta('❌ Error al verificar: ' + err.message, 'error'); }
 }
 async function restaurarBackup(nombre) {
-if (!await confirmarSwal({ titulo: `⚠️ Restaurar "${nombre}"`, texto: 'Los datos ACTUALES se reemplazarán por los del backup. Se creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.', textoConfirmar: 'Sí, restaurar' })) return;
+if (!await confirmarSwal({ titulo: `${ico('alert')} Restaurar "${nombre}"`, texto: 'Los datos ACTUALES se reemplazarán por los del backup. Se creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.', textoConfirmar: 'Sí, restaurar' })) return;
 if (!await confirmarSwal({ titulo: 'ÚLTIMA ADVERTENCIA', texto: 'El servicio se reiniciará tras restaurar.', textoConfirmar: 'Sí, continuar' })) return;
 mostrarAlerta('⏳ Restaurando… el servicio se reiniciará en unos segundos.', 'info');
 try {
@@ -2930,7 +2921,7 @@ else mostrarAlerta('❌ ' + (r.error || 'Error al restaurar'), 'error');
 }
 
 // ==========================================
-// 🎯 ELIMINAR DOCUMENTO (admin)
+//  ELIMINAR DOCUMENTO (admin)
 // ==========================================
 async function eliminarDocumentoAdmin(docId, proveedorId) {
 if (!docId) { mostrarAlerta('❌ ID de documento no válido', 'error'); return; }
@@ -2946,7 +2937,7 @@ mostrarAlerta('👌 Documento eliminado', 'success');
 await Promise.all([recargarVistaProveedor(), cargarProveedoresPorModulo(moduloActual, paginaActual)]);
 } else {
 const r = await res.json();
-mostrarAlerta(`❌ ${r.error || 'Error al eliminar'}`);
+mostrarAlerta(`${ico('x')} ${r.error || 'Error al eliminar'}`);
 }
 } catch (err) {
 console.error('Error eliminando documento:', err);
@@ -2955,7 +2946,7 @@ mostrarAlerta('Error al eliminar el documento');
 }
 
 // ==========================================
-// 🎯 EVENTOS DE SUBIDA (admin)
+//  EVENTOS DE SUBIDA (admin)
 // ==========================================
 document.addEventListener('submit', async function(e) {
 if (e.target.classList.contains('form-upload-admin')) {
@@ -2991,11 +2982,11 @@ try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documento`, { method: 'POST', body: fd });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta(`✅ ${r.mensaje}`, 'success');
+mostrarAlerta(`${ico('check')} ${r.mensaje}`, 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
-mostrarAlerta(`❌ ${r.error || 'Error desconocido'}`);
+mostrarAlerta(`${ico('x')} ${r.error || 'Error desconocido'}`);
 }
 } catch (err) {
 console.error('Error subiendo documento:', err);
@@ -3014,7 +3005,7 @@ if (res.ok) {
 mostrarAlerta('✅ Evaluación subida correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else { mostrarAlerta(`❌ ${r.error}`); }
+} else { mostrarAlerta(`${ico('x')} ${r.error}`); }
 } catch (err) {
 console.error('Error subiendo evaluación:', err);
 mostrarAlerta('Error al subir evaluación');
@@ -3039,7 +3030,7 @@ mostrarAlerta('✅ Gestión guardada correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
-mostrarAlerta(`❌ ${r.error}`);
+mostrarAlerta(`${ico('x')} ${r.error}`);
 if (r.ciclo_duplicado) {
 const campo = document.getElementById('numeroRegistro');
 if (campo) {
@@ -3057,7 +3048,7 @@ mostrarAlerta('❌ Error al guardar la gestión');
 });
 
 // ==========================================
-// 🎯 EVENTOS DE VERIFICACIÓN (checkbox)
+//  EVENTOS DE VERIFICACIÓN (checkbox)
 // ==========================================
 document.addEventListener('change', async function(e) {
 if (e.target.classList.contains('checkbox-verificado')) {
@@ -3072,12 +3063,12 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ verificado })
 });
 if (res.ok) {
-mostrarAlerta(`👌 Documento ${verificado ? 'verificado' : 'desmarcado'} correctamente`, 'success');
+mostrarAlerta(` Documento ${verificado ? 'verificado' : 'desmarcado'} correctamente`, 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
 const r = await res.json();
-mostrarAlerta(`❌ ${r.error || 'Error al actualizar'}`);
+mostrarAlerta(`${ico('x')} ${r.error || 'Error al actualizar'}`);
 checkbox.checked = !verificado;
 }
 } catch (err) {
@@ -3109,7 +3100,7 @@ mostrarAlerta(noAplica ? '✅ Documento marcado como "No Aplica"' : '✅ Documen
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
-mostrarAlerta(`❌ ${r.error}`);
+mostrarAlerta(`${ico('x')} ${r.error}`);
 checkbox.checked = !noAplica;
 }
 } catch (err) {
@@ -3121,7 +3112,7 @@ checkbox.checked = !noAplica;
 });
 
 // ==========================================
-// 📋 FUNCIONES PARA EVALUACIÓN
+//  FUNCIONES PARA EVALUACIÓN
 // ==========================================
 async function cambiarEstadoEvaluacion(proveedorId, estado) {
 if (estado === 'rechazado') {
@@ -3143,7 +3134,7 @@ if (res.ok) {
 mostrarAlerta('✅ Evaluación inicial eliminada correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else { mostrarAlerta(`❌ ${r.error || 'Error al eliminar'}`, 'error'); }
+} else { mostrarAlerta(`${ico('x')} ${r.error || 'Error al eliminar'}`, 'error'); }
 } catch (err) {
 console.error('Error eliminando evaluación:', err);
 mostrarAlerta('❌ Error de conexión', 'error');
@@ -3158,10 +3149,10 @@ body: JSON.stringify({ estado, comentario })
 });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta(`✅ Evaluación ${estado}`, 'success');
+mostrarAlerta(`${ico('check')} Evaluación ${estado}`, 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else { mostrarAlerta(`❌ ${r.error}`); }
+} else { mostrarAlerta(`${ico('x')} ${r.error}`); }
 } catch (err) {
 console.error('Error cambiando estado evaluación:', err);
 mostrarAlerta('Error al cambiar estado');
@@ -3173,7 +3164,7 @@ cambiarEstadoEvaluacion(proveedorId, 'rechazado');
 }
 
 // ==========================================
-// ✅ APROBAR / RECHAZAR DOCUMENTO
+//  APROBAR / RECHAZAR DOCUMENTO
 // ==========================================
 async function cambiarEstado(docId, estado, comentario = null) {
 if (estado === 'aprobado') {
@@ -3198,7 +3189,7 @@ const r = await res.json();
 mostrarAlerta(r.error || 'Error al cambiar estado');
 }
 }
-// 🆕 C2: motivos institucionales predefinidos (estandariza rechazos del equipo)
+//  C2: motivos institucionales predefinidos (estandariza rechazos del equipo)
 const MOTIVOS_RECHAZO = [
   'Documento ilegible o borroso',
   'Falta firma o huella',
@@ -3245,7 +3236,7 @@ async function rechazar(docId) {
 }
 
 // ==========================================
-// 🔄 RECARGAR VISTA DEL PROVEEDOR (modal)
+//  RECARGAR VISTA DEL PROVEEDOR (modal)
 // ==========================================
 async function recargarVistaProveedor() {
 if (!proveedorActualId) { console.warn('⚠️ proveedorActualId no definido, no se puede recargar'); return; }
@@ -3253,7 +3244,7 @@ try {
 const response = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`);
 if (!response.ok) {
 const errorData = await response.json().catch(() => ({}));
-mostrarAlerta(`❌ Error al recargar: ${errorData.error || 'Error desconocido'}`);
+mostrarAlerta(`${ico('x')} Error al recargar: ${errorData.error || 'Error desconocido'}`);
 return;
 }
 const data = await response.json();
@@ -3263,8 +3254,8 @@ cerrarModal();
 return;
 }
 historicosCache = data.documentos_historicos || [];
-documentosActivosCache = data.documentos || []; // 🆕 C1
-// 🆕 Mantener los requerimientos del tipo de persona del proveedor
+documentosActivosCache = data.documentos || []; //  C1
+//  Mantener los requerimientos del tipo de persona del proveedor
 try {
 const tipoProv = data.proveedor.tipo_proveedor === 'natural' ? 'natural' : 'juridica';
 const rr = await fetchAPI(`/api/proveedor/requerimientos?tipo=${tipoProv}`);
@@ -3273,7 +3264,7 @@ const listaTipo = await rr.json();
 if (listaTipo.length) requeridos = listaTipo;
 }
 } catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
-// ⚡ F2: invalidar flags lazy tras recarga; si hay una sub-pestaña dinámica
+//  F2: invalidar flags lazy tras recarga; si hay una sub-pestaña dinámica
 // VISIBLE en este momento, se refresca solo esa (no las cuatro).
 resetSubTabFlags(proveedorActualId);
 const badgeHistRecarga = document.getElementById('countHistoricos');
@@ -3314,16 +3305,16 @@ mostrarAlerta('Error al recargar la vista');
 }
 
 // ==========================================
-// 🔍 C1: REVISIÓN ENFOCADA (un documento a la vez, PDF siempre visible)
+//  C1: REVISIÓN ENFOCADA (un documento a la vez, PDF siempre visible)
 // ==========================================
-// 🧮 Construye la cola: pendientes reales + No aplica + opcionales sin documento
+//  Construye la cola: pendientes reales + No aplica + opcionales sin documento
 function construirColaRevision(modo) {
   const docs = documentosActivosCache || [];
 const cola = docs
 .filter(d => d.estado === 'pendiente' && (
 modo === 'verificacion'
 ? (d.no_aplica === 1 || (d.no_aplica === 0 && d.verificado === 0 && d.archivo && d.archivo !== 'no_aplica'))
-// 🩹 FIX: en Aprobación también entran los marcadores "No aplica" verificados,
+//  FIX: en Aprobación también entran los marcadores "No aplica" verificados,
 // porque la lista normal los muestra con Aprobar y el medidor aprobados/total
 // exige estado 'aprobado' para completar el cupo del tipo.
 : (d.verificado === 1 && (d.no_aplica === 1 || (d.archivo && d.archivo !== 'no_aplica')))
@@ -3400,9 +3391,9 @@ function pintarRevisionActual() {
   if (contador) contador.textContent = `Elemento ${r.indice + 1} de ${r.cola.length}`;
   if (meta) {
     meta.innerHTML = doc.esNoAplica
-      ? `📋 <strong>NO APLICA</strong> · ${escapeHtml((doc.comentario || 'Marcado sin archivo').replace('No aplica - ', ''))}`
+      ? `${ico('file-text')} <strong>NO APLICA</strong> · ${escapeHtml((doc.comentario || 'Marcado sin archivo').replace('No aplica - ', ''))}`
       : doc.sinDocumento
-        ? `📭 <strong>Sin documento</strong> · requisito opcional aún sin cargar`
+        ? ` <strong>Sin documento</strong> · requisito opcional aún sin cargar`
         : `Estado: <strong>${doc.estado}</strong> · ${doc.verificado === 1 ? '✅ Verificado' : '⏳ Sin verificar'} · Subido: ${formatearFecha(doc.subido_en)}`;
   }
   if (tieneArchivo) {
@@ -3413,27 +3404,27 @@ function pintarRevisionActual() {
     if (placeholder) {
       placeholder.style.display = 'flex';
       placeholder.innerHTML = doc.esNoAplica
-        ? `<div style="font-size:2.2rem;">📋</div><strong>Documento marcado como NO APLICA</strong><small style="color:#6b7280;">Confirma el marcado o desmárcalo para exigir la carga del PDF.</small>`
-        : `<div style="font-size:2.2rem;">📭</div><strong>Requisito opcional sin documento</strong><small style="color:#6b7280;">Puedes marcarlo como NO APLICA o dejarlo pendiente de carga.</small>`;
+        ? `<div style="font-size:2.2rem;">${ico('file-text')}</div><strong>Documento marcado como NO APLICA</strong><small style="color:#6b7280;">Confirma el marcado o desmárcalo para exigir la carga del PDF.</small>`
+        : `<div style="font-size:2.2rem;"></div><strong>Requisito opcional sin documento</strong><small style="color:#6b7280;">Puedes marcarlo como NO APLICA o dejarlo pendiente de carga.</small>`;
     }
   }
 if (acciones) {
 if (doc.esNoAplica && r.modo === 'verificacion') {
 acciones.innerHTML = `
-<button class="btn btn-sm btn-secondary" onclick="accionRevision('desmarcar_noaplica')">↩️ Desmarcar No aplica</button>
-<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">✅ Confirmar No aplica y seguir</button>`;
+<button class="btn btn-sm btn-secondary" onclick="accionRevision('desmarcar_noaplica')"> Desmarcar No aplica</button>
+<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${ico('check')} Confirmar No aplica y seguir</button>`;
 } else if (doc.esNoAplica && r.modo === 'aprobacion') {
-// 🩹 FIX: en Aprobación el marcador No aplica se aprueba/rechaza como en la lista normal
+//  FIX: en Aprobación el marcador No aplica se aprueba/rechaza como en la lista normal
 acciones.innerHTML = `
-<button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">❌ Rechazar</button>
-<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">✅ Aprobar y siguiente</button>`;
+<button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">${ico('x')} Rechazar</button>
+<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${ico('check')} Aprobar y siguiente</button>`;
 } else if (doc.sinDocumento) {
       acciones.innerHTML = `
-        <button class="btn btn-sm" style="background:#0284c7;" onclick="accionRevision('marcar_noaplica')">📋 Marcar No aplica</button>
-        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(1)">⏭ Dejar pendiente y seguir</button>`;
+        <button class="btn btn-sm" style="background:#0284c7;" onclick="accionRevision('marcar_noaplica')">${ico('file-text')} Marcar No aplica</button>
+        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(1)"> Dejar pendiente y seguir</button>`;
     } else {
       acciones.innerHTML = `
-        <button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">❌ Rechazar</button>
+        <button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">${ico('x')} Rechazar</button>
         <button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${r.modo === 'verificacion' ? '✅ Verificar y siguiente' : '✅ Aprobar y siguiente'}</button>`;
     }
   }
@@ -3453,14 +3444,14 @@ async function accionRevision(accion) {
   const doc = r.cola[r.indice];
   if (!doc) return;
   try {
-// 📋 NO APLICA en VERIFICACIÓN: confirmar el marcado no toca servidor, solo avanza
+//  NO APLICA en VERIFICACIÓN: confirmar el marcado no toca servidor, solo avanza
 if (accion === 'principal' && doc.esNoAplica && r.modo === 'verificacion') {
 r.cola.splice(r.indice, 1);
 if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
 pintarRevisionActual();
 return;
 }
-// 🩹 FIX: NO APLICA en APROBACIÓN: se aprueba por servidor (igual que el botón Aprobar de la lista)
+//  FIX: NO APLICA en APROBACIÓN: se aprueba por servidor (igual que el botón Aprobar de la lista)
 if (accion === 'principal' && doc.esNoAplica && r.modo === 'aprobacion') {
 const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, {
 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3473,7 +3464,7 @@ if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
 pintarRevisionActual();
 return;
 }
-    // ↩️ Desmarcar No aplica → el documento vuelve a requerir carga
+    //  Desmarcar No aplica → el documento vuelve a requerir carga
     if (accion === 'desmarcar_noaplica') {
       const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/documento/${doc.id}/no-aplica`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3484,7 +3475,7 @@ return;
       await refrescarColaRevision();
       return;
     }
-    // 📋 Marcar No aplica sobre un requisito opcional sin documento
+    //  Marcar No aplica sobre un requisito opcional sin documento
     if (accion === 'marcar_noaplica') {
       const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/documento/0/no-aplica`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3496,7 +3487,7 @@ return;
       return;
     }
     if (accion === 'rechazar') {
-      if (doc.sinDocumento) { // 🩹 FIX: los marcadores No aplica SÍ pueden rechazarse (como en la lista normal)
+      if (doc.sinDocumento) { //  FIX: los marcadores No aplica SÍ pueden rechazarse (como en la lista normal)
         mostrarAlerta('️ Este elemento no tiene archivo para rechazar. Usa Desmarcar o Marcar No aplica.', 'warning');
         return;
       }
@@ -3522,7 +3513,7 @@ return;
     mostrarAlerta('❌ Error de conexión', 'error');
   }
 }
-// 🔄 Reconstruye la cola desde la caché fresca tras marcar/desmarcar No aplica
+//  Reconstruye la cola desde la caché fresca tras marcar/desmarcar No aplica
 async function refrescarColaRevision() {
   const modo = revisionEnfocada.modo;
   const idx = revisionEnfocada.indice;
@@ -3552,7 +3543,7 @@ function cerrarRevisionEnfocada() {
   finalizarRevisionEnfocada(false);
 }
 // ==========================================
-// 👁️ VISOR DE DOCUMENTOS
+//  VISOR DE DOCUMENTOS
 // ==========================================
 function verDocumento(url, nombre) {
 document.getElementById('modalVisor').style.zIndex = '9000';
@@ -3572,10 +3563,10 @@ document.getElementById('modalVisor').classList.add('active');
 function cerrarVisor() {
 document.getElementById('visorIframe').src = 'about:blank';
 document.getElementById('modalVisor').classList.remove('active');
-document.getElementById('modalVisor').classList.remove('visor-fullscreen'); // 🔍 E4: cerrar restaura el tamaño
+document.getElementById('modalVisor').classList.remove('visor-fullscreen'); //  E4: cerrar restaura el tamaño
 }
 // ==========================================
-// 🔍 E4 (REDEFINIDO): EXPANDIR VISOR A PANTALLA COMPLETA
+//  E4 (REDEFINIDO): EXPANDIR VISOR A PANTALLA COMPLETA
 // Decisión de diseño: el zoom y la rotación REALES los aporta el visor
 // nativo del navegador dentro del iframe (PDFium). Lo que el nativo NO
 // puede hacer es agrandar el modal que lo contiene. Este toggle lleva
@@ -3588,7 +3579,7 @@ m.classList.toggle('visor-fullscreen');
 }
 
 // ==========================================
-// 📝 NOTAS (para sub-tabs)
+//  NOTAS (para sub-tabs)
 // ==========================================
 async function cargarNotas() {
 if (!proveedorActualId) return;
@@ -3596,7 +3587,7 @@ const notas = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/n
 const cont = document.getElementById('listaNotas');
 if (!notas.length) { cont.innerHTML = '<small style="color:#9ca3af;">Sin notas.</small>'; return; }
 cont.innerHTML = '';
-// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por nota
+//  F7: DocumentFragment = un solo reflow al final en vez de uno por nota
 const fragNotas = document.createDocumentFragment();
 notas.forEach(n => {
 const div = document.createElement('div');
@@ -3604,10 +3595,10 @@ div.className = 'nota-item';
 const header = document.createElement('div');
 header.className = 'nota-header';
 const strong = document.createElement('strong');
-strong.textContent = `📝 ${n.titulo}`;
+strong.textContent = ` ${n.titulo}`;
 header.appendChild(strong);
 const small = document.createElement('small');
-small.textContent = `🕐 ${formatearFecha(n.creado_en)} · 👤 ${n.admin_nombre}`;
+small.textContent = `${ico('clock')} ${formatearFecha(n.creado_en)} ·  ${n.admin_nombre}`;
 header.appendChild(small);
 div.appendChild(header);
 const body = document.createElement('div');
@@ -3637,7 +3628,7 @@ await cargarProveedoresPorModulo(moduloActual, paginaActual);
 }
 
 // ==========================================
-// 📜 HISTORIAL (para sub-tabs)
+//  HISTORIAL (para sub-tabs)
 // ==========================================
 async function cargarHistorialProveedor() {
 if (!proveedorActualId) return;
@@ -3670,7 +3661,7 @@ return `
 <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
 <div class="historial-contenido">
 <div class="detalle">${h.detalle}</div>
-<div class="meta"><span>🕐 ${formatearFecha(h.creado_en)}</span><span class="usuario">👤 ${escapeHtml(h.usuario_nombre)}</span></div>
+<div class="meta"><span>${ico('clock')} ${formatearFecha(h.creado_en)}</span><span class="usuario"> ${escapeHtml(h.usuario_nombre)}</span></div>
 </div>
 </div>
 `;
@@ -3678,7 +3669,7 @@ return `
 }
 
 // ==========================================
-// 📨 RECORDATORIOS (para sub-tabs)
+//  RECORDATORIOS (para sub-tabs)
 // ==========================================
 async function cargarRecordatoriosEnviados() {
 if (!proveedorActualId) return;
@@ -3688,10 +3679,10 @@ const cont = document.getElementById('listaRecordatoriosEnviados');
 if (!recs.length) { cont.innerHTML = '<small style="color:#9ca3af;">Sin recordatorios.</small>'; return; }
 cont.innerHTML = recs.map(r => `
 <div class="historial-item">
-<div class="historial-icono recordatorio">📨</div>
+<div class="historial-icono recordatorio">${ico('send')}</div>
 <div class="historial-contenido">
 <div class="detalle">${r.detalle.replace('Recordatorio enviado: ', '')}</div>
-<div class="meta"><span>🕐 ${formatearFecha(r.creado_en)}</span></div>
+<div class="meta"><span>${ico('clock')} ${formatearFecha(r.creado_en)}</span></div>
 </div>
 </div>
 `).join('');
@@ -3713,14 +3704,14 @@ await cargarProveedoresPorModulo(moduloActual, paginaActual);
 }
 
 // ==========================================
-// 🕐 C3: RECORDATORIO MASIVO A INACTIVOS
+//  C3: RECORDATORIO MASIVO A INACTIVOS
 // ==========================================
 async function recordarInactivos() {
 if (!await confirmarSwal({ titulo: '📨 Recordar a proveedores inactivos', texto: 'Se enviará un recordatorio por correo y en el portal a todos los proveedores con más de 7 días sin subir documentos (máx. 1 por día por proveedor).', peligro: false, textoConfirmar: 'Sí, enviar' })) return;
 try {
 const res = await fetchAPI('/api/admin/recordatorio-inactivos', { method: 'POST' });
 const r = await res.json();
-if (res.ok) mostrarAlerta(`✅ Recordatorios enviados: ${r.enviados}${r.omitidos ? ` · omitidos (ya recordados hoy): ${r.omitidos}` : ''}`, 'success');
+if (res.ok) mostrarAlerta(`${ico('check')} Recordatorios enviados: ${r.enviados}${r.omitidos ? ` · omitidos (ya recordados hoy): ${r.omitidos}` : ''}`, 'success');
 else mostrarAlerta('❌ ' + (r.error || 'Error al enviar'), 'error');
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } catch (err) {
@@ -3730,7 +3721,7 @@ mostrarAlerta('❌ Error de conexión', 'error');
 }
 
 // ==========================================
-// 🗑️ ELIMINAR PROVEEDOR
+//  ELIMINAR PROVEEDOR
 // ==========================================
 function mostrarConfirmacionEliminar() {
 document.getElementById('nombreProveedorEliminar').textContent = proveedorActualNombre;
@@ -3763,7 +3754,7 @@ body: JSON.stringify({ password })
 });
 const r = await res.json();
 if (res.ok) {
-alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-success">${ico('check')} ${r.mensaje}</div>`;
 setTimeout(() => {
 cerrarConfirmacionEliminar();
 cerrarModal();
@@ -3771,15 +3762,15 @@ cargarProveedoresPorModulo(moduloActual, 1);
 mostrarAlerta('Proveedor eliminado correctamente', 'success');
 }, 1500);
 } else {
-alertaEl.innerHTML = `<div class="alert alert-error">❌ ${r.error}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-error">${ico('x')} ${r.error}</div>`;
 }
 } catch (err) {
-alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-error">${ico('x')} Error: ${err.message}</div>`;
 }
 }
 function cerrarModal() {
 document.getElementById('modal').classList.remove('active');
-requeridos = requeridosDefault.slice(); // 🆕 restaurar lista base
+requeridos = requeridosDefault.slice(); //  restaurar lista base
 proveedorActualId = null;
 proveedorActualNombre = '';
 historicosCache = [];
@@ -3788,7 +3779,7 @@ if (countBadge) countBadge.style.display = 'none';
 }
 
 // ==========================================
-// 📦 DESCARGAR ZIP
+//  DESCARGAR ZIP
 // ==========================================
 async function descargarZIP(proveedorId) {
 try {
@@ -3832,14 +3823,14 @@ mostrarAlerta('❌ Error de conexión al reiniciar el proceso');
 }
 }
 
-// 🛡️ A1: abre el modal de actualización leyendo los datos desde data-attributes
+//  A1: abre el modal de actualización leyendo los datos desde data-attributes
 // (evita inyectar el nombre del proveedor dentro del onclick → previene XSS).
 function abrirSolicitudActualizacion(btn) {
   mostrarModalSolicitarActualizacion(parseInt(btn.dataset.id, 10), btn.dataset.nombre);
 }
 
 // ==========================================
-// 🔄 SOLICITAR ACTUALIZACIÓN ANUAL (modal solo con mensaje)
+//  SOLICITAR ACTUALIZACIÓN ANUAL (modal solo con mensaje)
 // ==========================================
 function mostrarModalSolicitarActualizacion(proveedorId, nombreProveedor) {
 const previo = document.getElementById('modalSolicitarActualizacion');
@@ -3851,7 +3842,7 @@ overlay.style.zIndex = '9500';
 overlay.innerHTML = `
 <div class="modal" style="max-width:540px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
-<h3 style="margin:0;">🔄 Solicitar actualización de documentos</h3>
+<h3 style="margin:0;">${ico('refresh')} Solicitar actualización de documentos</h3>
 <button class="btn btn-sm btn-secondary" onclick="cerrarModalSolicitarActualizacion()">✕ Cerrar</button>
 </div>
 <p style="color:#374151;margin-bottom:0.8rem;">
@@ -3865,12 +3856,12 @@ Vas a solicitar la actualización anual a <strong>${escapeHtml(nombreProveedor)}
 • <strong>El proveedor deberá definir su tipo de persona (Natural/Jurídica) al ingresar al portal</strong>
 </div>
 <div class="form-group">
-<label>📝 Mensaje para el proveedor (opcional)</label>
+<label> Mensaje para el proveedor (opcional)</label>
 <textarea id="mensajeActualizacion" rows="3" placeholder="Ej: Por favor actualiza tus documentos para el nuevo período..."></textarea>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
 <button class="btn btn-secondary" onclick="cerrarModalSolicitarActualizacion()" style="flex:1;">Cancelar</button>
-<button class="btn" onclick="confirmarSolicitarActualizacion(${proveedorId})" style="flex:1;background:#2563eb;">🔄 Confirmar solicitud</button>
+<button class="btn" onclick="confirmarSolicitarActualizacion(${proveedorId})" style="flex:1;background:#2563eb;">${ico('refresh')} Confirmar solicitud</button>
 </div>
 </div>
 `;
@@ -3907,7 +3898,7 @@ mostrarAlerta('❌ Error de conexión al solicitar la actualización');
 }
 
 // ==========================================
-// 📤 EXPORTAR CSV
+//  EXPORTAR CSV
 // ==========================================
 async function exportarCSV() {
 try {
@@ -3935,7 +3926,7 @@ p.numero_registro || '', p.tipo_gestion || '', p.tipo_proveedor || '', p.notas_g
 const csv = '\uFEFF' + [headers.join(';'), ...filas.map(f => f.map(celdaCSV).join(';'))].join('\n');
 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 descargarBlob(blob, `proveedores_${fechaArchivo()}.csv`);
-mostrarAlerta(`👌 CSV exportado (${proveedores.length} proveedores)`, 'success');
+mostrarAlerta(` CSV exportado (${proveedores.length} proveedores)`, 'success');
 } catch (err) {
 console.error('Error exportando CSV:', err);
 mostrarAlerta('❌ Error al exportar: ' + err.message);
@@ -3943,7 +3934,7 @@ mostrarAlerta('❌ Error al exportar: ' + err.message);
 }
 
 // ==========================================
-// 📊 EXPORTAR EXCEL
+//  EXPORTAR EXCEL
 // ==========================================
 async function exportarExcel() {
 try {
@@ -3971,7 +3962,7 @@ throw new Error(err.error || 'Error al generar Excel');
 }
 const blob = await res.blob();
 descargarBlob(blob, `proveedores_${fechaArchivo()}.xlsx`);
-mostrarAlerta(`👌 Excel exportado (${proveedores.length} proveedores)`, 'success');
+mostrarAlerta(` Excel exportado (${proveedores.length} proveedores)`, 'success');
 } catch (err) {
 console.error('Error exportando Excel:', err);
 mostrarAlerta('❌ Error al exportar: ' + err.message);
@@ -3984,9 +3975,9 @@ if (d) d.style.display = d.style.display === 'block' ? 'none' : 'block';
 }
 
 // ==========================================
-// 📞 G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
+//  G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
 // ==========================================
-// 🧩 F8: TEL_CO_RE / normalizarDigitosCO / formatearTelefonoCO / validarTelefonoCO → /js/utils.js
+//  F8: TEL_CO_RE / normalizarDigitosCO / formatearTelefonoCO / validarTelefonoCO → /js/utils.js
 function conectarMascaraTelefono(input) {
 if (!input) return;
 let hint = document.getElementById(input.id + '_hint') || input.closest('.form-group')?.querySelector('.tel-hint-g11');
@@ -4013,9 +4004,9 @@ pintar();
 }
 conectarMascaraTelefono(document.querySelector('#formCrearProveedor input[name="telefono"]'));
 // ==========================================
-// 🪪 G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
+//  G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
 // ==========================================
-// 🧩 F8: TIPOS_DOCUMENTO_CO / normalizarNumeroDocumento / validarDocumentoCO → /js/utils.js
+//  F8: TIPOS_DOCUMENTO_CO / normalizarNumeroDocumento / validarDocumentoCO → /js/utils.js
 function labelTipoDoc(p) {
 const map = { nit: 'NIT', cc: 'C.C.', ce: 'C.E.', pas: 'Pasaporte' };
 return map[(p && p.tipo_documento) || 'nit'] || 'NIT';
@@ -4039,10 +4030,10 @@ inp.dataset.docOk = r.valido ? '1' : '0';
 };
 sel.addEventListener('change', pintar);
 inp.addEventListener('input', pintar);
-window.pintarDocAdmin = pintar; // 🩹 repintado externo (guía G7-b)
+window.pintarDocAdmin = pintar; //  repintado externo (guía G7-b)
 pintar();
 })();
-// 🪪 G7-b: guía contextual en creación (jurídica→NIT empresa; natural→C.C.)
+//  G7-b: guía contextual en creación (jurídica→NIT empresa; natural→C.C.)
 function sincronizarTipoDocCrear(valor) {
 const sel = document.querySelector('#formCrearProveedor select[name="tipo_documento"]');
 const hint = document.getElementById('hintDocCrear');
@@ -4065,12 +4056,12 @@ hint.textContent = valor === 'juridica'
 hint.style.color = '#1e40af';
 }
 }
-// 🪪 G7-fix: eliminados el listener duplicado y la SEGUNDA definición de
+//  G7-fix: eliminados el listener duplicado y la SEGUNDA definición de
 // sincronizarTipoDocCrear (la última declaración pisaba a la primera y dejaba
 // muerto el auto-switch a C.C. en naturales). El select ya invoca la función
 // vía onchange inline; queda UNA sola definición activa (la que sí conmuta).
 // ==========================================
-// 🔐 CREAR PROVEEDOR
+//  CREAR PROVEEDOR
 // ==========================================
 function mostrarModalCrearProveedor() {
 document.getElementById('formCrearProveedor').reset();
@@ -4085,17 +4076,17 @@ e.preventDefault();
 const alertaEl = document.getElementById('alertaCrearProveedor');
 const formData = new FormData(e.target);
 const data = Object.fromEntries(formData);
-// 📞 G11: bloqueo local si el teléfono es inválido (el server también valida)
+//  G11: bloqueo local si el teléfono es inválido (el server también valida)
 const telInput = e.target.querySelector('input[name="telefono"]');
 if (telInput && telInput.dataset.telOk === '0') {
-alertaEl.innerHTML = `<div class="alert alert-error">❌ Teléfono inválido: ${escapeHtml(validarTelefonoCO(telInput.value).mensaje)}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-error">${ico('x')} Teléfono inválido: ${escapeHtml(validarTelefonoCO(telInput.value).mensaje)}</div>`;
 telInput.focus();
 return;
 }
-// 🪪 G7: bloqueo local si el documento es inválido (el server también valida)
+//  G7: bloqueo local si el documento es inválido (el server también valida)
 const docInput = e.target.querySelector('input[name="rfc"]');
 if (docInput && docInput.value.trim() && docInput.dataset.docOk === '0') {
-alertaEl.innerHTML = `<div class="alert alert-error">❌ Documento inválido: revisa el formato del tipo seleccionado.</div>`;
+alertaEl.innerHTML = `<div class="alert alert-error">${ico('x')} Documento inválido: revisa el formato del tipo seleccionado.</div>`;
 docInput.focus();
 return;
 }
@@ -4107,7 +4098,7 @@ body: JSON.stringify(data)
 });
 const r = await res.json();
 if (res.ok) {
-alertaEl.innerHTML = `<div class="alert alert-success">✅ ${r.mensaje}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-success">${ico('check')} ${r.mensaje}</div>`;
 setTimeout(async () => {
 cerrarModalCrearProveedor();
 await cargarProveedoresPorModulo(moduloActual, 1);
@@ -4117,15 +4108,15 @@ mostrarAlerta('Proveedor creado. Revisa y gestiona sus documentos.', 'success');
 }
 }, 1500);
 } else {
-alertaEl.innerHTML = `<div class="alert alert-error">❌ ${r.error}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-error">${ico('x')} ${r.error}</div>`;
 }
 } catch (err) {
-alertaEl.innerHTML = `<div class="alert alert-error">❌ Error: ${err.message}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-error">${ico('x')} Error: ${err.message}</div>`;
 }
 });
 
 // ==========================================
-// 🚪 LOGOUT
+//  LOGOUT
 // ==========================================
 async function logout() {
 await fetchAPI('/api/logout', { method: 'POST' });
@@ -4133,7 +4124,7 @@ window.location.href = 'index.html';
 }
 
 // ==========================================
-// 🎯 EVENT LISTENERS DE SUB-TABS
+//  EVENT LISTENERS DE SUB-TABS
 // ==========================================
 document.addEventListener('click', function(e) {
 const tab = e.target.closest('[data-stab]');
@@ -4144,7 +4135,7 @@ const tgt = tab.dataset.stab;
 ['docs','historicos','notas','hist','rec','eliminar'].forEach(t =>
 document.getElementById(`subTab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== tgt)
 );
-// ⚡ F2: cada sub-pestaña carga SOLO la primera vez por proveedor abierto.
+//  F2: cada sub-pestaña carga SOLO la primera vez por proveedor abierto.
 // Las mutaciones que refrescan explícitamente (guardarNota, enviarRecordatorio,
 // recargas por socket) resetean los flags, así el caché nunca queda viejo.
 if (tgt === 'historicos' && !subTabYaCargada('historicos')) {
@@ -4158,7 +4149,7 @@ if (tgt === 'rec' && !subTabYaCargada('rec')) { cargarRecordatoriosEnviados(); m
 });
 
 // ==========================================
-// 🔍 C1: ATAJOS DE TECLADO DE LA REVISIÓN ENFOCADA
+//  C1: ATAJOS DE TECLADO DE LA REVISIÓN ENFOCADA
 // ==========================================
 document.addEventListener('keydown', function(e) {
   const r = revisionEnfocada;
@@ -4173,7 +4164,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ==========================================
-// 🧹 CERRAR MODALES CLICK FUERA
+//  CERRAR MODALES CLICK FUERA
 // ==========================================
 document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') cerrarModal(); });
 document.getElementById('modalVisor').addEventListener('click', e => { if (e.target.id === 'modalVisor') cerrarVisor(); });
@@ -4181,7 +4172,7 @@ document.getElementById('modalConfirmarEliminar').addEventListener('click', e =>
 document.getElementById('modalCrearProveedor').addEventListener('click', e => { if (e.target.id === 'modalCrearProveedor') cerrarModalCrearProveedor(); });
 
 // ==========================================
-// 📧 EDITAR CORREO DE PROVEEDOR (admin) — AGENDA #2
+//  EDITAR CORREO DE PROVEEDOR (admin) — AGENDA #2
 // ==========================================
 function editarEmailProveedor(proveedorId, emailActual) {
     const cont = document.getElementById('contenedorEditarEmail');
@@ -4189,10 +4180,10 @@ function editarEmailProveedor(proveedorId, emailActual) {
     cont.style.display = 'block';
     cont.innerHTML = `
     <div style="background:#eff6ff;padding:0.7rem;border-radius:8px;border:1px solid #bfdbfe;">
-        <label style="font-weight:600;color:#1e40af;display:block;margin-bottom:0.3rem;">📧 Nuevo correo electrónico</label>
+        <label style="font-weight:600;color:#1e40af;display:block;margin-bottom:0.3rem;">${ico('mail')} Nuevo correo electrónico</label>
         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
             <input type="email" id="nuevoEmailProveedor" value="${escapeAttr(emailActual)}" placeholder="nuevo@correo.com" style="flex:1;min-width:200px;padding:0.45rem;border:1px solid #bfdbfe;border-radius:6px;">
-            <button class="btn btn-sm" style="background:#2563eb;" onclick="guardarEmailProveedor(${proveedorId})">💾 Guardar</button>
+            <button class="btn btn-sm" style="background:#2563eb;" onclick="guardarEmailProveedor(${proveedorId})">${ico('save')} Guardar</button>
             <button class="btn btn-sm btn-secondary" onclick="document.getElementById('contenedorEditarEmail').style.display='none'">✕ Cancelar</button>
         </div>
         <small style="color:#1e40af;font-size:0.78rem;display:block;margin-top:0.3rem;">El proveedor conservará historial, documentos y contraseña; solo cambia su correo de acceso.</small>
@@ -4228,7 +4219,7 @@ async function guardarEmailProveedor(proveedorId) {
 }
 
 // ==========================================
-// 🔍 C6: BÚSQUEDA GLOBAL Ctrl+K (paleta SweetAlert2)
+//  C6: BÚSQUEDA GLOBAL Ctrl+K (paleta SweetAlert2)
 // ==========================================
 let ctrlKState = { abierta: false, items: [], sel: 0 };
 function accionesCtrlK() {
@@ -4266,7 +4257,7 @@ ctrlKState = { abierta: true, items: [], sel: 0 };
 const inp = document.getElementById('ctrlKInput');
 if (inp) {
 inp.addEventListener('input', e => buscarCtrlK(e.target.value));
-// 🆕 C6-fix A: Enter/flechas DIRECTO en el input.
+//  C6-fix A: Enter/flechas DIRECTO en el input.
 // SweetAlert2 detiene la propagación de keydown hacia document por defecto,
 // por eso el listener global nunca recibía Enter/flechas desde el popup.
 inp.addEventListener('keydown', e => {
@@ -4274,7 +4265,7 @@ if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); console.log('[
 else if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); ctrlKState.sel = Math.min(ctrlKState.sel + 1, ctrlKState.items.length - 1); renderCtrlK(); }
 else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); ctrlKState.sel = Math.max(ctrlKState.sel - 1, 0); renderCtrlK(); }
 });
-// 🆕 C6-fix B: click por DELEGACIÓN en el contenedor de resultados.
+//  C6-fix B: click por DELEGACIÓN en el contenedor de resultados.
 // El listener vive en #ctrlKResults (no en cada ítem), así sobrevive
 // a cada re-render de la lista de resultados.
 const contResults = document.getElementById('ctrlKResults');
@@ -4294,7 +4285,7 @@ didClose: () => { ctrlKState.abierta = false; }
 });
 }
 function cerrarCtrlK() {
-  // 🛡️ FIX: Swal.isOpen() no existe en SweetAlert2. 
+  //  FIX: Swal.isOpen() no existe en SweetAlert2. 
   // Usamos Swal.isVisible() o Swal.getPopup() para verificar si hay un modal activo.
   if (typeof Swal !== 'undefined' && Swal.isVisible && Swal.isVisible()) {
     Swal.close();
@@ -4327,12 +4318,12 @@ return;
 cont.innerHTML = ctrlKState.items.map((it, i) => {
 const sel = i === ctrlKState.sel ? 'background:var(--color-primario-claro);' : '';
 if (it.tipo === 'accion') {
-return `<div class="ctrlk-item" data-i="${i}" style="${sel}display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0.8rem;border-radius:6px;cursor:pointer;"><span>⚡</span><span style="font-size:0.9rem;">${escapeHtml(it.nombre)}</span></div>`;
+return `<div class="ctrlk-item" data-i="${i}" style="${sel}display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0.8rem;border-radius:6px;cursor:pointer;"><span></span><span style="font-size:0.9rem;">${escapeHtml(it.nombre)}</span></div>`;
 }
 const p = it.p;
 return `<div class="ctrlk-item" data-i="${i}" style="${sel}display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0.8rem;border-radius:6px;cursor:pointer;"><span>${p.tipo_proveedor === 'natural' ? '🧍' : '🏢'}</span><span style="flex:1;font-size:0.9rem;"><strong>${escapeHtml(p.razon_social || p.nombre_empresa || '')}</strong> <small style="color:#6b7280;">· ${escapeHtml(p.rfc || '')} · ${escapeHtml(p.email || '')}</small></span><span class="badge-count">${escapeHtml(p.etapa || '')}</span></div>`;
 }).join('');
-// 🆕 C6-fix: los clicks se manejan por delegación en didOpen (parche 1).
+//  C6-fix: los clicks se manejan por delegación en didOpen (parche 1).
 // Ya NO se adjuntan listeners por elemento: se perdían en cada re-render.
 }
 function ejecutarCtrlK(i) {
@@ -4340,7 +4331,7 @@ console.log('[C6] ejecutarCtrlK i=', i, 'items=', ctrlKState.items.length);
 const it = ctrlKState.items[i];
 if (!it) { console.warn('[C6] Sin item en el índice', i); return; }
 try {
-// ⚡ Acciones: cerrar primero está bien (no abren modal encima)
+//  Acciones: cerrar primero está bien (no abren modal encima)
 if (it.tipo === 'accion') {
 cerrarCtrlK();
 console.log('[C6] Ejecutando acción:', it.nombre);
@@ -4357,7 +4348,7 @@ filtroEstadoActual = (p.etapa === 'rechazado') ? 'rechazado' : 'todos';
 paginaActual = 1;
 marcarModuloAdmin(p.etapa === 'rechazado' ? 'rechazados' : mod);
 cargarModulo(mod);
-// 2) 🩹 FIX: cerrar Swal PRIMERO y abrir el modal DESPUÉS de su cleanup
+// 2)  FIX: cerrar Swal PRIMERO y abrir el modal DESPUÉS de su cleanup
 //    (restoreFocus + retiro del backdrop z-index 99999). Antes el
 //    Swal.close() síncrono pisaba la apertura del modal del proveedor.
 cerrarCtrlK();
@@ -4387,7 +4378,7 @@ if (e.key === 'Enter') { e.preventDefault(); ejecutarCtrlK(ctrlKState.sel); retu
 });
 
 // ==========================================
-// 📊 R1: MÓDULO AUDITORÍA (3 sub-tabs)
+//  R1: MÓDULO AUDITORÍA (3 sub-tabs)
 // ==========================================
 let auditoriaTab = 'actividad';
 let auditoriaFiltros = { busqueda: '', fecha_desde: '', fecha_hasta: '', accion: '', usuario: '', exitoso: '' };
@@ -4400,14 +4391,14 @@ if (!contenedor) return;
 contenedor.innerHTML = `
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
-<h3 style="margin:0;">📊 Auditoría del sistema</h3>
+<h3 style="margin:0;">${ico('chart')} Auditoría del sistema</h3>
 </div>
 <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--color-borde);flex-wrap:wrap;">
-<button class="tab active" data-atab="actividad" onclick="cambiarTabAuditoria('actividad', this)">📋 Actividad por usuario</button>
-<button class="tab" data-atab="historial" onclick="cambiarTabAuditoria('historial', this)">📜 Historial detalle</button>
-<button class="tab" data-atab="logs" onclick="cambiarTabAuditoria('logs', this)">🔐 Logs de seguridad</button>
+<button class="tab active" data-atab="actividad" onclick="cambiarTabAuditoria('actividad', this)">${ico('file-text')} Actividad por usuario</button>
+<button class="tab" data-atab="historial" onclick="cambiarTabAuditoria('historial', this)">${ico('file-text')} Historial detalle</button>
+<button class="tab" data-atab="logs" onclick="cambiarTabAuditoria('logs', this)"> Logs de seguridad</button>
 </div>
-<div id="auditoriaContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">⏳ Cargando…</p></div>
+<div id="auditoriaContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">${ico('clock')} Cargando…</p></div>
 </div>`;
 renderTabAuditoria();
 }
@@ -4434,24 +4425,24 @@ cont.innerHTML = `
 <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1rem;margin-bottom:0.8rem;align-items:end;">
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar usuario</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('search')} Buscar usuario</label>
 <input type="text" id="audBusqueda" placeholder="Email del operador…" value="${escapeHtml(f.busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Desde</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Desde</label>
 <input type="date" id="audFechaDesde" value="${escapeHtml(f.fecha_desde)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Hasta</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Hasta</label>
 <input type="date" id="audFechaHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">🔍 Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">🗑️ Limpiar</button>
+<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">${ico('trash')} Limpiar</button>
 </div>
 </div>
 </div>
-<div id="audActividadTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">⏳ Cargando actividad…</p></div>`;
+<div id="audActividadTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">${ico('clock')} Cargando actividad…</p></div>`;
 try {
 let url = '/api/admin/actividad?_=1';
 if (f.busqueda) url += `&busqueda=${encodeURIComponent(f.busqueda)}`;
@@ -4467,7 +4458,7 @@ return;
 }
 document.getElementById('audActividadTabla').innerHTML = `
 <div style="margin-bottom:0.8rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-<strong>📊 Total global: ${data.total_global} acciones · ${usuarios.length} operador(es)</strong>
+<strong>${ico('chart')} Total global: ${data.total_global} acciones · ${usuarios.length} operador(es)</strong>
 </div>
 <div style="overflow-x:auto;">
 <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
@@ -4475,14 +4466,14 @@ document.getElementById('audActividadTabla').innerHTML = `
 <tr style="background:#f3f4f6;border-bottom:2px solid #d1d5db;">
 <th style="padding:0.6rem;text-align:left;">Operador</th>
 <th style="padding:0.6rem;text-align:center;">Total</th>
-<th style="padding:0.6rem;text-align:center;">✅ Verif.</th>
-<th style="padding:0.6rem;text-align:center;">👍 Aprob.</th>
-<th style="padding:0.6rem;text-align:center;">👎 Rech.</th>
-<th style="padding:0.6rem;text-align:center;">📤 Subidas</th>
-<th style="padding:0.6rem;text-align:center;">📝 Notas</th>
-<th style="padding:0.6rem;text-align:center;">📨 Record.</th>
-<th style="padding:0.6rem;text-align:center;">📋 Gest.</th>
-<th style="padding:0.6rem;text-align:center;">🔄 Etapas</th>
+<th style="padding:0.6rem;text-align:center;">${ico('check')} Verif.</th>
+<th style="padding:0.6rem;text-align:center;"> Aprob.</th>
+<th style="padding:0.6rem;text-align:center;"> Rech.</th>
+<th style="padding:0.6rem;text-align:center;">${ico('upload')} Subidas</th>
+<th style="padding:0.6rem;text-align:center;"> Notas</th>
+<th style="padding:0.6rem;text-align:center;">${ico('send')} Record.</th>
+<th style="padding:0.6rem;text-align:center;">${ico('file-text')} Gest.</th>
+<th style="padding:0.6rem;text-align:center;">${ico('refresh')} Etapas</th>
 <th style="padding:0.6rem;text-align:center;">Última actividad</th>
 </tr>
 </thead>
@@ -4505,7 +4496,7 @@ ${usuarios.map(u => `
 </table>
 </div>`;
 } catch (e) {
-document.getElementById('audActividadTabla').innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+document.getElementById('audActividadTabla').innerHTML = `<div class="alert alert-error">${ico('x')} Error: ${e.message}</div>`;
 }
 }
 
@@ -4516,31 +4507,31 @@ cont.innerHTML = `
 <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.8rem;margin-bottom:0.8rem;align-items:end;">
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('search')} Buscar</label>
 <input type="text" id="audHistBusqueda" placeholder="Detalle, usuario…" value="${escapeHtml(f.busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">👤 Operador</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;"> Operador</label>
 <input type="text" id="audHistUsuario" placeholder="Email…" value="${escapeHtml(f.usuario)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Desde</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Desde</label>
 <input type="date" id="audHistDesde" value="${escapeHtml(f.fecha_desde)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Hasta</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Hasta</label>
 <input type="date" id="audHistHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">🔍 Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">🗑️</button>
+<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">${ico('trash')}</button>
 </div>
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm btn-success" onclick="exportarHistorialAuditoria()">📄 Exportar CSV</button>
+<button class="btn btn-sm btn-success" onclick="exportarHistorialAuditoria()">${ico('file-text')} Exportar CSV</button>
 </div>
 </div>
-<div id="audHistTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">⏳ Cargando historial…</p></div>`;
+<div id="audHistTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">${ico('clock')} Cargando historial…</p></div>`;
 await cargarHistorialAuditoria(1);
 }
 
@@ -4603,13 +4594,13 @@ ${registros.map(r => `
 </table>
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.8rem;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}>◀ Anterior</button>
+<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}> Anterior</button>
 <span style="font-size:0.85rem;color:#6b7280;">Página ${data.page} de ${data.totalPages}</span>
-<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente ▶</button>
+<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente </button>
 </div>`;
 } catch (e) {
 const cont = document.getElementById('audHistTabla');
-if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error: ${e.message}</div>`;
 }
 }
 
@@ -4640,35 +4631,35 @@ cont.innerHTML = `
 <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1rem;">
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.8rem;margin-bottom:0.8rem;align-items:end;">
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔍 Buscar</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('search')} Buscar</label>
 <input type="text" id="audLogBusqueda" placeholder="Email, detalle…" value="${escapeHtml(f.busqueda)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">🔘 Resultado</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;"> Resultado</label>
 <select id="audLogExitoso" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="">Todos</option>
-<option value="1" ${f.exitoso === '1' ? 'selected' : ''}>✅ Exitoso</option>
-<option value="0" ${f.exitoso === '0' ? 'selected' : ''}>❌ Fallido</option>
+<option value="1" ${f.exitoso === '1' ? 'selected' : ''}>${ico('check')} Exitoso</option>
+<option value="0" ${f.exitoso === '0' ? 'selected' : ''}>${ico('x')} Fallido</option>
 </select>
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Desde</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Desde</label>
 <input type="date" id="audLogDesde" value="${escapeHtml(f.fecha_desde)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div>
-<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">📅 Hasta</label>
+<label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('calendar')} Hasta</label>
 <input type="date" id="audLogHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">🔍 Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">🗑️</button>
+<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">${ico('trash')}</button>
 </div>
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm btn-success" onclick="exportarLogsAuditoria()">📄 Exportar CSV</button>
+<button class="btn btn-sm btn-success" onclick="exportarLogsAuditoria()">${ico('file-text')} Exportar CSV</button>
 </div>
 </div>
-<div id="audLogsTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">⏳ Cargando logs…</p></div>`;
+<div id="audLogsTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">${ico('clock')} Cargando logs…</p></div>`;
 await cargarLogsAuditoria(1);
 }
 
@@ -4720,13 +4711,13 @@ ${registros.map(r => `
 </table>
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.8rem;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}>◀ Anterior</button>
+<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}> Anterior</button>
 <span style="font-size:0.85rem;color:#6b7280;">Página ${data.page} de ${data.totalPages}</span>
-<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente ▶</button>
+<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente </button>
 </div>`;
 } catch (e) {
 const cont = document.getElementById('audLogsTabla');
-if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error: ${e.message}</div>`;
 }
 }
 
@@ -4779,7 +4770,7 @@ renderTabAuditoria();
 
 
 // ==========================================
-// 🛡️ R4: GATING RBAC DE UI (sidebar, KPIs, subtabs, botones)
+//  R4: GATING RBAC DE UI (sidebar, KPIs, subtabs, botones)
 // ==========================================
 function renderAccesoDenegado() {
   const contenedor = document.getElementById('contenedor-modulos');
@@ -4843,10 +4834,10 @@ function aplicarGatingBotones() {
   });
 }
 // ==========================================
-// 👥 R4: MÓDULO EQUIPO (solo superadmin) — matriz de 15 switches + invitación
+//  R4: MÓDULO EQUIPO (solo superadmin) — matriz de 15 switches + invitación
 // ==========================================
 let equipoCache = [];
-// 🏷️ R4-fix: catálogo LEGIBLE de la matriz de permisos (D2).
+//  R4-fix: catálogo LEGIBLE de la matriz de permisos (D2).
 // La clave técnica (data-clave / value) NO cambia: es el contrato con el server.
 // Solo cambia lo que ve el superadmin: grupo + nombre + ayuda.
 const PERMISOS_UI = [
@@ -4868,7 +4859,7 @@ const PERMISOS_UI = [
 ];
 // Matriz de switches de un usuario, agrupada y alineada (checkbox en columna fija)
 function renderMatrizPermisos(u, lista) {
-// 🩹 R4-fix: descarta entradas sin clave (evita matriz vacía o filas "undefined")
+//  R4-fix: descarta entradas sin clave (evita matriz vacía o filas "undefined")
 const listaSegura = (Array.isArray(lista) ? lista : []).filter(p => p && p.clave && p.nombre);
 if (!listaSegura.length) return '<div class="eq-matriz"><small style="color:#6b7280;">Sin catálogo de permisos disponible.</small></div>';
 const grupos = [...new Set(listaSegura.map(p => p.grupo))];
@@ -4899,18 +4890,18 @@ async function cargarEquipo() {
   contenedor.innerHTML = `
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
-      <h3 style="margin:0;">👥 Equipo y permisos</h3>
-      <button class="btn btn-sm" style="background:#059669;" onclick="mostrarModalInvitar()">➕ Invitar miembro</button>
+      <h3 style="margin:0;">${ico('users')} Equipo y permisos</h3>
+      <button class="btn btn-sm" style="background:#059669;" onclick="mostrarModalInvitar()">${ico('plus')} Invitar miembro</button>
     </div>
     <div class="alert alert-info" style="margin-bottom:1rem;">Los cambios de permisos o desactivación <strong>cierran la sesión activa</strong> del miembro afectado (debe volver a ingresar). Las 4 claves reservadas (usuarios.gestionar, sesiones.limpiar, rate_limits.limpiar, seguridad.diagnosticar) no se asignan: son del superadmin.</div>
-    <div id="equipoContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">⏳ Cargando equipo…</p></div>
+    <div id="equipoContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">${ico('clock')} Cargando equipo…</p></div>
   </div>`;
   try {
     const res = await fetchAPI('/api/admin/usuarios');
     if (!res.ok) throw new Error((await res.json()).error || 'Error');
     const data = await res.json();
 equipoCache = data.data || [];
-// 🩹 R4-fix: el server puede omitir `catalogo` o devolverlo como array de claves (strings).
+//  R4-fix: el server puede omitir `catalogo` o devolverlo como array de claves (strings).
 // Lo normalizamos al catálogo UI (mismas claves que PERMISOS_CONMUTABLES del server).
 // Si no viene, usamos PERMISOS_UI completo (contraseña de claves idéntica).
 const catalogoServidor = Array.isArray(data.catalogo) ? data.catalogo : [];
@@ -4931,16 +4922,16 @@ const catalogo = clavesServidor.length
           </div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
 ${u.es_superadmin ? '' : `
- <button class="btn btn-sm btn-secondary" onclick="togglePermisosMiembro(${u.id}, this)">👁️ Ver permisos</button>
- <button class="btn btn-sm btn-secondary" onclick="guardarPermisosUsuario(${u.id})">💾 Guardar permisos</button>
+ <button class="btn btn-sm btn-secondary" onclick="togglePermisosMiembro(${u.id}, this)">${ico('eye')} Ver permisos</button>
+ <button class="btn btn-sm btn-secondary" onclick="guardarPermisosUsuario(${u.id})">${ico('save')} Guardar permisos</button>
 ${u.activo
-? `<button class="btn btn-sm btn-danger" onclick="toggleActivoUsuario(${u.id}, 0, '${escapeAttr(u.email)}')">🚫 Desactivar</button>`
-: `<button class="btn btn-sm btn-success" onclick="toggleActivoUsuario(${u.id}, 1, '${escapeAttr(u.email)}')">✅ Activar</button>`}
-${!esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, true, '${escapeAttr(u.email)}')">⭐ Hacer superadmin</button>` : ''}
+? `<button class="btn btn-sm btn-danger" onclick="toggleActivoUsuario(${u.id}, 0, '${escapeAttr(u.email)}')">${ico('ban')} Desactivar</button>`
+: `<button class="btn btn-sm btn-success" onclick="toggleActivoUsuario(${u.id}, 1, '${escapeAttr(u.email)}')">${ico('check')} Activar</button>`}
+${!esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, true, '${escapeAttr(u.email)}')"> Hacer superadmin</button>` : ''}
 `}
-${u.es_superadmin && !esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, false, '${escapeAttr(u.email)}')">⬇️ Quitar superadmin</button>` : ''}
-<button class="btn btn-sm btn-secondary" onclick="cambiarEmailMiembro(${u.id}, '${escapeAttr(u.email)}')">✏️ Cambiar email</button>
-${u.email === (document.getElementById('userEmail')?.textContent || '').trim() ? '' : `<button class="btn btn-sm btn-negro" onclick="eliminarMiembroEquipo(${u.id}, '${escapeAttr(u.email)}')">🗑️ Eliminar</button>`}
+${u.es_superadmin && !esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, false, '${escapeAttr(u.email)}')">${ico('download')} Quitar superadmin</button>` : ''}
+<button class="btn btn-sm btn-secondary" onclick="cambiarEmailMiembro(${u.id}, '${escapeAttr(u.email)}')">${ico('edit')} Cambiar email</button>
+${u.email === (document.getElementById('userEmail')?.textContent || '').trim() ? '' : `<button class="btn btn-sm btn-negro" onclick="eliminarMiembroEquipo(${u.id}, '${escapeAttr(u.email)}')">${ico('trash')} Eliminar</button>`}
           </div>
         </div>
         ${u.es_superadmin ? '<small style="color:#6b7280;">El superadmin tiene bypass total: no requiere switches.</small>' : `
@@ -4950,10 +4941,10 @@ ${u.email === (document.getElementById('userEmail')?.textContent || '').trim() ?
       </div>`).join('');
   } catch (e) {
     const cont = document.getElementById('equipoContenido');
-    if (cont) cont.innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+    if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error: ${e.message}</div>`;
   }
 }
-// 🆕 R4-fix: mostrar/ocultar la matriz de permisos de un miembro (ahorra espacio vertical)
+//  R4-fix: mostrar/ocultar la matriz de permisos de un miembro (ahorra espacio vertical)
 function togglePermisosMiembro(uid, btn) {
   const caja = document.getElementById('eqPermisos-' + uid);
   if (!caja) return;
@@ -4961,7 +4952,7 @@ function togglePermisosMiembro(uid, btn) {
   caja.style.display = abierto ? 'none' : 'block';
   if (btn) btn.textContent = abierto ? '👁️ Ver permisos' : '🙈 Ocultar permisos';
 }
-// 🆕 R4-fix: eliminar miembro del equipo (baja definitiva con confirmación Swal).
+//  R4-fix: eliminar miembro del equipo (baja definitiva con confirmación Swal).
 // El server aplica los candados D8 (no auto-eliminación, último superadmin intocable).
 async function eliminarMiembroEquipo(uid, email) {
   const ok = await confirmarSwal({
@@ -4980,11 +4971,11 @@ async function eliminarMiembroEquipo(uid, email) {
     mostrarAlerta('❌ Error de conexión', 'error');
   }
 }
-// 🆕 R4.1: ¿el miembro es yo mismo? (oculta promover/degradar propios — D8)
+//  R4.1: ¿el miembro es yo mismo? (oculta promover/degradar propios — D8)
 function esYoMiembro(u) {
   return u.email === (document.getElementById('userEmail')?.textContent || '').trim();
 }
-// 🆕 R4.1: cambiar correo de un miembro (conserva superadmin, permisos e historial)
+//  R4.1: cambiar correo de un miembro (conserva superadmin, permisos e historial)
 async function cambiarEmailMiembro(uid, emailActual) {
   const r = await Swal.fire({
     title: '✏️ Cambiar correo del miembro',
@@ -5010,7 +5001,7 @@ async function cambiarEmailMiembro(uid, emailActual) {
     await cargarEquipo();
   } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
 }
-// 🆕 R4.1: promover/degradar superadmin (D8: sin auto-cambio; último activo intocable)
+//  R4.1: promover/degradar superadmin (D8: sin auto-cambio; último activo intocable)
 async function toggleSuperadminMiembro(uid, promover, email) {
   const ok = await confirmarSwal({
     titulo: promover ? '⭐ Hacer superadmin' : '⬇️ Quitar superadmin',
@@ -5071,12 +5062,12 @@ function mostrarModalInvitar() {
   overlay.innerHTML = `
   <div class="modal" style="max-width:560px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-      <h3 style="margin:0;">➕ Invitar miembro al equipo</h3>
+      <h3 style="margin:0;">${ico('plus')} Invitar miembro al equipo</h3>
       <button class="btn btn-sm btn-secondary" onclick="cerrarModalInvitar()">✕ Cerrar</button>
     </div>
-    <div class="form-group"><label>📧 Email corporativo *</label><input type="email" id="invEmail" placeholder="nombre@unab.edu.co"></div>
-    <div class="form-group"><label>🏷️ Nombre o área (opcional)</label><input type="text" id="invNombre" placeholder="Ej: Nayardy — Verificación"></div>
-    <div class="form-group"><label>🔑 Permisos iniciales</label>
+    <div class="form-group"><label>${ico('mail')} Email corporativo *</label><input type="email" id="invEmail" placeholder="nombre@unab.edu.co"></div>
+    <div class="form-group"><label> Nombre o área (opcional)</label><input type="text" id="invNombre" placeholder="Ej: Nayardy — Verificación"></div>
+    <div class="form-group"><label>${ico('key')} Permisos iniciales</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;max-height:180px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;padding:0.6rem;">
         ${renderChecklistInvitacion()}
       </div>
@@ -5085,7 +5076,7 @@ function mostrarModalInvitar() {
     <div id="invAlerta"></div>
     <div style="display:flex;gap:0.5rem;">
       <button class="btn btn-secondary" style="flex:1;" onclick="cerrarModalInvitar()">Cancelar</button>
-      <button class="btn" style="flex:1;background:#059669;" onclick="enviarInvitacionStaff()">📨 Enviar invitación</button>
+      <button class="btn" style="flex:1;background:#059669;" onclick="enviarInvitacionStaff()">${ico('send')} Enviar invitación</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
@@ -5112,10 +5103,10 @@ async function enviarInvitacionStaff() {
     cerrarModalInvitar();
     mostrarAlerta('✅ ' + r.mensaje, 'success', 6000);
     await cargarEquipo();
-  } catch (e) { alerta.innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`; }
+  } catch (e) { alerta.innerHTML = `<div class="alert alert-error">${ico('x')} ${e.message}</div>`; }
 }
 // ==========================================
-// 🚀 INICIAR APLICACIÓN
+//  INICIAR APLICACIÓN
 // ==========================================
 console.log('✅ Panel de Administración con nuevo flujo cargado');
 console.log('🔧 fetchAPI helper activo (credentials: include)');

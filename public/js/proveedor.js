@@ -1,12 +1,12 @@
 // ==========================================
-// 🔧 FUNCIÓN HELPER: fetchAPI
+//  FUNCIÓN HELPER: fetchAPI
   // ==========================================
 function fetchAPI(url, options = {}) {
-marcarAccionPropia(); // 🔔 D4: ventana de acción propia (1.5s) para que el eco del socket no suene
+marcarAccionPropia(); //  D4: ventana de acción propia (1.5s) para que el eco del socket no suene
 return fetch(url, { ...options, credentials: 'include' });
 }
 // ==========================================
-// 🌙 D1: MODO OSCURO — tema persistido + fallback al sistema operativo
+//  D1: MODO OSCURO — tema persistido + fallback al sistema operativo
 // ==========================================
 const TEMA_KEY = 'unab_tema';
 function aplicarTemaD1(tema) {
@@ -36,8 +36,8 @@ if (!localStorage.getItem(TEMA_KEY)) aplicarTemaD1(e.matches ? 'oscuro' : 'claro
 })();
 
 // ==========================================
-// 📬 NOTIFICACIONES PUSH (TOASTS)
-// 🧹 F11: se retiran mostrarNotificacion/cerrarNotificacion NATIVAS:
+//  NOTIFICACIONES PUSH (TOASTS)
+//  F11: se retiran mostrarNotificacion/cerrarNotificacion NATIVAS:
 // estaban pisadas por la versión SweetAlert2 de más abajo, que ya
 // incluye fallback nativo si Swal no carga. mostrarAlerta se conserva.
 // ==========================================
@@ -45,7 +45,7 @@ function mostrarAlerta(msg, tipo = 'error') {
 const tiposMap = { 'error': 'error', 'success': 'success', 'info': 'info', 'warning': 'warning' };
 mostrarNotificacion(msg, tiposMap[tipo] || 'info');
 }
-// 🔐 Alerta específica para el modal de cambio de contraseña, con fallback
+//  Alerta específica para el modal de cambio de contraseña, con fallback
 // a mostrarAlerta() si el modal no existe en el DOM (robusta desde Sprint 6).
 function mostrarAlertaPassword(msg, tipo = 'error') {
 const el = document.getElementById('alertaPassword');
@@ -57,7 +57,7 @@ mostrarAlerta(msg, tipo);
 }
 }
 // ==========================================
-// 📋 VARIABLES GLOBALES
+//  VARIABLES GLOBALES
 // ==========================================
   let requeridos = [];
   let documentos = [];
@@ -66,9 +66,9 @@ mostrarAlerta(msg, tipo);
   let etapaActual = '';
 
   // ==========================================
-  // 📋 FUNCIONES AUXILIARES
+  //  FUNCIONES AUXILIARES
   // ==========================================
-// 🧩 F8: formatearFecha → /js/utils.js
+//  F8: formatearFecha  /js/utils.js
 
 function formatearEtapa(etapa) {
 const map = {
@@ -80,15 +80,15 @@ const map = {
 };
 return map[etapa] || (etapa ? etapa : '-');
 }
-// 🛡️ A1: escape para texto visible (innerHTML)
-// 🧩 F8: escapeHtml → /js/utils.js
-// 🛡️ A1: escape para valores de atributos HTML (data-*)
-// 🧩 F8: escapeAttr → /js/utils.js
+//  A1: escape para texto visible (innerHTML)
+//  F8: escapeHtml  /js/utils.js
+//  A1: escape para valores de atributos HTML (data-*)
+//  F8: escapeAttr  /js/utils.js
 
-// 🧹 F9: limpiarMotivoRechazo vive ahora en /js/utils.js (compartido con admin)
+//  F9: limpiarMotivoRechazo vive ahora en /js/utils.js (compartido con admin)
 
 // ==========================================
-// 🛡️ ANTI-AUTOCOMPLETAR (portal proveedor): evita el desplegable
+//  ANTI-AUTOCOMPLETAR (portal proveedor): evita el desplegable
 // "Información guardada" del navegador en campos de texto y textareas.
 // readonly hasta el foco: Chrome no despliega autofill sobre readonly.
 // ==========================================
@@ -109,7 +109,7 @@ el.setAttribute('spellcheck', 'false');
 el.setAttribute('readonly', 'readonly');
 if (document.activeElement === el) el.removeAttribute('readonly');
 }
-// 🆕 Libera readonly ANTES del foco (capture): teclados móviles sin retardo
+//  Libera readonly ANTES del foco (capture): teclados móviles sin retardo
 document.addEventListener('pointerdown', (e) => {
 if (e.target && e.target.dataset && e.target.dataset.autofillBlind === '1') e.target.removeAttribute('readonly');
 }, true);
@@ -126,7 +126,7 @@ for (const n of m.addedNodes) {
 if (!n || n.nodeType !== 1) continue;
 if (esCampoBlindable(n)) blindarCampo(n);
 if (n.querySelectorAll) n.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
-// ♿ D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
+//  D2: todo modal creado en vuelo recibe rol de diálogo (WCAG 4.1.2)
 if (n.classList && n.classList.contains('modal-overlay')) { n.setAttribute('role', 'dialog'); n.setAttribute('aria-modal', 'true'); }
 if (n.querySelectorAll) n.querySelectorAll('.modal-overlay').forEach(ov => { ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); });
 }
@@ -136,20 +136,12 @@ if (document.body) obsBlindajeProv.observe(document.body, { childList: true, sub
 document.addEventListener('DOMContentLoaded', () => {
 document.querySelectorAll('input, textarea').forEach((i) => { if (esCampoBlindable(i)) blindarCampo(i); });
 });
-// 🎨 Iconografía de línea UNAB v5 — reemplaza emojis en botones de acción
-const ICONOS = {
-check: '<svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
-x: '<svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-eye: '<svg class="ico" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
-download: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-upload: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
-trash: '<svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-zip: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
-plus: '<svg class="ico" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-save: '<svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
-};
+//  Sprint 9 V1: ICONOS vive en /js/utils.js (fuente única de glifos).
+// proveedor.js lo consume como global: utils.js se carga ANTES (orden F1).
+// NO redeclarar aquí: ESLint no-redeclare lo marca y la copia local
+// sombrearía el set único (glifos divergentes entre portales).
 // ==========================================
-// 🔔 D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
+//  D4: SONIDO + TÍTULO DE PESTAÑA (notificaciones en tiempo real)
 // ==========================================
 let sonidoActivado = localStorage.getItem('unab_sonido') !== 'off';
 let audioCtxD4 = null;
@@ -183,7 +175,7 @@ if (esAccionPropia()) return;
 reproducirSonidoD4(tipo);
 if (document.hidden) {
 pendienesD4++;
-document.title = `(${pendienesD4}) 🔔 ${tituloBaseD4}`;
+document.title = `(${pendienesD4}) ${ico('bell')} ${tituloBaseD4}`;
 }
 }
 function resetearTituloD4() {
@@ -200,13 +192,13 @@ const btn = document.getElementById('btnSonidoD4');
 if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
 if (sonidoActivado) reproducirSonidoD4('success');
 }
-// 🛡️ A1: abre el visor leyendo datos desde data-attributes
-// 🧩 F8: verDocumentoBtn → /js/utils.js
-// 🏷️ Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
-// 🧩 F8: nombreFormato → /js/utils.js
-// 🧹 F9: segunda definición eliminada (utils.js es la fuente única)
+//  A1: abre el visor leyendo datos desde data-attributes
+//  F8: verDocumentoBtn  /js/utils.js
+//  Muestra el nombre del FORMATO/categoría en vez del nombre físico del archivo
+//  F8: nombreFormato  /js/utils.js
+//  F9: segunda definición eliminada (utils.js es la fuente única)
 
-// 🚫 Punto 8: además de la etapa, bloquea si hay rechazo total con documentos rechazados activos
+//  Punto 8: además de la etapa, bloquea si hay rechazo total con documentos rechazados activos
 function puedeSubirDocumentos() {
 const etapasPermitidas = ['verificacion', 'rechazado', ''];
 if (!etapasPermitidas.includes(etapaActual)) return false;
@@ -222,10 +214,10 @@ return false;
 return true;
 }
 
-// 🧩 F8: obtenerEstadoVencimiento → /js/utils.js
+//  F8: obtenerEstadoVencimiento  /js/utils.js
 
 // ==========================================
-// 📬 NOTIFICACIONES PUSH (TOAST) — SweetAlert2
+//  NOTIFICACIONES PUSH (TOAST) — SweetAlert2
 // ==========================================
 const SwalToast = (typeof Swal !== 'undefined') ? Swal.mixin({
     toast: true,
@@ -254,11 +246,11 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     setTimeout(() => notif.remove(), duracion);
 }
 function cerrarNotificacion() { if (SwalToast) Swal.close(); }
-// 🧹 F11: 2.ª mostrarAlertaPassword eliminada. Queda activa la definición
+//  F11: 2.ª mostrarAlertaPassword eliminada. Queda activa la definición
 // del inicio del archivo, que es MÁS robusta (tiene fallback si el modal
 // de cambio de contraseña no existe en el DOM).
 // ==========================================
-// 🍬 SWEETALERT2 — HELPERS DE CONFIRMACIÓN (idénticos a admin)
+//  SWEETALERT2 — HELPERS DE CONFIRMACIÓN (idénticos a admin)
 // ==========================================
 function confirmarSwal({ titulo = '¿Estás seguro?', texto = '', icono = 'warning', textoConfirmar = 'Sí, continuar', textoCancelar = 'Cancelar', peligro = true } = {}) {
     return Swal.fire({
@@ -293,7 +285,7 @@ function promptSwal({ titulo = 'Ingresa un motivo', texto = '', placeholder = ''
 }
 
   // ==========================================
-  // 🚦 BANNER DE ESTADO (rechazado / registrado)
+  //  BANNER DE ESTADO (rechazado / registrado)
   // ==========================================
 function actualizarStepper(etapa) {
 const orden = ['verificacion', 'aprobacion', 'inscripcion', 'registrado'];
@@ -344,10 +336,10 @@ else if (etapaActual === 'registrado') {
   }
 
   // ==========================================
-  // 🚫 VERIFICAR Y BLOQUEAR PERFIL
+  //  VERIFICAR Y BLOQUEAR PERFIL
   // ==========================================
 function verificarYBloquearPerfil(prov) {
-// 🆕 El tipo de persona también es obligatorio para desbloquear el portal
+//  El tipo de persona también es obligatorio para desbloquear el portal
 const tipoOk = (prov.tipo_proveedor === 'natural' || prov.tipo_proveedor === 'juridica');
 const datosOk = (
 prov.razon_social && prov.razon_social.trim() !== '' &&
@@ -380,14 +372,14 @@ document.getElementById('tab-datos').classList.remove('hidden');
 } else {
 alerta.style.display = 'none';
 tabs.forEach(tab => tab.classList.remove('tab-bloqueada'));
-// 🚫 FIX: mostrar únicamente la tarjeta de la pestaña activa
+//  FIX: mostrar únicamente la tarjeta de la pestaña activa
 const tabActiva = document.querySelector('.tab.active');
 cambiarTab(tabActiva ? tabActiva.dataset.tab : 'docs');
 }
 }
 
 // ==========================================
-// 🔀 CAMBIO DE PESTAÑAS (centralizado)
+//  CAMBIO DE PESTAÑAS (centralizado)
 // ==========================================
 function cambiarTab(tgt) {
 document.querySelectorAll('.tab').forEach(t => {
@@ -400,7 +392,7 @@ const bc = document.getElementById('bcActual');
 if (bc) bc.textContent = ({ docs: 'Documentos', datos: 'Mis datos', hist: 'Historial' })[tgt] || '';
 if (tgt === 'hist') cargarHistorial();
 }
-// 🏛️ PANEL LATERAL (modelo convocatorias): resumen + progreso del flujo
+//  PANEL LATERAL (modelo convocatorias): resumen + progreso del flujo
 function actualizarBarraProgreso() {
 const c = parseInt(document.getElementById('docsCompletos')?.textContent || '0', 10);
 const t = parseInt(document.getElementById('docsTotal')?.textContent || '1', 10);
@@ -421,12 +413,12 @@ const correo = document.getElementById('userEmail')?.textContent;
 if (correo && correo !== '—') set('pCorreo', correo);
 actualizarBarraProgreso();
 }
-// 🧹 F11: irPasoSig/irPasoAnt eliminados (sin llamadores en el portal;
+//  F11: irPasoSig/irPasoAnt eliminados (sin llamadores en el portal;
 // la navegación de pestañas vive en cambiarTab + listeners de .tab).
 
 
 // ==========================================
-// 🧾 ACTUALIZAR UI DE TIPO DE PERSONA
+//  ACTUALIZAR UI DE TIPO DE PERSONA
 // ==========================================
 function actualizarTipoPersonaUI(prov) {
 document.querySelectorAll('input[name="tipo_persona"]').forEach(r => {
@@ -442,7 +434,7 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
 }
 
   // ==========================================
-  // 📋 VERIFICAR HABEAS DATA
+  //  VERIFICAR HABEAS DATA
   // ==========================================
   async function verificarHabeasData() {
     try {
@@ -462,7 +454,7 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
     overlay.style.zIndex = '10000';
     overlay.innerHTML = `
       <div class="modal" style="max-width:600px;">
-        <h3 style="margin-bottom:0.5rem;">📋 Aceptación de Política de Datos</h3>
+        <h3 style="margin-bottom:0.5rem;">${ico('file-text')} Aceptación de Política de Datos</h3>
         <p style="color:#6b7280;margin-bottom:1rem;">
           Para continuar usando el portal, debes aceptar nuestra
           <a href="/habeas-data.html" target="_blank" style="color:#8600dd;text-decoration:underline;">
@@ -470,10 +462,10 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
           </a>.
         </p>
         <div style="background:#fee2e2;padding:1rem;border-radius:6px;margin-bottom:1rem;color:#991b1b;font-size:0.9rem;">
-          ⚠️ Es obligatorio aceptar esta política para poder acceder al sistema y gestionar tus documentos.
+          ${ico('alert')} Es obligatorio aceptar esta política para poder acceder al sistema y gestionar tus documentos.
         </div>
         <div style="display:flex;gap:0.5rem;">
-          <button class="btn btn-full" onclick="aceptarHabeasData()" style="background:#8600dd;">✅ Aceptar y continuar</button>
+          <button class="btn btn-full" onclick="aceptarHabeasData()" style="background:#8600dd;">${ico('check')} Aceptar y continuar</button>
         </div>
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb;text-align:center;">
           <small style="color:#6b7280;">Al aceptar, autorizas el tratamiento de tus datos conforme a la ley.</small>
@@ -505,9 +497,9 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
   }
 
   // ==========================================
-  // 📡 SOCKET.IO - CONEXIÓN EN TIEMPO REAL
+  //  SOCKET.IO - CONEXIÓN EN TIEMPO REAL
   // ==========================================
-  // 🆕 B4: pinta el indicador 🟢/🔴 de la topbar
+  //  B4: pinta el indicador / de la topbar
 function actualizarIndicadorSocket(conectado) {
   const el = document.getElementById('socketStatus');
   if (!el) return;
@@ -515,7 +507,7 @@ function actualizarIndicadorSocket(conectado) {
   el.style.color = conectado ? '#059669' : '#dc2626';
 }
 function conectarSocket() {
-  // 🆕 Reconexión explícita y robusta (antes usaba solo defaults)
+  //  Reconexión explícita y robusta (antes usaba solo defaults)
   socket = io({
     withCredentials: true,
     reconnection: true,
@@ -528,7 +520,7 @@ function conectarSocket() {
     console.log('🔌 Conectado al servidor Socket.IO · id=' + socket.id);
     actualizarIndicadorSocket(true);
   });
-  // 🆕 El server confirma en qué salas quedó este socket (diagnóstico)
+  //  El server confirma en qué salas quedó este socket (diagnóstico)
   socket.on('socket_info', (info) => {
     console.log('📡 Salas asignadas por el servidor:', info);
   });
@@ -536,12 +528,12 @@ function conectarSocket() {
     console.log('🔌 Desconectado del servidor Socket.IO:', motivo);
     actualizarIndicadorSocket(false);
   });
-  // 🆕 Errores de conexión visibles (antes eran silenciosos)
+  //  Errores de conexión visibles (antes eran silenciosos)
   socket.on('connect_error', (err) => {
     console.error('❌ Socket connect_error:', err.message);
     actualizarIndicadorSocket(false);
   });
-  // 🆕 Red de seguridad: al volver a la pestaña con el socket caído,
+  //  Red de seguridad: al volver a la pestaña con el socket caído,
   // refrescamos datos una vez para no quedar desactualizados hasta F5.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && socket && !socket.connected) {
@@ -573,7 +565,7 @@ function conectarSocket() {
   });
   socket.on('vencimientos_procesados', (data) => {
       console.log('⏰ Vencimientos procesados:', data);
-      mostrarNotificacion(`📦 Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
+      mostrarNotificacion(`${ico('archive')} Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
       recargarDatosProveedor();
     });
 socket.on('tipo_persona_actualizado', (data) => {
@@ -581,7 +573,7 @@ console.log('🧾 Tipo de persona actualizado por admin:', data);
 mostrarNotificacion('🧾 El administrador definió tu tipo de persona. Recargando...', 'info');
 location.reload();
 });
-// 🆕 G10c: el admin solicitó actualización anual → el portal se entera en vivo.
+//  G10c: el admin solicitó actualización anual  el portal se entera en vivo.
 // El server archiva los documentos y deja tipo_proveedor = NULL; tras el reload,
 // verificarYBloquearPerfil() vuelve a bloquear el portal hasta elegir el tipo.
 socket.on('solicitud_actualizacion', (data) => {
@@ -593,7 +585,7 @@ setTimeout(() => location.reload(), 1200);
 }
 
   // ==========================================
-  // 🔄 RECARGAR DATOS DEL PROVEEDOR
+  //  RECARGAR DATOS DEL PROVEEDOR
   // ==========================================
   async function recargarDatosProveedor() {
     try {
@@ -622,7 +614,7 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
   }
 
   // ==========================================
-  // 🚀 INICIALIZACIÓN
+  //  INICIALIZACIÓN
   // ==========================================
 async function init() {
     try {
@@ -645,7 +637,7 @@ async function init() {
         document.getElementById('rfc').value = prov.rfc || '';
 const selTipoDoc = document.getElementById('tipo_documento');
 if (selTipoDoc) selTipoDoc.value = prov.tipo_documento || 'nit';
-// 🩹 G7-fix: repintar hint con el valor ya cargado (antes quedaba rojo fantasma)
+//  G7-fix: repintar hint con el valor ya cargado (antes quedaba rojo fantasma)
 if (window.pintarDocProv) window.pintarDocProv();
 sincronizarHintDocProv(prov.tipo_proveedor || '', false);
         document.getElementById('representante').value = prov.representante || '';
@@ -653,7 +645,7 @@ sincronizarHintDocProv(prov.tipo_proveedor || '', false);
         document.getElementById('direccion').value = prov.direccion || '';
 const emailInput = document.getElementById('email_usuario');
 if (emailInput) emailInput.value = me.usuario.email || '';
-    // 🆕 Cargar tipo de persona en el radio y en la tarjeta de estado
+    //  Cargar tipo de persona en el radio y en la tarjeta de estado
     actualizarTipoPersonaUI(prov);
         document.getElementById('estadoGeneral').textContent = prov.estado_general || 'pendiente';
         document.getElementById('estadoGeneral').style.color =
@@ -672,7 +664,7 @@ if (emailInput) emailInput.value = me.usuario.email || '';
           if (prov.estado_general === 'pendiente' && prov.todos_subidos) {
             if (prov.todos_verificados) {
               badgesContainer.innerHTML = `
-                <span class="badge-verificado-pendiente">📋 Verificado - Pendiente aprobación</span>
+                <span class="badge-verificado-pendiente">${ico('file-text')} Verificado - Pendiente aprobación</span>
                 <small style="color:#6b7280;display:block;margin-top:0.3rem;">
                   Todos tus documentos han sido revisados y verificados.
                   El administrador realizará la aprobación final pronto.
@@ -680,7 +672,7 @@ if (emailInput) emailInput.value = me.usuario.email || '';
               `;
             } else {
               badgesContainer.innerHTML = `
-                <span class="badge-pendiente-verificar">⏳ Pendiente por verificar</span>
+                <span class="badge-pendiente-verificar">${ico('clock')} Pendiente por verificar</span>
                 <small style="color:#6b7280;display:block;margin-top:0.3rem;">
                   Todos tus documentos están subidos.
                   El administrador los revisará y los marcará como verificados.
@@ -695,7 +687,7 @@ if (emailInput) emailInput.value = me.usuario.email || '';
 
 if (perfilCompleto) {
     try {
-    // ⚡ OPT: requeridos y documentos son independientes → en paralelo
+    //  OPT: requeridos y documentos son independientes  en paralelo
     const [reqRes, docsRes] = await Promise.all([
     fetchAPI('/api/proveedor/requerimientos'),
     fetchAPI('/api/proveedor/documentos')
@@ -708,7 +700,7 @@ if (perfilCompleto) {
     }
     document.getElementById('docsTotal').textContent = requeridos.length || 0;
     renderDocumentos();
-    // ⚡ OPT: recordatorios y notas también en paralelo
+    //  OPT: recordatorios y notas también en paralelo
     await Promise.all([cargarRecordatorios(), cargarNotas()]);
     await actualizarBadgesVerificacion();
     } catch (err) {
@@ -724,10 +716,10 @@ if (perfilCompleto) {
         actualizarBarraProgreso();
       }
 
-// 🔔 D4: reflejar el estado persistido del sonido en el botón de la topbar
+//  D4: reflejar el estado persistido del sonido en el botón de la topbar
 const btnSonido = document.getElementById('btnSonidoD4');
 if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
-// ♿ D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
+//  D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
 const bSonD2 = document.getElementById('btnSonidoD4');
 if (bSonD2 && !bSonD2.getAttribute('aria-label')) bSonD2.setAttribute('aria-label', 'Activar o silenciar sonido de notificaciones');
 document.querySelectorAll('.modal-overlay').forEach(ov => {
@@ -742,7 +734,7 @@ mostrarAlerta('Error al cargar: ' + err.message);
   }
 
   // ==========================================
-  // 📄 RENDERIZAR DOCUMENTOS
+  //  RENDERIZAR DOCUMENTOS
   // ==========================================
   function renderDocumentos() {
     const cont = document.getElementById('listaDocumentos');
@@ -757,7 +749,7 @@ mostrarAlerta('Error al cargar: ' + err.message);
       map[d.tipo].push(d);
     });
 
-// 🚫 Punto 8: detectar documentos rechazados activos
+//  Punto 8: detectar documentos rechazados activos
 const rechazadosActivos = docsActivos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
 const todosActivosRechazados = docsActivos.length > 0 && docsActivos.every(d => d.estado === 'rechazado');
 const rechazoTotal = rechazadosActivos.length > 0 && (etapaActual === 'rechazado' || todosActivosRechazados);
@@ -769,18 +761,18 @@ if (rechazoTotal) subirHabilitado = false;
 if (rechazoTotal) {
 avisoEtapa.innerHTML = `
 <div class="alert alert-error" style="margin-bottom:1rem;">
-<strong>🚫 Tienes ${rechazadosActivos.length} documento(s) rechazado(s).</strong><br>
+<strong>${ico('ban')} Tienes ${rechazadosActivos.length} documento(s) rechazado(s).</strong><br>
 Para poder subir nueva documentación, primero debes eliminar todos los documentos rechazados.
 <div style="margin-top:0.8rem;">
-<button type="button" class="btn btn-danger btn-sm" onclick="eliminarTodosRechazados()">🗑️ Eliminar todos los rechazados</button>
+<button type="button" class="btn btn-danger btn-sm" onclick="eliminarTodosRechazados()">${ico('trash')} Eliminar todos los rechazados</button>
 </div>
 </div>`;
 } else if (etapaActual === 'registrado') {
-avisoEtapa.innerHTML = `<div class="alert alert-info">ℹ️ Estás registrado como proveedor activo. La carga de documentos está deshabilitada. Para actualizar tu documentación, espera la solicitud del administrador.</div>`;
+avisoEtapa.innerHTML = `<div class="alert alert-info">${ico('info')} Estás registrado como proveedor activo. La carga de documentos está deshabilitada. Para actualizar tu documentación, espera la solicitud del administrador.</div>`;
 } else if (etapaActual === 'aprobacion') {
-avisoEtapa.innerHTML = `<div class="alert alert-info">📋 Tus documentos están en etapa de aprobación. No puedes modificarlos en este momento.</div>`;
+avisoEtapa.innerHTML = `<div class="alert alert-info">${ico('file-text')} Tus documentos están en etapa de aprobación. No puedes modificarlos en este momento.</div>`;
 } else if (etapaActual === 'inscripcion') {
-avisoEtapa.innerHTML = `<div class="alert alert-info">📝 Tus documentos están en etapa de inscripción. No puedes modificarlos en este momento.</div>`;
+avisoEtapa.innerHTML = `<div class="alert alert-info"> Tus documentos están en etapa de inscripción. No puedes modificarlos en este momento.</div>`;
 } else {
 avisoEtapa.innerHTML = '';
 }
@@ -789,13 +781,13 @@ avisoEtapa.innerHTML = '';
 
     cont.innerHTML = requeridos.map((req, idx) => {
       const sub = map[req.tipo] || [];
-      // ✅ Avance: un tipo cuenta como completo si está verificado (o aprobado) o marcado "No aplica".
+      //  Avance: un tipo cuenta como completo si está verificado (o aprobado) o marcado "No aplica".
 // Así la barra avanza durante la Verificación (paso 1) y se mantiene llena al aprobar.
       const ok = sub.filter(d => d.estado === 'aprobado' || d.verificado === 1).length >= req.cantidadMin;
       const noAplica = sub.some(d => d.no_aplica === 1);
       const tieneArchivos = sub.length > 0;
 
-// 🆕 Documentos con cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
+//  Documentos con cupo múltiple (experiencia: jurídica hasta 3, natural 1 o 2)
 // siempre permiten agregar mientras no se alcance el máximo (cantidadMax).
 const permiteMultiples = req.cantidadMin > 1 || (req.cantidadMax && req.cantidadMax > 1);
 const rechazadosDelTipo = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
@@ -817,7 +809,7 @@ ${(req.descripcion || req.requiereFirma || req.requiereHuella) ? `
 <div style="margin-top:0.3rem;">
 <button type="button" data-target="info-${escapeAttr(req.tipo)}" onclick="toggleInfoDoc(this)"
 style="background:none;border:none;color:#8600dd;font-size:0.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.2rem;font-family:inherit;font-weight:600;">
-ℹ️ ¿Qué debe contener?
+${ico('info')} ¿Qué debe contener?
 </button>
 <div id="info-${escapeAttr(req.tipo)}" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:0.6rem 0.8rem;margin-top:0.4rem;font-size:0.82rem;color:#0369a1;line-height:1.5;">
 ${req.descripcion ? escapeHtml(req.descripcion) : ''}
@@ -834,13 +826,13 @@ ${noAplica ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;backg
 </small>
 ${(ok || noAplica) && !tieneRechazado ? `<button type="button" class="btn-toggle-doc" onclick="toggleDocBody(this)" style="background:none;border:none;color:#8600dd;font-size:0.75rem;font-weight:600;cursor:pointer;padding:0.2rem 0.4rem;font-family:inherit;">▼ Ver detalle</button>` : ''}
 </div>`;
-// 🆕 A7: las tarjetas completas (o No aplica) sin rechazados inician colapsadas
+//  A7: las tarjetas completas (o No aplica) sin rechazados inician colapsadas
 const colapsado = (ok || noAplica) && !tieneRechazado;
 html += `<div class="doc-body" style="${colapsado ? 'display:none;' : ''}">`;
 
 // BLOQUE EXPERIENCIA (máximo 3)
 if (req.tipo === 'experiencia') {
-const maxExp = req.cantidadMax || 3; // 🆕 jurídico=3, natural=2
+const maxExp = req.cantidadMax || 3; //  jurídico=3, natural=2
 const subidosValidos = sub.filter(d => d.estado !== 'rechazado' && d.no_aplica === 0).length;
 const subidosRechazados = sub.filter(d => d.estado === 'rechazado' && d.no_aplica === 0).length;
 const maxAlcanzado = subidosValidos >= maxExp;
@@ -849,7 +841,7 @@ html += `
 <div style="margin-top:0.8rem;padding:0.8rem;background:${subidosRechazados > 0 ? '#fee2e2' : '#f0fdf4'};border-radius:6px;border:1px solid ${subidosRechazados > 0 ? '#dc2626' : '#86efac'};">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
     <span style="font-size:0.85rem;color:${subidosRechazados > 0 ? '#991b1b' : '#065f46'};">
-      📄 Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
+      ${ico('file-text')} Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
       ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazado(s))` : ''}
       ${maxAlcanzado && subidosRechazados === 0 ? ' ✅ Límite alcanzado' : ''}
     </span>
@@ -866,7 +858,7 @@ html += `
         ${subidosRechazados > 0
           ? '🗑️ Debes eliminar los certificados rechazados antes de subir uno nuevo'
           : (maxAlcanzado
-            ? `✅ Máximo de ${maxExp} certificados alcanzado`
+            ? `${ico('check')} Máximo de ${maxExp} certificados alcanzado`
             : (subirHabilitado ? 'No disponible' : '🔒 Solo lectura'))}
       </span>
     `}
@@ -878,7 +870,7 @@ html += `
       if (req.esPlantilla && req.plantilla) {
         html += `<div style="background:#f0f9ff;padding:0.8rem;border-radius:6px;margin-bottom:0.5rem;border-left:3px solid #0284c7;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-            <small style="color:#0369a1;">📋 <strong>Plantilla disponible:</strong> ${req.plantilla.nombre_original}</small>
+            <small style="color:#0369a1;">${ico('file-text')} <strong>Plantilla disponible:</strong> ${req.plantilla.nombre_original}</small>
             <a href="/api/proveedor/plantilla/${req.tipo}" class="btn btn-sm" style="background:#0284c7;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;">${ICONOS.download} Descargar</a>
           </div>
         </div>`;
@@ -890,11 +882,11 @@ html += `
       } else {
 sub.forEach(d => {
 const esHistorico = d.es_historico === 1;
-// 🚫 Punto 8: aunque la carga esté bloqueada por rechazo, el documento rechazado se puede eliminar
+//  Punto 8: aunque la carga esté bloqueada por rechazo, el documento rechazado se puede eliminar
 const puedeEliminar = !esHistorico && d.estado !== 'aprobado' && d.verificado !== 1 && (subirHabilitado || d.estado === 'rechazado');
 const esNoAplica = d.no_aplica === 1;
 const esMarcadorNoAplicaInvalido = !esNoAplica && (!d.archivo || d.archivo === 'no_aplica');
-const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.trim() !== ''; // 🆕 sin archivo físico
+const tieneArchivoReal = d.archivo && d.archivo !== 'no_aplica' && d.archivo.trim() !== ''; //  sin archivo físico
 
 html += `<div class="doc-row">
 ${infoDocRow(d, { badgeVerificadoPend: true })}
@@ -924,7 +916,7 @@ ${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocume
             <input type="checkbox" class="checkbox-no-aplica" data-tipo="${req.tipo}"
               ${noAplicaChecked ? 'checked' : ''}
               ${checkboxDisabled ? 'disabled' : ''}>
-            <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">📋 Este documento no aplica para mi empresa</span>
+            <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">${ico('file-text')} Este documento no aplica para mi empresa</span>
           </label>
           <small style="color:#78350f;display:block;margin-top:0.3rem;">
             ${noAplicaChecked
@@ -949,15 +941,15 @@ html += `<form class="form-upload dropzone" data-tipo="${req.tipo}">
 } else if (req.tipo !== 'experiencia' && tieneRechazado && !noAplica) {
 html += `
 <div style="margin-top:0.8rem;padding:0.8rem;background:#fee2e2;border-radius:6px;border:1px solid #dc2626;">
-<small style="color:#991b1b;font-weight:600;">🗑️ Documento rechazado: elimínalo antes de subir uno nuevo.</small>
+<small style="color:#991b1b;font-weight:600;">${ico('trash')} Documento rechazado: elimínalo antes de subir uno nuevo.</small>
 </div>`;
 } else if (req.tipo !== 'experiencia' && noAplica) {
 html += `<div style="margin-top:0.8rem;padding:0.8rem;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;">
-<small style="color:#92400e;">📋 Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
+<small style="color:#92400e;">${ico('file-text')} Documento marcado como "No aplica". La carga de archivos está desactivada.</small>
 </div>`;
 }
 
-html += '</div>'; // 🆕 A7: cierra .doc-body
+html += '</div>'; //  A7: cierra .doc-body
 html += '</div>'; // cierra .doc-item
 return html;
 }).join('');
@@ -966,14 +958,14 @@ return html;
     configurarEventosDocumentos();
     actualizarBarraProgreso();
 
-    // 🆕 A6: Actualizar checklist de faltantes
+    //  A6: Actualizar checklist de faltantes
     actualizarChecklistFaltantes(completados);
-    // 🆕 B1: si el modo guiado está activo, deja visible solo el pendiente actual
+    //  B1: si el modo guiado está activo, deja visible solo el pendiente actual
     aplicarModoGuiado();
 }
 
 // ==========================================
-// 🆕 A8: TOGGLE DESCRIPCIÓN CONTEXTUAL DE DOCUMENTO
+//  A8: TOGGLE DESCRIPCIÓN CONTEXTUAL DE DOCUMENTO
 // ==========================================
 function toggleInfoDoc(btn) {
   const target = document.getElementById(btn.dataset.target);
@@ -984,7 +976,7 @@ function toggleInfoDoc(btn) {
 }
 
 // ==========================================
-// 🆕 B1: MODO GUIADO (un documento pendiente a la vez)
+//  B1: MODO GUIADO (un documento pendiente a la vez)
 // ==========================================
 let modoGuiado = false;
 let idxGuiado = 0;
@@ -1000,7 +992,7 @@ function navegarGuiado(delta) {
   renderDocumentos();
 }
 
-// 🧭 Calcula los tipos pendientes (sin cupo completo y sin "No aplica")
+//  Calcula los tipos pendientes (sin cupo completo y sin "No aplica")
 function pendientesGuiado() {
   return (requeridos || []).filter(req => {
     const sub = (documentos || []).filter(d => d.tipo === req.tipo && d.es_historico !== 1);
@@ -1010,7 +1002,7 @@ function pendientesGuiado() {
   });
 }
 
-// 🧭 Aplica/retira el modo guiado sobre el DOM ya renderizado
+//  Aplica/retira el modo guiado sobre el DOM ya renderizado
 function aplicarModoGuiado() {
   const cont = document.getElementById('listaDocumentos');
   if (!cont) return;
@@ -1041,21 +1033,21 @@ function aplicarModoGuiado() {
     cont.parentNode.insertBefore(nav, cont);
   }
   nav.innerHTML = actual ? `
-    <strong style="color:#6d28d9;">🧭 Modo guiado — Pendiente ${idxGuiado + 1} de ${pendientes.length}: ${escapeHtml(actual.nombre)}</strong>
+    <strong style="color:#6d28d9;"> Modo guiado — Pendiente ${idxGuiado + 1} de ${pendientes.length}: ${escapeHtml(actual.nombre)}</strong>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
       <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(-1)" ${idxGuiado === 0 ? 'disabled' : ''}>← Anterior</button>
       <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(1)" ${idxGuiado >= pendientes.length - 1 ? 'disabled' : ''}>Siguiente →</button>
       <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()">✕ Salir</button>
     </div>
   ` : `
-    <strong style="color:#065f46;">🎉 No tienes documentos pendientes por subir.</strong>
+    <strong style="color:#065f46;"> No tienes documentos pendientes por subir.</strong>
     <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()">✕ Salir del modo guiado</button>
   `;
   if (btn) btn.innerHTML = '🧭 En modo guiado';
 }
 
 // ==========================================
-// 🎯 CONFIGURAR EVENTOS DE DOCUMENTOS
+//  CONFIGURAR EVENTOS DE DOCUMENTOS
 // ==========================================
 function configurarEventosDocumentos() {
   document.querySelectorAll('.form-upload').forEach(form => {
@@ -1066,14 +1058,14 @@ function configurarEventosDocumentos() {
     checkbox.removeEventListener('change', handleNoAplicaChange);
     checkbox.addEventListener('change', handleNoAplicaChange);
   });
-  // 🆕 A4: Drag & Drop real + preview del archivo seleccionado
+  //  A4: Drag & Drop real + preview del archivo seleccionado
   configurarDragDrop();
 }
 
 // ==========================================
-// 🆕 A6: CHECKLIST INTELIGENTE DE FALTANTES (v2.1 — sin template literals anidados)
+//  A6: CHECKLIST INTELIGENTE DE FALTANTES (v2.1 — sin template literals anidados)
 // FIX: un documento SUBIDO (pendiente de revisión) ya NO cuenta como faltante.
-// FIX: chips en grid simétrico. Sin backticks anidados → imposible romper el cierre.
+// FIX: chips en grid simétrico. Sin backticks anidados  imposible romper el cierre.
 // ==========================================
 function actualizarChecklistFaltantes(completados) {
   const cont = document.getElementById('checklist-faltantes');
@@ -1100,7 +1092,7 @@ function actualizarChecklistFaltantes(completados) {
     }
   });
 
-  // ---- Caso 0: nada faltante pero aún sin verificar todo → banner azul ----
+  // ---- Caso 0: nada faltante pero aún sin verificar todo  banner azul ----
   if (faltantes.length === 0 && completados < total) {
     cont.style.display = 'block';
     cont.style.background = '#eff6ff';
@@ -1116,7 +1108,7 @@ function actualizarChecklistFaltantes(completados) {
     return;
   }
 
-  // ---- Caso 2: hay faltantes → banner ámbar con chips simétricos ----
+  // ---- Caso 2: hay faltantes  banner ámbar con chips simétricos ----
   const rechazadosCount = faltantes.filter(function (f) { return f.estado === 'rechazado'; }).length;
 
   let html =
@@ -1154,7 +1146,7 @@ function actualizarChecklistFaltantes(completados) {
 }
 
 // ==========================================
-// 🆕 A4: DRAG & DROP REAL + PREVIEW DE ARCHIVO
+//  A4: DRAG & DROP REAL + PREVIEW DE ARCHIVO
 // ==========================================
 function configurarDragDrop() {
   document.querySelectorAll('.form-upload.dropzone').forEach(form => {
@@ -1198,7 +1190,7 @@ function configurarDragDrop() {
       // Validación instantánea
       const validacion = validarArchivoCliente(file, tipo);
       if (!validacion.valido) {
-        mostrarAlerta(`❌ ${validacion.mensaje}`, 'error');
+        mostrarAlerta(`${ico('x')} ${validacion.mensaje}`, 'error');
         return;
       }
 
@@ -1212,12 +1204,12 @@ function configurarDragDrop() {
         mostrarPreviewArchivo({ target: input });
       }
 
-      mostrarAlerta(`📎 "${file.name}" listo para subir. Presiona el botón para enviar.`, 'info', 3000);
+      mostrarAlerta(`${ico('file')} "${file.name}" listo para subir. Presiona el botón para enviar.`, 'info', 3000);
     });
   });
 }
 
-// 🆕 A4: Validación instantánea en el cliente (antes de subir)
+//  A4: Validación instantánea en el cliente (antes de subir)
 function validarArchivoCliente(file, tipo) {
   const MAX_SIZE = 15 * 1024 * 1024; // 15 MB
 
@@ -1234,7 +1226,7 @@ function validarArchivoCliente(file, tipo) {
   return { valido: true };
 }
 
-// 🆕 A4: Mostrar preview del archivo seleccionado
+//  A4: Mostrar preview del archivo seleccionado
 function mostrarPreviewArchivo(e) {
   const input = e.target;
   const form = input.closest('.form-upload');
@@ -1254,7 +1246,7 @@ function mostrarPreviewArchivo(e) {
     : (file.size / 1024 / 1024).toFixed(1) + ' MB';
 
 const preview = document.createElement('div');
-// 🌙 F10-fix: preview con clases semánticas (tematizable en oscuro) en vez de colores inline
+//  F10-fix: preview con clases semánticas (tematizable en oscuro) en vez de colores inline
 preview.className = 'file-preview ' + (validacion.valido ? 'preview-ok' : 'preview-error');
 preview.innerHTML = `<span class="fp-icon">${validacion.valido ? '✅' : '❌'}</span> <span class="fp-name">${escapeHtml(file.name)}</span> <span class="fp-size">${sizeStr}</span> ${!validacion.valido ? `<span class="fp-msg">${validacion.mensaje}</span>` : ''}`;
   form.appendChild(preview);
@@ -1285,11 +1277,11 @@ async function handleUploadSubmit(e) {
   btn.disabled = true;
   btn.textContent = '⏳ Subiendo...';
 
-  // 🆕 A5: Crear barra de progreso dentro del formulario
+  //  A5: Crear barra de progreso dentro del formulario
   let progressContainer = form.querySelector('.upload-progress');
   if (!progressContainer) {
 progressContainer = document.createElement('div');
-// 🌙 F10-fix: contenedor de progreso sin colores inline (tematizable en oscuro).
+//  F10-fix: contenedor de progreso sin colores inline (tematizable en oscuro).
 // La barra .upload-progress-bar ya existe en style.css; aquí solo estructura.
 progressContainer.className = 'upload-progress';
 progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upload-progress-track"> <div class="upload-progress-bar"></div> </div> <span class="upload-progress-text">0%</span> </div> <small class="upload-progress-status">Preparando subida...</small>`;
@@ -1301,7 +1293,7 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
   const text = progressContainer.querySelector('.upload-progress-text');
   const status = progressContainer.querySelector('.upload-progress-status');
 
-  // 🚫 Cambio 9: ya no se controla reinicio automático; el flujo exige eliminar documentos rechazados antes de subir.
+  //  Cambio 9: ya no se controla reinicio automático; el flujo exige eliminar documentos rechazados antes de subir.
   const checkboxNoAplica = form.closest('.doc-item').querySelector('.checkbox-no-aplica');
   if (checkboxNoAplica && checkboxNoAplica.checked) {
     try {
@@ -1321,7 +1313,7 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
     }
   }
 
-  // 🆕 A5: Subida con progreso real usando XMLHttpRequest
+  //  A5: Subida con progreso real usando XMLHttpRequest
   try {
     const resultado = await subirConProgreso(fd, bar, text, status);
 
@@ -1339,15 +1331,15 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
       await actualizarEstado();
     } else {
       bar.style.background = '#dc2626';
-      status.textContent = `❌ ${resultado.error}`;
+      status.textContent = `${ico('x')} ${resultado.error}`;
       status.style.color = '#dc2626';
-      mostrarAlerta(`❌ ${resultado.error}`);
+      mostrarAlerta(`${ico('x')} ${resultado.error}`);
       setTimeout(() => progressContainer.remove(), 3000);
     }
   } catch (err) {
     console.error('Error subiendo documento:', err);
     bar.style.background = '#dc2626';
-    status.textContent = `❌ ${err.message}`;
+    status.textContent = `${ico('x')} ${err.message}`;
     status.style.color = '#dc2626';
     mostrarAlerta('❌ Error al subir el documento: ' + err.message);
     setTimeout(() => progressContainer.remove(), 3000);
@@ -1359,7 +1351,7 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
 }
 
 // ==========================================
-// 🆕 A5: HELPER DE SUBIDA CON PROGRESO (XHR)
+//  A5: HELPER DE SUBIDA CON PROGRESO (XHR)
 // ==========================================
 function subirConProgreso(formData, bar, text, status) {
   return new Promise((resolve, reject) => {
@@ -1435,7 +1427,7 @@ checkbox.disabled = true;
         renderDocumentos();
         await actualizarEstado();
       } else {
-        mostrarAlerta(`❌ ${r.error}`);
+        mostrarAlerta(`${ico('x')} ${r.error}`);
         checkbox.checked = !noAplica;
       }
     } catch (err) {
@@ -1448,7 +1440,7 @@ checkbox.disabled = true;
   }
 
   // ==========================================
-  // 🔄 ACTUALIZAR BADGES DE VERIFICACIÓN
+  //  ACTUALIZAR BADGES DE VERIFICACIÓN
   // ==========================================
   async function actualizarBadgesVerificacion() {
     try {
@@ -1460,14 +1452,14 @@ checkbox.disabled = true;
       if (prov && prov.estado_general === 'pendiente' && prov.todos_subidos) {
         if (prov.todos_verificados) {
           badgesContainer.innerHTML = `
-            <span class="badge-verificado-pendiente">📋 Verificado - Pendiente aprobación</span>
+            <span class="badge-verificado-pendiente">${ico('file-text')} Verificado - Pendiente aprobación</span>
             <small style="color:#6b7280;display:block;margin-top:0.3rem;">
               Todos tus documentos han sido revisados y verificados. El administrador realizará la aprobación final pronto.
             </small>
           `;
         } else {
           badgesContainer.innerHTML = `
-            <span class="badge-pendiente-verificar">⏳ Pendiente por verificar</span>
+            <span class="badge-pendiente-verificar">${ico('clock')} Pendiente por verificar</span>
             <small style="color:#6b7280;display:block;margin-top:0.3rem;">
               Todos tus documentos están subidos. El administrador los revisará y los marcará como verificados.
             </small>
@@ -1480,7 +1472,7 @@ checkbox.disabled = true;
   }
 
   // ==========================================
-  // 🗑️ ELIMINAR DOCUMENTO
+  //  ELIMINAR DOCUMENTO
   // ==========================================
 async function eliminarDocumento(id) {
 const confirmado = await confirmarSwal({
@@ -1499,7 +1491,7 @@ try {
         await actualizarEstado();
       } else {
         const r = await res.json();
-        mostrarAlerta(`❌ ${r.error}`);
+        mostrarAlerta(`${ico('x')} ${r.error}`);
       }
     } catch (err) {
       console.error('Error eliminando documento:', err);
@@ -1508,7 +1500,7 @@ try {
   }
 
   // ==========================================
-// 🗑️ ELIMINAR TODOS LOS DOCUMENTOS RECHAZADOS
+//  ELIMINAR TODOS LOS DOCUMENTOS RECHAZADOS
 // ==========================================
 async function eliminarTodosRechazados() {
 const rechazados = (documentos || []).filter(d =>
@@ -1553,14 +1545,14 @@ renderDocumentos();
 await actualizarEstado();
 
 if (errores === 0) {
-mostrarAlerta(`👌 Se eliminaron ${eliminados} documento(s) rechazados.`, 'success');
+mostrarAlerta(` Se eliminaron ${eliminados} documento(s) rechazados.`, 'success');
 } else {
-mostrarAlerta(`⚠️ Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning');
+mostrarAlerta(`${ico('alert')} Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning');
 }
 }
 
   // ==========================================
-  // 👁️ VISOR DE DOCUMENTOS
+  //  VISOR DE DOCUMENTOS
   // ==========================================
   function verDocumento(url, nombre) {
     document.getElementById('modalVisor').style.zIndex = '9000';
@@ -1584,10 +1576,10 @@ mostrarAlerta(`⚠️ Eliminados: ${eliminados}. Errores: ${errores}.`, 'warning
 function cerrarVisor() {
 document.getElementById('visorIframe').src = 'about:blank';
 document.getElementById('modalVisor').classList.remove('active');
-document.getElementById('modalVisor').classList.remove('visor-fullscreen'); // 🔍 E4: cerrar restaura el tamaño
+document.getElementById('modalVisor').classList.remove('visor-fullscreen'); //  E4: cerrar restaura el tamaño
 }
 // ==========================================
-// 🔍 E4 (REDEFINIDO): EXPANDIR VISOR A PANTALLA COMPLETA
+//  E4 (REDEFINIDO): EXPANDIR VISOR A PANTALLA COMPLETA
 // Decisión de diseño: el zoom y la rotación REALES los aporta el visor
 // nativo del navegador dentro del iframe (PDFium). Lo que el nativo NO
 // puede hacer es agrandar el modal que lo contiene. Este toggle lleva
@@ -1600,7 +1592,7 @@ m.classList.toggle('visor-fullscreen');
 }
 
   // ==========================================
-  // 📊 ACTUALIZAR ESTADO (etapa + banner + badges)
+  //  ACTUALIZAR ESTADO (etapa + banner + badges)
   // ==========================================
   async function actualizarEstado() {
     try {
@@ -1621,14 +1613,14 @@ m.classList.toggle('visor-fullscreen');
   }
 
   // ==========================================
-  // 📨 RECORDATORIOS
+  //  RECORDATORIOS
   // ==========================================
   async function cargarRecordatorios() {
     const recs = await (await fetchAPI('/api/proveedor/recordatorios')).json();
 const cont = document.getElementById('recordatorios');
 if (!recs.length) { cont.innerHTML = ''; return; }
 cont.innerHTML = '';
-// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por recordatorio
+//  F7: DocumentFragment = un solo reflow al final en vez de uno por recordatorio
 const fragRecs = document.createDocumentFragment();
 recs.forEach(r => {
       const div = document.createElement('div');
@@ -1657,7 +1649,7 @@ recs.forEach(r => {
       p.textContent = r.mensaje;
       contenido.appendChild(p);
       const small = document.createElement('small');
-      small.textContent = `🕐 ${formatearFecha(r.creado_en)}`;
+      small.textContent = `${ico('clock')} ${formatearFecha(r.creado_en)}`;
       contenido.appendChild(small);
 div.appendChild(contenido);
 fragRecs.appendChild(div);
@@ -1667,14 +1659,14 @@ cont.appendChild(fragRecs);
   }
 
   // ==========================================
-  // 📝 NOTAS
+  //  NOTAS
   // ==========================================
   async function cargarNotas() {
     const notas = await (await fetchAPI('/api/proveedor/notas')).json();
 const cont = document.getElementById('notas');
 if (!notas.length) { cont.innerHTML = ''; return; }
 cont.innerHTML = '';
-// ⚡ F7: DocumentFragment = un solo reflow al final en vez de uno por nota
+//  F7: DocumentFragment = un solo reflow al final en vez de uno por nota
 const fragNotasProv = document.createDocumentFragment();
 notas.forEach(n => {
       const div = document.createElement('div');
@@ -1691,10 +1683,10 @@ notas.forEach(n => {
       const header = document.createElement('div');
       header.className = 'nota-header';
       const strong = document.createElement('strong');
-      strong.textContent = `📝 ${n.titulo}`;
+      strong.textContent = ` ${n.titulo}`;
       header.appendChild(strong);
       const small = document.createElement('small');
-      small.textContent = `🕐 ${formatearFecha(n.creado_en)}`;
+      small.textContent = `${ico('clock')} ${formatearFecha(n.creado_en)}`;
       header.appendChild(small);
       div.appendChild(header);
 
@@ -1709,7 +1701,7 @@ cont.appendChild(fragNotasProv);
   }
 
   // ==========================================
-  // ❌ CERRAR NOTAS Y RECORDATORIOS
+  //  CERRAR NOTAS Y RECORDATORIOS
   // ==========================================
   async function cerrarElemento(boton, id, tipo) {
     const elemento = boton.closest('.recordatorio-box, .nota-item');
@@ -1733,7 +1725,7 @@ cont.appendChild(fragNotasProv);
         }, 300);
       } else {
         const r = await res.json();
-        mostrarAlerta(`❌ Error: ${r.error}`);
+        mostrarAlerta(`${ico('x')} Error: ${r.error}`);
         boton.disabled = false;
         boton.textContent = '×';
       }
@@ -1746,7 +1738,7 @@ cont.appendChild(fragNotasProv);
   }
 
   // ==========================================
-  // 📜 HISTORIAL
+  //  HISTORIAL
   // ==========================================
   async function cargarHistorial() {
     const hist = await (await fetchAPI('/api/proveedor/historial')).json();
@@ -1778,7 +1770,7 @@ cont.appendChild(fragNotasProv);
           <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
           <div class="historial-contenido">
             <div class="detalle">${h.detalle}</div>
-            <div class="meta"><span>🕐 ${formatearFecha(h.creado_en)}</span></div>
+            <div class="meta"><span>${ico('clock')} ${formatearFecha(h.creado_en)}</span></div>
           </div>
         </div>
       `;
@@ -1786,10 +1778,10 @@ cont.appendChild(fragNotasProv);
   }
 
 // ==========================================
-// 📞 G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
+//  G11: TELÉFONO COLOMBIA (máscara 3-3-4 + validación en vivo)
 // Legacy: un teléfono antiguo guardado se tolera (ámbar) hasta que se edite.
 // ==========================================
-// 🧩 F8: TEL_CO_RE / normalizarDigitosCO / formatearTelefonoCO / validarTelefonoCO → /js/utils.js
+//  F8: TEL_CO_RE / normalizarDigitosCO / formatearTelefonoCO / validarTelefonoCO  /js/utils.js
 function conectarMascaraTelefono(input) {
 if (!input) return;
 // Legacy sin editar: se tolera hasta la primera edición
@@ -1824,9 +1816,9 @@ pintar();
 }
 conectarMascaraTelefono(document.getElementById('telefono'));
 // ==========================================
-// 🪪 G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
+//  G7: TIPO DE DOCUMENTO (cliente) — espejo exacto del server
 // ==========================================
-// 🧩 F8: TIPOS_DOCUMENTO_CO / normalizarNumeroDocumento / validarDocumentoCO → /js/utils.js
+//  F8: TIPOS_DOCUMENTO_CO / normalizarNumeroDocumento / validarDocumentoCO  /js/utils.js
 (function conectarValidacionDocProv() {
 const sel = document.getElementById('tipo_documento');
 const inp = document.getElementById('rfc');
@@ -1834,7 +1826,7 @@ const hint = document.getElementById('hintDocProv');
 if (!sel || !inp) return;
 const pintar = () => {
 const v = (inp.value || '').trim();
-// 🩹 G7-fix: campo vacío = hint NEUTRO (gris). El rojo solo aparece con
+//  G7-fix: campo vacío = hint NEUTRO (gris). El rojo solo aparece con
 // contenido inválido; el guardado vacío ya lo bloquea el guard con alerta.
 if (!v) {
 if (hint) { hint.textContent = 'Ej: 310 123 4567 · 601 123 4567 · NIT sin puntos'; hint.style.color = '#6b7280'; }
@@ -1850,16 +1842,16 @@ inp.dataset.docOk = r.valido ? '1' : '0';
 };
 sel.addEventListener('change', pintar);
 inp.addEventListener('input', pintar);
-window.pintarDocProv = pintar; // 🩹 repintado externo (init / guardado / guía)
+window.pintarDocProv = pintar; //  repintado externo (init / guardado / guía)
 pintar();
 })();
-// 🪪 G7-b: guía contextual del tipo de documento según tipo de persona
+//  G7-b: guía contextual del tipo de documento según tipo de persona
 function sincronizarHintDocProv(valor, autoSwitch) {
 const hint = document.getElementById('hintDocProv');
 const sel = document.getElementById('tipo_documento');
 if (!hint) return;
 if (valor === 'natural' && autoSwitch && sel && sel.value === 'nit') {
-sel.value = 'cc'; // 🪪 en natural el NIT es la cédula: sugerimos C.C.
+sel.value = 'cc'; //  en natural el NIT es la cédula: sugerimos C.C.
 if (window.pintarDocProv) window.pintarDocProv();
 }
 if (valor === 'juridica') {
@@ -1873,24 +1865,24 @@ hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaport
 hint.style.color = '#6b7280';
 }
 }
-// 🪪 G7-fix: eliminados listener y SEGUNDA definición duplicada de
+//  G7-fix: eliminados listener y SEGUNDA definición duplicada de
 // sincronizarHintDocProv (pisaba a la versión con autoSwitch y dejaba muerto
 // el salto automático a C.C. en personas naturales). Los radios llaman la
 // función vía onchange inline con (valor, true); queda UNA definición.
 
 // ==========================================
-// 🏢 GUARDAR DATOS
+//  GUARDAR DATOS
 // ==========================================
 document.getElementById('form-datos').addEventListener('submit', async e => {
 e.preventDefault();
-// 📞 G11: no enviar si el teléfono editado es inválido (evita round-trip)
+//  G11: no enviar si el teléfono editado es inválido (evita round-trip)
 const telInput = document.getElementById('telefono');
 if (telInput && telInput.dataset.telOk === '0') {
 mostrarAlerta('❌ Teléfono inválido: ' + validarTelefonoCO(telInput.value).mensaje, 'error');
 telInput.focus();
 return;
 }
-// 🪪 G7: bloqueo local si el documento es inválido (el server también valida)
+//  G7: bloqueo local si el documento es inválido (el server también valida)
 const docInput = document.getElementById('rfc');
 if (docInput && docInput.value.trim() && docInput.dataset.docOk === '0') {
 mostrarAlerta('❌ Documento inválido: ' + validarDocumentoCO(document.getElementById('tipo_documento').value, docInput.value).mensaje, 'error');
@@ -1912,8 +1904,8 @@ btn.textContent = '⏳ Guardando...';
 mostrarAlerta('👌 Datos guardados correctamente', 'success');
 const prov = await (await fetchAPI('/api/proveedor/info')).json();
 actualizarTipoPersonaUI(prov);
-actualizarPanelProveedor(prov); // 🩹 G7-fix: el panel "Información del Proveedor" refresca sin recargar
-if (window.pintarDocProv) window.pintarDocProv(); // 🩹 hint acorde al valor guardado
+actualizarPanelProveedor(prov); //  G7-fix: el panel "Información del Proveedor" refresca sin recargar
+if (window.pintarDocProv) window.pintarDocProv(); //  hint acorde al valor guardado
 verificarYBloquearPerfil(prov);
             if (perfilCompleto) {
                 try {
@@ -1930,7 +1922,7 @@ verificarYBloquearPerfil(prov);
             }
         } else {
             const r = await res.json();
-            mostrarAlerta(`❌ ${r.error}`, 'error');
+            mostrarAlerta(`${ico('x')} ${r.error}`, 'error');
         }
     } catch (err) {
         console.error('Error guardando datos:', err);
@@ -1942,12 +1934,12 @@ verificarYBloquearPerfil(prov);
 });
 
 // ==========================================
-// 🔐 G2: MEDIDOR DE FORTALEZA DE CONTRASEÑA (solo aviso)
+//  G2: MEDIDOR DE FORTALEZA DE CONTRASEÑA (solo aviso)
 // Espejo exacto de validarPassword() en security.js: 8+ caracteres,
 // mayúscula, minúscula, número y especial. El server sigue siendo la
 // autoridad: este medidor NUNCA bloquea el envío, solo orienta.
 // ==========================================
-// 🛡️ FIX TDZ: las constantes se declaran con 'var' para evitar el
+//  FIX TDZ: las constantes se declaran con 'var' para evitar el
 // Temporal Dead Zone cuando el IIFE se ejecuta antes de la inicialización.
 // El hoisting de 'var' las hace disponibles inmediatamente (aunque undefined).
 var PASS_REGLAS = {
@@ -1960,7 +1952,7 @@ var PASS_REGLAS = {
 var PASS_ETIQUETAS = { 0: '—', 1: 'Muy débil', 2: 'Débil', 3: 'Aceptable', 4: 'Buena', 5: 'Fuerte' };
 
 function medidorFortaleza(v) {
-  if (!PASS_REGLAS) return 0; // 🛡️ guard contra TDZ
+  if (!PASS_REGLAS) return 0; //  guard contra TDZ
   return Object.keys(PASS_REGLAS).filter(k => PASS_REGLAS[k](v || '')).length;
 }
 
@@ -1981,7 +1973,7 @@ function actualizarMedidorPass(input) {
   });
 }
 
-// 🛡️ FIX TDZ: el IIFE se ejecuta DESPUÉS de que PASS_REGLAS esté inicializado.
+//  FIX TDZ: el IIFE se ejecuta DESPUÉS de que PASS_REGLAS esté inicializado.
 // Se envuelve en una función que se llama explícitamente al final del script.
 function conectarMedidorPass() {
   const inp = document.querySelector('#form-cambiar-password input[name="password_nueva"]');
@@ -1992,7 +1984,7 @@ function conectarMedidorPass() {
   });
 }
 // ==========================================
-// 🔑 CAMBIAR CONTRASEÑA
+//  CAMBIAR CONTRASEÑA
 // ==========================================
 document.getElementById('form-cambiar-password').addEventListener('submit', async e => {
     e.preventDefault();
@@ -2001,7 +1993,7 @@ const data = Object.fromEntries(new FormData(e.target));
 if (data.password_nueva !== data.password_confirmar) {
 return mostrarAlertaPassword('Las contraseñas nuevas no coinciden');
 }
-// ⚡ OPT (#6): feedback inmediato sin round-trip al servidor
+//  OPT (#6): feedback inmediato sin round-trip al servidor
 if (data.password_nueva === data.password_actual) {
 return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actual');
 }
@@ -2034,7 +2026,7 @@ return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actua
   });
 
   // ==========================================
-  // 🚪 LOGOUT
+  //  LOGOUT
   // ==========================================
   async function logout() {
     await fetchAPI('/api/logout', { method: 'POST' });
@@ -2042,7 +2034,7 @@ return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actua
   }
 
   // ==========================================
-  // 🎯 EVENT LISTENERS DE NAVEGACIÓN
+  //  EVENT LISTENERS DE NAVEGACIÓN
   // ==========================================
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -2056,7 +2048,7 @@ return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actua
   });
 
 // ==========================================
-// 🆕 A6.2: CLIC EN CHECKLIST → SALTAR AL DOCUMENTO FALTANTE
+//  A6.2: CLIC EN CHECKLIST  SALTAR AL DOCUMENTO FALTANTE
 // ==========================================
 document.addEventListener('click', function (e) {
   const chip = e.target.closest('.chip-faltante');
@@ -2064,7 +2056,7 @@ document.addEventListener('click', function (e) {
   irADocumento(chip.dataset.tipo);
 });
 
-// 🆕 A7: expande/colapsa el cuerpo de una tarjeta de documento
+//  A7: expande/colapsa el cuerpo de una tarjeta de documento
 function toggleDocBody(btn) {
   const item = btn.closest('.doc-item');
   if (!item) return;
@@ -2081,7 +2073,7 @@ function irADocumento(tipo) {
     mostrarAlerta('No se encontró ese documento en la lista.', 'warning');
     return;
   }
-  // 🆕 A7: si la tarjeta está colapsada, expandirla antes del scroll
+  //  A7: si la tarjeta está colapsada, expandirla antes del scroll
   const body = target.querySelector('.doc-body');
   if (body && body.style.display === 'none') {
     body.style.display = '';
@@ -2098,9 +2090,9 @@ function irADocumento(tipo) {
 }
 
 // ==========================================
-// 🚀 INICIAR APLICACIÓN
+//  INICIAR APLICACIÓN
 // ==========================================
-// 🛡️ FIX TDZ: conectar el medidor DESPUÉS de que todo esté inicializado
+//  FIX TDZ: conectar el medidor DESPUÉS de que todo esté inicializado
 conectarMedidorPass();
 console.log('✅ Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
 init();

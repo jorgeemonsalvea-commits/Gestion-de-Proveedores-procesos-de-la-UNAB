@@ -72,15 +72,15 @@ from { opacity: 0; transform: translateY(-10px); }
 to { opacity: 1; transform: translateY(0); }
 }
 /* ==========================================
-🧹 COMPACTAR FILAS DE DOCUMENTOS (elimina el espacio gris residual)
+COMPACTAR FILAS DE DOCUMENTOS (elimina el espacio gris residual)
 ========================================== */
 /* 1) La columna de información pasa a flex-column con gap mínimo:
    los <br> sobrantes dejan de generar líneas vacías. */
-/* 🧹 F10: la compactación de filas ahora vive en .doc-row-info (style.css global,
+/* F10: la compactación de filas ahora vive en .doc-row-info (style.css global,
 aplica igual en admin). Aquí solo queda el apretado vertical específico del portal. */
 #listaDocumentos .doc-row { margin-bottom: 0.4rem; padding: 0.5rem 0.6rem; }
 
-/* 🆕 A6.2: resaltar tarjeta al saltar desde el checklist */
+/* A6.2: resaltar tarjeta al saltar desde el checklist */
 .doc-item.doc-flash {
 border-color: #8600dd !important;
 box-shadow: 0 0 0 4px rgba(134, 0, 221, 0.12), 0 6px 16px rgba(22, 10, 36, 0.12) !important;
@@ -125,10 +125,10 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <div class="pv-topbar">
 <div class="pv-crumb">Inicio <span>›</span> Portal de Proveedores <span>›</span> <b id="bcActual">Documentos</b></div>
 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
-<!-- 🆕 B4: indicador de conexión Socket.IO en tiempo real -->
-<span id="socketStatus" style="font-size:.72rem;font-weight:700;color:#059669;white-space:nowrap;" title="Estado de la conexión en tiempo real">🟢 Conectado</span>
-<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema">🌙</button>
-<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real">🔊</button>
+<!-- B4: indicador de conexión Socket.IO en tiempo real -->
+<span id="socketStatus" style="font-size:.72rem;font-weight:700;color:#059669;white-space:nowrap;" title="Estado de la conexión en tiempo real"><svg class="ico ico-exito" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Conectado</span>
+<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real"><svg class="ico" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
@@ -145,20 +145,20 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 
   <!-- Banner: Proceso rechazado -->
   <div id="bloqueo-rechazado" style="display:none; background:#fee2e2; border:2px solid #dc2626; border-radius:8px; padding:2rem; text-align:center; margin-bottom:1.5rem;">
-    <h2 style="color:#991b1b;">❌ Proceso rechazado</h2>
+    <h2 style="color:#991b1b;"><svg class="ico ico-peligro" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Proceso rechazado</h2>
     <p style="color:#7f1d1d; font-size:1.1rem;">Tu solicitud de inscripción ha sido rechazada.</p>
   </div>
 
   <!-- Banner: Proveedor registrado y activo -->
   <div id="banner-registrado" style="display:none; background:#d1fae5; border:2px solid #059669; border-radius:8px; padding:2rem; text-align:center; margin-bottom:1.5rem;">
-    <h2 style="color:#065f46;">✅ Proveedor registrado y activo</h2>
+    <h2 style="color:#065f46;"><svg class="ico ico-exito" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Proveedor registrado y activo</h2>
     <p style="color:#047857; font-size:1.1rem;">Tu documentación está aprobada y vigente.</p>
     <p style="color:#6b7280; margin-top:0.5rem;">Cuando sea necesario renovar tus documentos, el administrador te enviará una solicitud de actualización.</p>
   </div>
 
   <!-- Alerta de perfil incompleto -->
   <div id="alerta-perfil-incompleto" class="alerta-perfil-incompleto">
-    ⚠️ <strong>Acción Requerida:</strong> Para continuar usando el portal y subir documentos, debes completar los datos de tu empresa.
+    <svg class="ico ico-advertencia" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>Acción Requerida:</strong> Para continuar usando el portal y subir documentos, debes completar los datos de tu empresa.
   </div>
 
   <!-- Estado del registro -->
@@ -181,11 +181,11 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
           <!-- Tab Documentos -->
           <div id="tab-docs" class="card">
             <h3 style="margin-bottom:1rem;">Documentación requerida</h3>
-            <!-- 🆕 B1: entrada al modo guiado (un pendiente a la vez) -->
+            <!-- B1: entrada al modo guiado (un pendiente a la vez) -->
             <div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
-            <button id="btnModoGuiado" class="btn btn-sm btn-secondary" onclick="toggleModoGuiado()">🧭 Modo guiado</button>
+            <button id="btnModoGuiado" class="btn btn-sm btn-secondary" onclick="toggleModoGuiado()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Modo guiado</button>
             </div>
-            <!-- 🆕 A6: Checklist inteligente siempre visible -->
+            <!-- A6: Checklist inteligente siempre visible -->
             <div id="checklist-faltantes" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:0.8rem 1rem;margin-bottom:1rem;"></div>
             <div id="avisoEtapa"></div>
             <div id="listaDocumentos" class="doc-grid"></div>
@@ -195,20 +195,20 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
   <div id="tab-datos" class="card hidden">
     <h3 style="margin-bottom:1rem;">Datos de la empresa</h3>
     <form id="form-datos">
-<!-- 🆕 Selector de tipo de persona (define la documentación requerida) -->
+<!-- Selector de tipo de persona (define la documentación requerida) -->
 <div class="form-group" style="background:#f0f9ff;padding:1rem;border-radius:8px;border:1px solid #bae6fd;">
-<label style="font-weight:700;">🧾 Tipo de persona *</label>
+<label style="font-weight:700;"><svg class="ico" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Tipo de persona *</label>
 <div style="display:flex;gap:1.5rem;margin-top:0.4rem;flex-wrap:wrap;">
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipo_persona" value="juridica" onchange="sincronizarHintDocProv(this.value, true)"> 🏢 Persona Jurídica
+<input type="radio" name="tipo_persona" value="juridica" onchange="sincronizarHintDocProv(this.value, true)"> <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="10" y2="6"/><line x1="14" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="15" y2="14"/><path d="M10 22v-4h4v4"/></svg> Persona Jurídica
 </label>
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipo_persona" value="natural" onchange="sincronizarHintDocProv(this.value, true)"> 🧍 Persona Natural
+<input type="radio" name="tipo_persona" value="natural" onchange="sincronizarHintDocProv(this.value, true)"> <svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Persona Natural
 </label>
 </div>
 </div>
 <div class="form-group" style="background:#eff6ff;padding:1rem;border-radius:8px;border:1px solid #bfdbfe;">
-<label style="font-weight:700;">📧 Correo electrónico *</label>
+<label style="font-weight:700;"><svg class="ico" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,6 12,13 2,6"/></svg> Correo electrónico *</label>
 <input type="email" name="email" id="email_usuario" placeholder="correo@empresa.com">
 <small style="color:#1e40af;font-size:0.8rem;display:block;margin-top:0.3rem;">
 Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, se conservará todo tu historial y documentos.
@@ -223,10 +223,10 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
 <label>Tipo y número de documento</label>
 <div style="display:flex;gap:0.5rem;">
 <select name="tipo_documento" id="tipo_documento" style="width:42%;padding:0.65rem 0.8rem;border:1px solid var(--color-borde-input);border-radius:6px;">
-<option value="nit">🏢 NIT</option>
-<option value="cc">🧍 C.C.</option>
-<option value="ce">🛂 C.E.</option>
-<option value="pas">🛂 Pasaporte</option>
+<option value="nit">NIT</option>
+<option value="cc">C.C.</option>
+<option value="ce">C.E.</option>
+<option value="pas">Pasaporte</option>
 </select>
 <input type="text" name="rfc" id="rfc" placeholder="Número sin puntos ni guion">
 </div>
@@ -257,7 +257,7 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
 </div>
 <div class="pv-actions">
 <span class="hint">
-  💡 <strong>No necesitas subir todo de una vez.</strong> Tu avance se guarda automáticamente con cada documento.
+  <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <strong>No necesitas subir todo de una vez.</strong> Tu avance se guarda automáticamente con cada documento.
   Los obligatorios deben ser PDF de máx. 15 MB.
 </span>
 <div style="display:flex;gap:.6rem;">
@@ -297,10 +297,10 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
       <h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button type="button" class="btn-visor" onclick="toggleVisorPantallaCompleta()" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)">⛶</button>
+<button type="button" class="btn-visor" onclick="toggleVisorPantallaCompleta()" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)"><svg class="ico" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
 <a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;">
           <svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
-        <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary">🔗 Abrir en pestaña</a>
+        <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary"><svg class="ico" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Abrir en pestaña</a>
         <button class="btn btn-sm btn-danger" onclick="cerrarVisor()">✕ Cerrar</button>
       </div>
     </div>
@@ -317,7 +317,7 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
 <!-- Modal Cambio de Contraseña -->
 <div class="modal-overlay" id="modalPassword">
   <div class="modal" style="max-width:500px;">
-    <h3>🔐 Cambia tu contraseña</h3>
+    <h3><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Cambia tu contraseña</h3>
     <p style="color:#6b7280;margin-bottom:1rem;">Por seguridad, debes cambiar tu contraseña antes de continuar.</p>
     <div id="alertaPassword"></div>
     <form id="form-cambiar-password">

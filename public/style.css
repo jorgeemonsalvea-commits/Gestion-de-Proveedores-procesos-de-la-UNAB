@@ -1507,7 +1507,16 @@ Iconografía de línea + KPIs + stepper + chip de usuario + legal
 ========================================================================== */
 /* ---- Iconos SVG de línea (stroke = currentColor) ---- */
 .ico { width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-3px; margin-right:.4rem; }
-.ico-lg { width:22px; height:22px; }
+.ico-lg {  width:22px; height:22px; }
+.ico-sm { width:14px; height:14px; vertical-align:-2px; margin-right:.25rem; }
+.ico-xl { width:28px; height:28px; vertical-align:-8px; margin-right:.5rem; }
+/* V2: color semántico de icono (estado), no color de marca por accidente */
+.ico-exito { color: var(--color-exito); }
+.ico-peligro { color: var(--color-peligro); }
+.ico-advertencia { color: var(--color-advertencia); }
+.ico-primario { color: var(--color-primario); }
+.ico-acento { color: var(--color-acento-texto); }
+.ico-muted { color: var(--color-texto-suave); }
 .tab .ico { width:16px; height:16px; vertical-align:-2px; }
 .apps-tile-icon svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .btn .ico { margin-right:.35rem; }
