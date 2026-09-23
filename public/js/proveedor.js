@@ -13,7 +13,7 @@ function aplicarTemaD1(tema) {
 document.documentElement.setAttribute('data-tema', tema);
 const btn = document.getElementById('btnTemaD1');
 if (btn) {
-btn.textContent = tema === 'oscuro' ? '☀️' : '🌙';
+btn.innerHTML = tema === 'oscuro' ? ico('sun') : ico('moon');
 btn.setAttribute('aria-label', tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
 btn.title = tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro';
 }
@@ -72,11 +72,11 @@ mostrarAlerta(msg, tipo);
 
 function formatearEtapa(etapa) {
 const map = {
-'verificacion': '🔍 Verificación',
-'aprobacion': '📋 Aprobación',
-'inscripcion': '📝 Inscripción',
-'registrado': '✅ Registrado',
-'rechazado': '❌ Rechazado'
+'verificacion': 'Verificación',
+'aprobacion': 'Aprobación',
+'inscripcion': 'Inscripción',
+'registrado': 'Registrado',
+'rechazado': 'Rechazado'
 };
 return map[etapa] || (etapa ? etapa : '-');
 }
@@ -189,7 +189,7 @@ function toggleSonidoD4() {
 sonidoActivado = !sonidoActivado;
 localStorage.setItem('unab_sonido', sonidoActivado ? 'on' : 'off');
 const btn = document.getElementById('btnSonidoD4');
-if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
+if (btn) btn.innerHTML = sonidoActivado ? ico('volume') : ico('volume-off');
 if (sonidoActivado) reproducirSonidoD4('success');
 }
 //  A1: abre el visor leyendo datos desde data-attributes
@@ -313,12 +313,12 @@ actualizarStepper(etapaActual);
     alerta.innerHTML = '';
 
 if (etapaActual === 'rechazado') {
-let tituloRechazo = '❌ Proceso rechazado';
+let tituloRechazo = `${ico('x', 'ico-peligro')} Proceso rechazado`;
 let mensajeRechazo = `No cuentas con la calificación necesaria para ser proveedor. Si deseas volver a participar, <strong>sube los documentos actualizados</strong>. El administrador revisará tu nueva documentación.`;
 let pasoRechazo = `Para continuar, primero debes <strong>eliminar los documentos rechazados</strong> desde la pestaña <strong>Documentos</strong>. Cuando los elimines, el sistema te habilitará nuevamente la carga de documentos.`;
 
 if (prov.notas_gestion && String(prov.notas_gestion).toLowerCase().includes('vencimiento')) {
-tituloRechazo = '⏰ Documentos vencidos';
+tituloRechazo = `${ico('clock', 'ico-advertencia')} Documentos vencidos`;
 mensajeRechazo = `Tus documentos han vencido y tu perfil ha sido desactivado automáticamente.`;
 pasoRechazo = `Para volver a ser proveedor activo, primero <strong>selecciona tu tipo de persona</strong> (Natural o Jurídica) en la pestaña <strong>Mis datos</strong> y luego sube toda la documentación actualizada desde la pestaña <strong>Documentos</strong>.`;
 }
@@ -356,8 +356,8 @@ const tabs = document.querySelectorAll('.tab');
 if (!perfilCompleto) {
 alerta.style.display = 'block';
 alerta.innerHTML = !datosOk
-? '⚠️ <strong>Acción Requerida:</strong> Para continuar usando el portal y subir documentos, debes completar los datos de tu empresa.'
-: '⚠️ <strong>Acción Requerida:</strong> Para continuar, selecciona si eres <strong>Persona Natural</strong> o <strong>Persona Jurídica</strong> y guarda los datos.';
+? ' <strong>Acción Requerida:</strong> Para continuar usando el portal y subir documentos, debes completar los datos de tu empresa.'
+: ' <strong>Acción Requerida:</strong> Para continuar, selecciona si eres <strong>Persona Natural</strong> o <strong>Persona Jurídica</strong> y guarda los datos.';
 tabs.forEach(tab => {
 if (tab.dataset.tab !== 'datos') {
 tab.classList.add('tab-bloqueada');
@@ -407,7 +407,7 @@ set('pNit', prov.rfc || '—');
 const lblDoc = document.getElementById('pNitLabel');
 if (lblDoc) lblDoc.textContent = ({ nit: 'NIT', cc: 'C.C.', ce: 'C.E.', pas: 'Pasaporte' })[prov.tipo_documento || 'nit'] || 'NIT';
 set('pRegistro', prov.numero_registro || 'Pendiente');
-const mapa = { verificacion: 'Paso 1 de 4 · Verificación', aprobacion: 'Paso 2 de 4 · Aprobación', inscripcion: 'Paso 3 de 4 · Inscripción', registrado: 'Paso 4 de 4 · Registrado', rechazado: '⚠️ Requiere corrección' };
+const mapa = { verificacion: 'Paso 1 de 4 · Verificación', aprobacion: 'Paso 2 de 4 · Aprobación', inscripcion: 'Paso 3 de 4 · Inscripción', registrado: 'Paso 4 de 4 · Registrado', rechazado: ' Requiere corrección' };
 set('pPaso', mapa[prov.etapa || ''] || 'Paso 1 de 4 · Verificación');
 const correo = document.getElementById('userEmail')?.textContent;
 if (correo && correo !== '—') set('pCorreo', correo);
@@ -428,8 +428,8 @@ r.checked = (prov.tipo_proveedor === r.value);
 const lblTipo = document.getElementById('tipoPersonaLabel');
 if (lblTipo) {
 lblTipo.textContent =
-prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
-prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
+prov.tipo_proveedor === 'natural' ? ' Persona Natural' :
+prov.tipo_proveedor === 'juridica' ? ' Persona Jurídica' : 'Sin definir';
 }
 }
 
@@ -483,16 +483,16 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
       });
       const data = await res.json();
       if (res.ok) {
-        mostrarNotificacion('✅ Política de datos aceptada correctamente', 'success');
+        mostrarNotificacion(' Política de datos aceptada correctamente', 'success');
         const modal = document.getElementById('modalHabeas');
         if (modal) modal.remove();
         location.reload();
       } else {
-        mostrarNotificacion('❌ ' + (data.error || 'Error al aceptar'), 'error');
+        mostrarNotificacion(' ' + (data.error || 'Error al aceptar'), 'error');
       }
     } catch (err) {
       console.error('Error aceptando Habeas Data:', err);
-      mostrarNotificacion('❌ Error de conexión', 'error');
+      mostrarNotificacion(' Error de conexión', 'error');
     }
   }
 
@@ -503,7 +503,7 @@ prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
 function actualizarIndicadorSocket(conectado) {
   const el = document.getElementById('socketStatus');
   if (!el) return;
-  el.textContent = conectado ? '🟢 Conectado' : '🔴 Reconectando...';
+  el.textContent = conectado ? 'Conectado' : 'Reconectando...';
   el.style.color = conectado ? '#059669' : '#dc2626';
 }
 function conectarSocket() {
@@ -517,69 +517,69 @@ function conectarSocket() {
     timeout: 10000
   });
   socket.on('connect', () => {
-    console.log('🔌 Conectado al servidor Socket.IO · id=' + socket.id);
+    console.log(' Conectado al servidor Socket.IO · id=' + socket.id);
     actualizarIndicadorSocket(true);
   });
   //  El server confirma en qué salas quedó este socket (diagnóstico)
   socket.on('socket_info', (info) => {
-    console.log('📡 Salas asignadas por el servidor:', info);
+    console.log(' Salas asignadas por el servidor:', info);
   });
   socket.on('disconnect', (motivo) => {
-    console.log('🔌 Desconectado del servidor Socket.IO:', motivo);
+    console.log(' Desconectado del servidor Socket.IO:', motivo);
     actualizarIndicadorSocket(false);
   });
   //  Errores de conexión visibles (antes eran silenciosos)
   socket.on('connect_error', (err) => {
-    console.error('❌ Socket connect_error:', err.message);
+    console.error(' Socket connect_error:', err.message);
     actualizarIndicadorSocket(false);
   });
   //  Red de seguridad: al volver a la pestaña con el socket caído,
   // refrescamos datos una vez para no quedar desactualizados hasta F5.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && socket && !socket.connected) {
-      console.log('👁️ Pestaña visible con socket caído → recarga de seguridad');
+      console.log(' Pestaña visible con socket caído → recarga de seguridad');
       recargarDatosProveedor();
     }
   });
-  socket.on('documento_actualizado', (data) => { console.log('📄 Documento actualizado:', data); recargarDatosProveedor(); });
-  socket.on('documento_verificado', (data) => { console.log('✅ Documento verificado:', data); recargarDatosProveedor(); });
-  socket.on('documento_subido', (data) => { console.log('📤 Documento subido:', data); recargarDatosProveedor(); });
-  socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); recargarDatosProveedor(); });
+  socket.on('documento_actualizado', (data) => { console.log(' Documento actualizado:', data); recargarDatosProveedor(); });
+  socket.on('documento_verificado', (data) => { console.log(' Documento verificado:', data); recargarDatosProveedor(); });
+  socket.on('documento_subido', (data) => { console.log(' Documento subido:', data); recargarDatosProveedor(); });
+  socket.on('evaluacion_actualizada', (data) => { console.log(' Evaluación actualizada:', data); recargarDatosProveedor(); });
   socket.on('proveedor_registrado', (data) => {
-  console.log('🏷️ Proveedor registrado:', data);
+  console.log(' Proveedor registrado:', data);
   notificarD4('success');
   recargarDatosProveedor();
-  mostrarNotificacion('🎉 ¡Felicidades! Has sido registrado como proveedor.', 'success');
+  mostrarNotificacion(' ¡Felicidades! Has sido registrado como proveedor.', 'success');
   });
   socket.on('nuevo_recordatorio', (data) => {
-  console.log('📨 Nuevo recordatorio:', data);
+  console.log(' Nuevo recordatorio:', data);
   notificarD4('info');
-  mostrarNotificacion('📨 Tienes un nuevo recordatorio del administrador', 'info');
+  mostrarNotificacion(' Tienes un nuevo recordatorio del administrador', 'info');
   cargarRecordatorios();
   });
   socket.on('nueva_nota', (data) => {
-  console.log('📝 Nueva nota:', data);
+  console.log(' Nueva nota:', data);
   notificarD4('info');
-  mostrarNotificacion('📝 Tienes una nueva nota del administrador', 'info');
+  mostrarNotificacion(' Tienes una nueva nota del administrador', 'info');
   cargarNotas();
   });
   socket.on('vencimientos_procesados', (data) => {
-      console.log('⏰ Vencimientos procesados:', data);
+      console.log(' Vencimientos procesados:', data);
       mostrarNotificacion(`${ico('archive')} Vencimientos procesados: ${data.movidos} documentos movidos`, 'info');
       recargarDatosProveedor();
     });
 socket.on('tipo_persona_actualizado', (data) => {
-console.log('🧾 Tipo de persona actualizado por admin:', data);
-mostrarNotificacion('🧾 El administrador definió tu tipo de persona. Recargando...', 'info');
+console.log(' Tipo de persona actualizado por admin:', data);
+mostrarNotificacion(' El administrador definió tu tipo de persona. Recargando...', 'info');
 location.reload();
 });
 //  G10c: el admin solicitó actualización anual  el portal se entera en vivo.
 // El server archiva los documentos y deja tipo_proveedor = NULL; tras el reload,
 // verificarYBloquearPerfil() vuelve a bloquear el portal hasta elegir el tipo.
 socket.on('solicitud_actualizacion', (data) => {
-console.log('🔄 Solicitud de actualización recibida:', data);
+console.log(' Solicitud de actualización recibida:', data);
 notificarD4('warning');
-mostrarNotificacion('🔄 El administrador solicitó la actualización de tus documentos. Recargando...', 'info', 6000);
+mostrarNotificacion(' El administrador solicitó la actualización de tus documentos. Recargando...', 'info', 6000);
 setTimeout(() => location.reload(), 1200);
 });
 }
@@ -601,8 +601,8 @@ actualizarBannerEstado(prov);
 actualizarPanelProveedor(prov);
 const lblTipo = document.getElementById('tipoPersonaLabel');
 if (lblTipo) lblTipo.textContent =
-prov.tipo_proveedor === 'natural' ? '🧍 Persona Natural' :
-prov.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : 'Sin definir';
+prov.tipo_proveedor === 'natural' ? ' Persona Natural' :
+prov.tipo_proveedor === 'juridica' ? ' Persona Jurídica' : 'Sin definir';
 
         documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
         renderDocumentos();
@@ -695,7 +695,7 @@ if (perfilCompleto) {
     requeridos = await reqRes.json();
     documentos = await docsRes.json();
     if (!requeridos || requeridos.length === 0) {
-    console.warn('⚠️ No se cargaron requerimientos');
+    console.warn(' No se cargaron requerimientos');
     mostrarAlerta('No se pudieron cargar los documentos requeridos. Contacta al administrador.', 'warning');
     }
     document.getElementById('docsTotal').textContent = requeridos.length || 0;
@@ -704,13 +704,13 @@ if (perfilCompleto) {
     await Promise.all([cargarRecordatorios(), cargarNotas()]);
     await actualizarBadgesVerificacion();
     } catch (err) {
-    console.error('❌ Error cargando documentos:', err);
+    console.error(' Error cargando documentos:', err);
     mostrarAlerta('Error al cargar documentos. Recarga la página o contacta al administrador.', 'error');
 }
 }
 
   else {
-        console.log('⏳ Perfil incompleto, esperando que el usuario complete datos.');
+        console.log(' Perfil incompleto, esperando que el usuario complete datos.');
         document.getElementById('docsCompletos').textContent = '0';
         document.getElementById('docsTotal').textContent = '14';
         actualizarBarraProgreso();
@@ -718,7 +718,7 @@ if (perfilCompleto) {
 
 //  D4: reflejar el estado persistido del sonido en el botón de la topbar
 const btnSonido = document.getElementById('btnSonidoD4');
-if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
+if (btnSonido) btnSonido.innerHTML = sonidoActivado ? ico('volume') : ico('volume-off');
 //  D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
 const bSonD2 = document.getElementById('btnSonidoD4');
 if (bSonD2 && !bSonD2.getAttribute('aria-label')) bSonD2.setAttribute('aria-label', 'Activar o silenciar sonido de notificaciones');
@@ -813,9 +813,9 @@ ${ico('info')} ¿Qué debe contener?
 </button>
 <div id="info-${escapeAttr(req.tipo)}" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:0.6rem 0.8rem;margin-top:0.4rem;font-size:0.82rem;color:#0369a1;line-height:1.5;">
 ${req.descripcion ? escapeHtml(req.descripcion) : ''}
-${req.requiereFirma ? '<br>✍️ <strong>Requiere firma.</strong>' : ''}
-${req.requiereHuella ? ' 👆 <strong>Requiere huella.</strong>' : ''}
-${req.esPlantilla ? '<br>📋 Descarga la plantilla institucional, diligénciala, fírmala y súbela escaneada en PDF.' : ''}
+${req.requiereFirma ? '<br> <strong>Requiere firma.</strong>' : ''}
+${req.requiereHuella ? '  <strong>Requiere huella.</strong>' : ''}
+${req.esPlantilla ? '<br> Descarga la plantilla institucional, diligénciala, fírmala y súbela escaneada en PDF.' : ''}
 </div>
 </div>
 ` : ''}
@@ -843,7 +843,7 @@ html += `
     <span style="font-size:0.85rem;color:${subidosRechazados > 0 ? '#991b1b' : '#065f46'};">
       ${ico('file-text')} Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
       ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazado(s))` : ''}
-      ${maxAlcanzado && subidosRechazados === 0 ? ' ✅ Límite alcanzado' : ''}
+      ${maxAlcanzado && subidosRechazados === 0 ? '  Límite alcanzado' : ''}
     </span>
 
     ${subirHabilitado && !tieneRechazado && !maxAlcanzado && puedeSubir ? `
@@ -856,10 +856,10 @@ html += `
     ` : `
       <span style="color:${subidosRechazados > 0 ? '#991b1b' : '#6b7280'};font-size:0.9rem;font-weight:${subidosRechazados > 0 ? '700' : '400'};">
         ${subidosRechazados > 0
-          ? '🗑️ Debes eliminar los certificados rechazados antes de subir uno nuevo'
+          ? ' Debes eliminar los certificados rechazados antes de subir uno nuevo'
           : (maxAlcanzado
             ? `${ico('check')} Máximo de ${maxExp} certificados alcanzado`
-            : (subirHabilitado ? 'No disponible' : '🔒 Solo lectura'))}
+            : (subirHabilitado ? 'No disponible' : ' Solo lectura'))}
       </span>
     `}
   </div>
@@ -878,7 +878,7 @@ html += `
 
       // DOCUMENTOS SUBIDOS
       if (!sub.length) {
-        html += '<small style="color:#9ca3af;">📭 No has subido documentos aún</small>';
+        html += '<small style="color:#9ca3af;"> No has subido documentos aún</small>';
       } else {
 sub.forEach(d => {
 const esHistorico = d.es_historico === 1;
@@ -892,7 +892,7 @@ html += `<div class="doc-row">
 ${infoDocRow(d, { badgeVerificadoPend: true })}
 <div class="doc-row-actions">
 ${esNoAplica && !tieneArchivoReal
-? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : esMarcadorNoAplicaInvalido ? `
 <small style="color:#9ca3af;">Marcador No aplica inválido</small>
 ${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">${ICONOS.trash}</button>` : ''}
@@ -920,9 +920,9 @@ ${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocume
           </label>
           <small style="color:#78350f;display:block;margin-top:0.3rem;">
             ${noAplicaChecked
-              ? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
+              ? ' Documento marcado como "No aplica". La carga de archivos está desactivada.'
               : (checkboxDisabled
-                  ? 'ℹ️ No disponible en la etapa actual o ya hay documentos cargados.'
+                  ? ' No disponible en la etapa actual o ya hay documentos cargados.'
                   : 'Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"')
             }
           </small>
@@ -972,7 +972,7 @@ function toggleInfoDoc(btn) {
   if (!target) return;
   const abierto = target.style.display !== 'none';
   target.style.display = abierto ? 'none' : 'block';
-  btn.textContent = abierto ? 'ℹ️ ¿Qué debe contener?' : '🔼 Ocultar detalle';
+  btn.textContent = abierto ? '¿Qué debe contener?' : 'Ocultar detalle';
 }
 
 // ==========================================
@@ -1015,7 +1015,7 @@ function aplicarModoGuiado() {
   if (!modoGuiado) {
     if (nav) nav.remove();
     items.forEach(it => { it.style.display = ''; });
-    if (btn) btn.innerHTML = '🧭 Modo guiado';
+    if (btn) btn.innerHTML = ico('list') + ' Modo guiado';
     return;
   }
 
@@ -1037,13 +1037,13 @@ function aplicarModoGuiado() {
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
       <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(-1)" ${idxGuiado === 0 ? 'disabled' : ''}>← Anterior</button>
       <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(1)" ${idxGuiado >= pendientes.length - 1 ? 'disabled' : ''}>Siguiente →</button>
-      <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()">✕ Salir</button>
+      <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()"> Salir</button>
     </div>
   ` : `
     <strong style="color:#065f46;"> No tienes documentos pendientes por subir.</strong>
-    <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()">✕ Salir del modo guiado</button>
+    <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()"> Salir del modo guiado</button>
   `;
-  if (btn) btn.innerHTML = '🧭 En modo guiado';
+  if (btn) btn.innerHTML = ico('list') + ' En modo guiado';
 }
 
 // ==========================================
@@ -1101,7 +1101,7 @@ function actualizarChecklistFaltantes(completados) {
     cont.classList.remove('celebracion-banner');
     cont.innerHTML =
       '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
-      '<span style="font-size:1.2rem;">📤</span>' +
+      '<span style="font-size:1.2rem;"></span>' +
       '<strong style="color:#1e40af;">¡Todos tus documentos están subidos!</strong>' +
       '<span style="color:#3b82f6;font-size:0.85rem;">El administrador los está revisando. Te avisaremos cuando haya novedades.</span>' +
       '</div>';
@@ -1113,7 +1113,7 @@ function actualizarChecklistFaltantes(completados) {
 
   let html =
     '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;flex-wrap:wrap;">' +
-    '<span style="font-size:1.1rem;">📋</span>' +
+    '<span style="font-size:1.1rem;"></span>' +
     '<strong style="color:#92400e;">Te faltan ' + faltantes.length + ' de ' + total + ' documentos por subir</strong>' +
     (rechazadosCount > 0
       ? '<span style="color:#dc2626;font-|size:0.8rem;font-weight:600;">(' + rechazadosCount + ' rechazado' + (rechazadosCount > 1 ? 's' : '') + ')</span>'
@@ -1125,7 +1125,7 @@ function actualizarChecklistFaltantes(completados) {
     const color = f.estado === 'rechazado' ? '#dc2626' : '#b45309';
     const fondo = f.estado === 'rechazado' ? '#fef2f2' : '#ffffff';
     const borde = f.estado === 'rechazado' ? '#fecaca' : '#fde68a';
-    const icono = f.estado === 'rechazado' ? '❌' : '📄';
+    const icono = f.estado === 'rechazado' ? ico('x', 'ico-peligro') : ico('file');
       html += `
         <button type="button" class="chip-faltante" data-tipo="${escapeAttr(f.tipo)}"
           title="Ir al documento: ${escapeAttr(f.nombre)}"
@@ -1248,7 +1248,7 @@ function mostrarPreviewArchivo(e) {
 const preview = document.createElement('div');
 //  F10-fix: preview con clases semánticas (tematizable en oscuro) en vez de colores inline
 preview.className = 'file-preview ' + (validacion.valido ? 'preview-ok' : 'preview-error');
-preview.innerHTML = `<span class="fp-icon">${validacion.valido ? '✅' : '❌'}</span> <span class="fp-name">${escapeHtml(file.name)}</span> <span class="fp-size">${sizeStr}</span> ${!validacion.valido ? `<span class="fp-msg">${validacion.mensaje}</span>` : ''}`;
+preview.innerHTML = `<span class="fp-icon">${validacion.valido ? ico('check', 'ico-exito') : ico('x', 'ico-peligro')}</span> <span class="fp-name">${escapeHtml(file.name)}</span> <span class="fp-size">${sizeStr}</span> ${!validacion.valido ? `<span class="fp-msg">${validacion.mensaje}</span>` : ''}`;
   form.appendChild(preview);
 
   // Si no es válido, limpiar el input
@@ -1264,7 +1264,7 @@ preview.innerHTML = `<span class="fp-icon">${validacion.valido ? '✅' : '❌'}<
 async function handleUploadSubmit(e) {
   e.preventDefault();
   if (!puedeSubirDocumentos()) {
-    mostrarAlerta('🔒 No puedes subir documentos en la etapa actual.', 'warning');
+    mostrarAlerta(' No puedes subir documentos en la etapa actual.', 'warning');
     return;
   }
 
@@ -1275,7 +1275,7 @@ async function handleUploadSubmit(e) {
   const btn = form.querySelector('button');
   const textoOriginal = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '⏳ Subiendo...';
+  btn.textContent = 'Subiendo...';
 
   //  A5: Crear barra de progreso dentro del formulario
   let progressContainer = form.querySelector('.upload-progress');
@@ -1305,7 +1305,7 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
       });
     } catch (err) {
       console.error('Error desmarcando No Aplica:', err);
-      mostrarAlerta('❌ Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
+      mostrarAlerta(' Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
       btn.disabled = false;
       btn.textContent = textoOriginal;
       progressContainer.remove();
@@ -1322,10 +1322,10 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
       bar.style.width = '100%';
       bar.style.background = 'linear-gradient(90deg, #059669, #10b981)';
       text.textContent = '100%';
-      status.textContent = '✅ Documento recibido y procesado';
+      status.textContent = ' Documento recibido y procesado';
       status.style.color = '#059669';
 
-      mostrarAlerta('👌 Documento subido correctamente', 'success');
+      mostrarAlerta(' Documento subido correctamente', 'success');
       documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
       renderDocumentos();
       await actualizarEstado();
@@ -1341,7 +1341,7 @@ progressContainer.innerHTML = `<div class="upload-progress-row"> <div class="upl
     bar.style.background = '#dc2626';
     status.textContent = `${ico('x')} ${err.message}`;
     status.style.color = '#dc2626';
-    mostrarAlerta('❌ Error al subir el documento: ' + err.message);
+    mostrarAlerta(' Error al subir el documento: ' + err.message);
     setTimeout(() => progressContainer.remove(), 3000);
   } finally {
     btn.disabled = false;
@@ -1407,7 +1407,7 @@ const tipo = checkbox.dataset.tipo;
 const noAplica = checkbox.checked;
 
 if (!puedeSubirDocumentos()) {
-mostrarAlerta('🔒 No puedes modificar documentos mientras tengas rechazados activos o en la etapa actual.', 'warning');
+mostrarAlerta(' No puedes modificar documentos mientras tengas rechazados activos o en la etapa actual.', 'warning');
 checkbox.checked = !noAplica;
 return;
 }
@@ -1422,7 +1422,7 @@ checkbox.disabled = true;
       });
       const r = await res.json();
       if (res.ok) {
-        mostrarAlerta(noAplica ? '👌 Documento marcado como "No Aplica"' : '👌 Documento ahora requiere carga', 'success');
+        mostrarAlerta(noAplica ? ' Documento marcado como "No Aplica"' : ' Documento ahora requiere carga', 'success');
         documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
         renderDocumentos();
         await actualizarEstado();
@@ -1485,7 +1485,7 @@ if (!confirmado) return;
 try {
       const res = await fetchAPI(`/api/proveedor/documento/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        mostrarAlerta('👌 Documento eliminado', 'success');
+        mostrarAlerta(' Documento eliminado', 'success');
         documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
         renderDocumentos();
         await actualizarEstado();
@@ -1636,7 +1636,7 @@ recs.forEach(r => {
 
       const icono = document.createElement('div');
       icono.className = 'icono';
-      icono.textContent = '📨';
+      icono.innerHTML = ico('inbox');
       div.appendChild(icono);
 
       const contenido = document.createElement('div');
@@ -1708,7 +1708,7 @@ cont.appendChild(fragNotasProv);
     if (!elemento) return;
 
     boton.disabled = true;
-    boton.textContent = '⏳';
+    boton.innerHTML = ico('clock', 'ico-sm');
 
     try {
       const url = tipo === 'nota'
@@ -1720,7 +1720,7 @@ cont.appendChild(fragNotasProv);
         elemento.classList.add('cerrando');
         setTimeout(() => {
           elemento.remove();
-          const mensaje = tipo === 'nota' ? '👌 Nota cerrada' : '👌 Recordatorio cerrado';
+          const mensaje = tipo === 'nota' ? ' Nota cerrada' : ' Recordatorio cerrado';
           mostrarAlerta(mensaje, 'success');
         }, 300);
       } else {
@@ -1730,8 +1730,8 @@ cont.appendChild(fragNotasProv);
         boton.textContent = '×';
       }
     } catch (err) {
-      console.error('❌ Error cerrando:', err);
-      mostrarAlerta('❌ Error de conexión');
+      console.error(' Error cerrando:', err);
+      mostrarAlerta(' Error de conexión');
       boton.disabled = false;
       boton.textContent = '×';
     }
@@ -1744,16 +1744,16 @@ cont.appendChild(fragNotasProv);
     const hist = await (await fetchAPI('/api/proveedor/historial')).json();
     const cont = document.getElementById('listaHistorial');
     if (!hist.length) {
-      cont.innerHTML = '<div class="historial-vacio">📭 Sin actividad registrada.</div>';
+      cont.innerHTML = '<div class="historial-vacio"> Sin actividad registrada.</div>';
       return;
     }
 
     cont.innerHTML = hist.map(h => {
       const iconos = {
-        registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
-        documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
-        documento_no_aplica: '📋', documento_requiere_carga: '📄', datos_actualizados: '✏️',
-        reinicio_automatico: '♻️', solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰',tipo_persona_definido: '🧾'
+        registro: ico('award'), documento_subido: ico('upload'), documento_reemplazado: ico('refresh'),
+        documento_eliminado: ico('trash'), documento_aprobado: ico('check'), documento_rechazado: ico('x'),
+        documento_no_aplica: ico('clipboard'), documento_requiere_carga: ico('file'), datos_actualizados: ico('edit'),
+        reinicio_automatico: ico('refresh'), solicitud_actualizacion: ico('refresh'), vencimiento_automatico: ico('clock'),tipo_persona_definido: ico('file-text')
       };
       const clases = {
         documento_subido: 'subida', documento_reemplazado: 'subida',
@@ -1767,7 +1767,7 @@ cont.appendChild(fragNotasProv);
 
       return `
         <div class="historial-item">
-          <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
+          <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || ico('pin')}</div>
           <div class="historial-contenido">
             <div class="detalle">${h.detalle}</div>
             <div class="meta"><span>${ico('clock')} ${formatearFecha(h.creado_en)}</span></div>
@@ -1797,7 +1797,7 @@ if (grp) grp.appendChild(hint);
 const pintar = () => {
 const r = validarTelefonoCO(input.value);
 if (tolerado) {
-hint.textContent = '⚠️ Formato antiguo: se validará cuando lo edites';
+hint.textContent = ' Formato antiguo: se validará cuando lo edites';
 hint.style.color = '#d97706';
 input.dataset.telOk = '1';
 return;
@@ -1835,7 +1835,7 @@ return;
 }
 const r = validarDocumentoCO(sel.value, v);
 if (hint) {
-hint.textContent = r.valido ? '✅ Formato ' + sel.value.toUpperCase() + ' válido' : '❌ ' + r.mensaje;
+hint.textContent = r.valido ? ' Formato ' + sel.value.toUpperCase() + ' válido' : ' ' + r.mensaje;
 hint.style.color = r.valido ? '#059669' : '#dc2626';
 }
 inp.dataset.docOk = r.valido ? '1' : '0';
@@ -1855,10 +1855,10 @@ sel.value = 'cc'; //  en natural el NIT es la cédula: sugerimos C.C.
 if (window.pintarDocProv) window.pintarDocProv();
 }
 if (valor === 'juridica') {
-hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.';
+hint.textContent = ' Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.';
 hint.style.color = '#1e40af';
 } else if (valor === 'natural') {
-hint.textContent = '🧍 Persona natural: tu NIT es tu misma cédula. Recomendado: C.C. (el sistema los trata como equivalentes).';
+hint.textContent = ' Persona natural: tu NIT es tu misma cédula. Recomendado: C.C. (el sistema los trata como equivalentes).';
 hint.style.color = '#1e40af';
 } else {
 hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
@@ -1878,21 +1878,21 @@ e.preventDefault();
 //  G11: no enviar si el teléfono editado es inválido (evita round-trip)
 const telInput = document.getElementById('telefono');
 if (telInput && telInput.dataset.telOk === '0') {
-mostrarAlerta('❌ Teléfono inválido: ' + validarTelefonoCO(telInput.value).mensaje, 'error');
+mostrarAlerta(' Teléfono inválido: ' + validarTelefonoCO(telInput.value).mensaje, 'error');
 telInput.focus();
 return;
 }
 //  G7: bloqueo local si el documento es inválido (el server también valida)
 const docInput = document.getElementById('rfc');
 if (docInput && docInput.value.trim() && docInput.dataset.docOk === '0') {
-mostrarAlerta('❌ Documento inválido: ' + validarDocumentoCO(document.getElementById('tipo_documento').value, docInput.value).mensaje, 'error');
+mostrarAlerta(' Documento inválido: ' + validarDocumentoCO(document.getElementById('tipo_documento').value, docInput.value).mensaje, 'error');
 docInput.focus();
 return;
 }
 const btn = e.target.querySelector('button');
 const textoOriginal = btn.textContent;
 btn.disabled = true;
-btn.textContent = '⏳ Guardando...';
+btn.textContent = 'Guardando...';
     try {
         const data = Object.fromEntries(new FormData(e.target));
         const res = await fetchAPI('/api/proveedor/datos', {
@@ -1901,7 +1901,7 @@ btn.textContent = '⏳ Guardando...';
             body: JSON.stringify(data)
         });
         if (res.ok) {
-mostrarAlerta('👌 Datos guardados correctamente', 'success');
+mostrarAlerta(' Datos guardados correctamente', 'success');
 const prov = await (await fetchAPI('/api/proveedor/info')).json();
 actualizarTipoPersonaUI(prov);
 actualizarPanelProveedor(prov); //  G7-fix: el panel "Información del Proveedor" refresca sin recargar
@@ -1915,7 +1915,7 @@ verificarYBloquearPerfil(prov);
                     renderDocumentos();
                     await actualizarBadgesVerificacion();
                 } catch (err) {
-                    console.error('❌ Error recargando documentos después de guardar datos:', err);
+                    console.error(' Error recargando documentos después de guardar datos:', err);
                     mostrarAlerta('Error al cargar los documentos actualizados.', 'error');
                 }
                 cambiarTab('docs');
@@ -2001,7 +2001,7 @@ return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actua
     const btn = e.target.querySelector('button');
     const textoOriginal = btn.textContent;
     btn.disabled = true;
-    btn.textContent = '⏳ Cambiando...';
+    btn.textContent = 'Cambiando...';
 
     try {
       const res = await fetchAPI('/api/cambiar-password', {
@@ -2011,7 +2011,7 @@ return mostrarAlertaPassword('La nueva contraseña debe ser diferente a la actua
       });
       const r = await res.json();
       if (res.ok) {
-        mostrarAlertaPassword('👌 Contraseña cambiada correctamente', 'success');
+        mostrarAlertaPassword(' Contraseña cambiada correctamente', 'success');
         setTimeout(() => document.getElementById('modalPassword').classList.remove('active'), 1500);
       } else {
         mostrarAlertaPassword(r.error || 'Error al cambiar contraseña');
@@ -2094,5 +2094,5 @@ function irADocumento(tipo) {
 // ==========================================
 //  FIX TDZ: conectar el medidor DESPUÉS de que todo esté inicializado
 conectarMedidorPass();
-console.log('✅ Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
+console.log(' Panel del Proveedor cargado (alineado con backend de históricos/ciclos)');
 init();

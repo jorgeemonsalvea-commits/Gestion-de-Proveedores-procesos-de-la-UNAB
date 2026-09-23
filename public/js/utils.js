@@ -21,7 +21,7 @@ return String(text)
 .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-// 🛡️ Escape para VALORES de atributos HTML (data-*, href)
+//  Escape para VALORES de atributos HTML (data-*, href)
 function escapeAttr(text) {
 if (!text) return '';
 return String(text)
@@ -33,13 +33,13 @@ return String(text)
 
 //  Estado de vencimiento (vigente / próximo / vencido / sin fecha)
 function obtenerEstadoVencimiento(fechaVencimiento) {
-if (!fechaVencimiento) return { clase: 'sin-fecha', texto: 'Sin fecha', icono: '⚪' };
+if (!fechaVencimiento) return { clase: 'sin-fecha', texto: 'Sin fecha', icono: ico('help', 'ico-muted') };
 const hoy = new Date();
 const venc = new Date(String(fechaVencimiento).replace(' ', 'T') + '-05:00');
 const diffDias = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24));
-if (diffDias < 0) return { clase: 'vencido', texto: 'Vencido', icono: '🔴' };
-else if (diffDias <= 30) return { clase: 'proximo-a-vencer', texto: 'Próximo a vencer', icono: '🟡' };
-else return { clase: 'vigente', texto: 'Vigente', icono: '🟢' };
+if (diffDias < 0) return { clase: 'vencido', texto: 'Vencido', icono: ico('x-circle', 'ico-peligro') };
+else if (diffDias <= 30) return { clase: 'proximo-a-vencer', texto: 'Próximo a vencer', icono: ico('clock', 'ico-advertencia') };
+else return { clase: 'vigente', texto: 'Vigente', icono: ico('check-circle', 'ico-exito') };
 }
 
 //  Nombre del FORMATO/categoría (lee el global `requeridos` de cada página)
@@ -86,8 +86,8 @@ return d.replace(/^(.{3})(.{0,3})(.{0,4})$/, (m, a, b, c) => [a, b, c].filter(Bo
 function validarTelefonoCO(v) {
 const d = normalizarDigitosCO(v);
 if (!d) return { valido: true, mensaje: '' };
-if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: '📱 Celular válido' };
-if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: '☎️ Fijo válido' };
+if (TEL_CO_RE.cel.test(d)) return { valido: true, mensaje: 'Celular válido' };
+if (TEL_CO_RE.fijo.test(d)) return { valido: true, mensaje: 'Fijo válido' };
 return { valido: false, mensaje: 'Formato CO: 3XX XXX XXXX (celular) o 60X XXX XXXX (fijo) · 10 dígitos' };
 }
 // ==========================================
@@ -127,7 +127,7 @@ let badgeEstado;
 if (conBadgeNoAplica && esNoAplica && verificado) {
 badgeEstado = '<span class="badge badge-aprobado">NO APLICA</span>';
 } else if (badgeVerificadoPend && doc.estado === 'pendiente' && verificado) {
-badgeEstado = '<span class="badge badge-verificado-pendiente">✅ Verificado</span>';
+badgeEstado = '<span class="badge badge-verificado-pendiente">' + ico('check', 'ico-exito') + ' Verificado</span>';
 } else {
 badgeEstado = `<span class="badge badge-${doc.estado || 'pendiente'}">${doc.estado || 'pendiente'}</span>`;
 }
@@ -218,8 +218,12 @@ tag: '<svg class="ico" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 
 star: '<svg class="ico" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
 zap: '<svg class="ico" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
 pin: '<svg class="ico" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
-outbox: '<svg class="ico" viewBox="0 0 24 24"><polyline points="17 8 12 3 7 8"/><path d="M3 12h4l2 3h6l2-3h4"/><path d="M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/></svg>'
-};
+outbox: '<svg class="ico" viewBox="0 0 24 24"><polyline points="17 8 12 3 7 8"/><path d="M3 12h4l2 3h6l2-3h4"/><path d="M3 12v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/></svg>',
+  "sun": "<svg class=\"ico\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"5\"/><line x1=\"12\" y1=\"1\" x2=\"12\" y2=\"3\"/><line x1=\"12\" y1=\"21\" x2=\"12\" y2=\"23\"/><line x1=\"4.22\" y1=\"4.22\" x2=\"5.64\" y2=\"5.64\"/><line x1=\"18.36\" y1=\"18.36\" x2=\"19.78\" y2=\"19.78\"/><line x1=\"1\" y1=\"12\" x2=\"3\" y2=\"12\"/><line x1=\"21\" y1=\"12\" x2=\"23\" y2=\"12\"/><line x1=\"4.22\" y1=\"19.78\" x2=\"5.64\" y2=\"18.36\"/><line x1=\"18.36\" y1=\"5.64\" x2=\"19.78\" y2=\"4.22\"/></svg>",
+  "moon": "<svg class=\"ico\" viewBox=\"0 0 24 24\"><path d=\"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z\"/></svg>",
+  "volume": "<svg class=\"ico\" viewBox=\"0 0 24 24\"><polygon points=\"11 5 6 9 2 9 2 15 6 15 11 19 11 5\"/><path d=\"M15.54 8.46a5 5 0 0 1 0 7.07\"/></svg>",
+  "volume-off": "<svg class=\"ico\" viewBox=\"0 0 24 24\"><polygon points=\"11 5 6 9 2 9 2 15 6 15 11 19 11 5\"/><line x1=\"23\" y1=\"9\" x2=\"17\" y2=\"15\"/><line x1=\"17\" y1=\"9\" x2=\"23\" y2=\"15\"/></svg>",
+ };
 // Helper V2: devuelve el glifo con clase extra (tamaño/color semántico).
 // Ej.: ico('check', 'ico-exito ico-sm') · ico('alert', 'ico-peligro')
 function ico(nombre, clase = '') {

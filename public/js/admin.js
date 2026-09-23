@@ -733,12 +733,12 @@ const data = await r.json();
 const t = data.totales || {};
 const dias = data.dias || [];
 const chips = [
-['✅ Verificados', t.verificados, '#059669'],
-['👍 Aprobados', t.aprobados, '#2563eb'],
-['👎 Rechazados', t.rechazados, '#dc2626'],
-['📝 Notas', t.notas, '#8600dd'],
-['📨 Recordatorios', t.recordatorios, '#d97706'],
-['📋 Gestiones', t.gestiones, '#0891b2']
+[`${ico('check-circle', 'ico-exito')} Verificados`, t.verificados, '#059669'],
+[`${ico('check', 'ico-primario')} Aprobados`, t.aprobados, '#2563eb'],
+[`${ico('x-circle', 'ico-peligro')} Rechazados`, t.rechazados, '#dc2626'],
+[`${ico('edit', 'ico-primario')} Notas`, t.notas, '#8600dd'],
+[`${ico('send', 'ico-acento')} Recordatorios`, t.recordatorios, '#d97706'],
+[`${ico('file-text')} Gestiones`, t.gestiones, '#0891b2']
 ];
 const totalAcciones = (t.verificados || 0) + (t.aprobados || 0) + (t.rechazados || 0) + (t.notas || 0) + (t.recordatorios || 0) + (t.gestiones || 0);
 const mejorDia = dias.reduce((m, d) => {
@@ -760,7 +760,7 @@ const w = n => Math.round((n / max) * 100);
 const partes = String(d.dia).split('-');
 const esHoy = d.dia === data.hoyCivil;
 return `
-<div class="prod-fila" title="${d.dia} · ${ico('check')}${d.verificados} ${d.aprobados} ${d.rechazados} · ${d.notas} ${ico('send')}${d.recordatorios} ${ico('file-text')}${d.gestiones}">
+<div class="prod-fila" title="${d.dia} · Verificados: ${d.verificados} · Aprobados: ${d.aprobados} · Rechazados: ${d.rechazados} · Notas: ${d.notas} · Recordatorios: ${d.recordatorios} · Gestiones: ${d.gestiones}">
 <span class="prod-dia${esHoy ? ' prod-hoy' : ''}">${partes[1]}/${partes[2]}</span>
 <span class="prod-barra">
 <span style="width:${w(d.verificados)}%;background:#059669;"></span>
@@ -826,10 +826,10 @@ cargarModulo(tabId);
 const MODULOS_TITULO = {
 registrados: 'Registrados', verificacion: 'Verificación', aprobacion: 'Aprobación',
 inscripcion: 'Inscripción', rechazados: 'Rechazados', historial: 'Historial de actualizaciones',
-configuracion: 'Configuración', plantillas: 'Plantillas', inactivos: '🕐 Inactivos (+7 días sin documentos)',
-metricas: '📊 Métricas de productividad',
-auditoria: '📊 Auditoría',
-equipo: '👥 Equipo'
+configuracion: 'Configuración', plantillas: 'Plantillas', inactivos: 'Inactivos (+7 días sin documentos)',
+metricas: 'Métricas de productividad',
+auditoria: 'Auditoría',
+equipo: 'Equipo'
 };
 function marcarModuloAdmin(mod) {
     document.querySelectorAll('.ad-item[data-mod]').forEach(b => b.classList.toggle('active', b.dataset.mod === mod));
