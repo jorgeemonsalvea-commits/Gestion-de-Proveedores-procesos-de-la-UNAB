@@ -366,14 +366,14 @@ function verificarSistemaCifrado(encryptionKey) {
     return {
       funcional: correcto,
       mensaje: correcto 
-        ? '✅ Sistema de cifrado funcionando correctamente' 
+        ? ' Sistema de cifrado funcionando correctamente' 
         : ' Los datos descifrados no coinciden con los originales',
       configuracion: obtenerConfiguracionSeguridad()
     };
   } catch (err) {
     return {
       funcional: false,
-      mensaje: `❌ Error en el sistema de cifrado: ${err.message}`,
+      mensaje: ` Error en el sistema de cifrado: ${err.message}`,
       configuracion: obtenerConfiguracionSeguridad()
     };
   }

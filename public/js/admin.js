@@ -14,7 +14,7 @@ function aplicarTemaD1(tema) {
 document.documentElement.setAttribute('data-tema', tema);
 const btn = document.getElementById('btnTemaD1');
 if (btn) {
-btn.textContent = tema === 'oscuro' ? '☀️' : '🌙';
+btn.innerHTML = tema === 'oscuro' ? ico('sun') : ico('moon');
 btn.setAttribute('aria-label', tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
 btn.title = tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro';
 }
@@ -215,7 +215,7 @@ function toggleSonidoD4() {
 sonidoActivado = !sonidoActivado;
 localStorage.setItem('unab_sonido', sonidoActivado ? 'on' : 'off');
 const btn = document.getElementById('btnSonidoD4');
-if (btn) btn.textContent = sonidoActivado ? '🔊' : '🔇';
+if (btn) btn.innerHTML = sonidoActivado ? ico('volume') : ico('volume-off');
 if (sonidoActivado) reproducirSonidoD4('success'); // beep de prueba + desbloquea AudioContext
 }
 // ==========================================
@@ -478,7 +478,7 @@ inputValidator: obligatorio ? (v) => (!v || !v.trim()) ? 'Debes escribir un moti
 // ==========================================
 async function exportarHabeasData() {
 try {
-mostrarAlerta('⏳ Generando archivo CSV...', 'info');
+mostrarAlerta(' Generando archivo CSV...', 'info');
 const response = await fetchAPI('/api/admin/habeas-data/export');
 if (!response.ok) {
 const errorData = await response.json().catch(() => ({}));
@@ -490,10 +490,10 @@ const a = document.createElement('a');
 a.href = url; a.download = 'habeas_data_export.csv';
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 window.URL.revokeObjectURL(url);
-mostrarAlerta('👌 Habeas Data exportado correctamente', 'success');
+mostrarAlerta(' Habeas Data exportado correctamente', 'success');
 } catch (err) {
-console.error('❌ Error exportando Habeas Data:', err);
-mostrarAlerta('❌ Error al exportar: ' + err.message);
+console.error(' Error exportando Habeas Data:', err);
+mostrarAlerta(' Error al exportar: ' + err.message);
 }
 }
 
@@ -512,38 +512,38 @@ reconnectionAttempts: 10,
 reconnectionDelay: 1000
 });
 
-socket.on('connect', () => { console.log('🔌 Conectado a Socket.IO · id=' + socket.id); });
-socket.on('socket_info', (info) => { console.log('📡 Salas asignadas por el servidor:', info); });
+socket.on('connect', () => { console.log(' Conectado a Socket.IO · id=' + socket.id); });
+socket.on('socket_info', (info) => { console.log(' Salas asignadas por el servidor:', info); });
 socket.on('connect_error', (err) => {
-  console.error('❌ Socket connect_error:', err.message);
-  mostrarNotificacion('❌ Sin conexión en tiempo real: reintentando...', 'warning');
+  console.error(' Socket connect_error:', err.message);
+  mostrarNotificacion(' Sin conexión en tiempo real: reintentando...', 'warning');
 });
-socket.on('disconnect', () => { console.log('🔌 Desconectado del servidor Socket.IO'); });
+socket.on('disconnect', () => { console.log(' Desconectado del servidor Socket.IO'); });
 
 //  F11: listeners duplicados de documento_actualizado/verificado fusionados
 // en el par de más abajo (evento de feed + recarga de vista en un solo handler).
 socket.on('documento_subido', (data) => {
-console.log('📤 Documento subido:', data);
+console.log(' Documento subido:', data);
 notificarD4('info');
 registrarEventoD4(ico('upload'),  `${data.proveedorNombre || 'Un proveedor'} subió ${data.tipoNombre || data.tipo || 'un documento'}` ,  `Por: ${data.actor || 'el proveedor'}` );
 recargarVistaActual();
 });
 socket.on('documento_verificado', (data) => {
-console.log('✅ Documento verificado:', data);
+console.log(' Documento verificado:', data);
 registrarEventoD4(ico('check'),  `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'}` ,  `Verificado por: ${data.actor || 'admin'}` );
 recargarVistaActual();
 });
 socket.on('documento_actualizado', (data) => {
-console.log('📄 Documento actualizado:', data);
-registrarEventoD4(data.estado === 'rechazado' ? '❌' : '✅', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'} → ${data.estado || 'actualizado'}`, `Por: ${data.actor || 'admin'}`);
+console.log(' Documento actualizado:', data);
+registrarEventoD4(data.estado === 'rechazado' ? '' : '', `${data.proveedorNombre || 'Proveedor'} · ${data.tipoNombre || data.tipo || 'documento'} → ${data.estado || 'actualizado'}`, `Por: ${data.actor || 'admin'}`);
 recargarVistaActual();
 });
-socket.on('evaluacion_actualizada', (data) => { console.log('📋 Evaluación actualizada:', data); notificarD4('info'); recargarVistaActual(); });
-socket.on('proveedor_registrado', (data) => { console.log('🏷️ Proveedor registrado:', data); notificarD4('success'); recargarVistaActual(); });
-socket.on('proveedores_actualizados', () => { console.log('👥 Proveedores actualizados'); recargarVistaActual(); });
+socket.on('evaluacion_actualizada', (data) => { console.log(' Evaluación actualizada:', data); notificarD4('info'); recargarVistaActual(); });
+socket.on('proveedor_registrado', (data) => { console.log(' Proveedor registrado:', data); notificarD4('success'); recargarVistaActual(); });
+socket.on('proveedores_actualizados', () => { console.log(' Proveedores actualizados'); recargarVistaActual(); });
 //  G10b: toast en tiempo real cuando un proveedor se registra desde el portal público
 socket.on('nuevo_proveedor_registrado', (data) => {
-console.log('🎉 [G10b] Evento recibido:', data);
+console.log(' [G10b] Evento recibido:', data);
 notificarD4('success');
 registrarEventoD4(ico('plus'),  `Nuevo proveedor: ${data.nombre || 'Sin nombre'}` , data.email || '');
   toastNuevoProveedor(data || {});
@@ -551,21 +551,21 @@ registrarEventoD4(ico('plus'),  `Nuevo proveedor: ${data.nombre || 'Sin nombre'}
   actualizarContadoresSidebar();
   recargarVistaActual();
 });
-socket.on('estadisticas_actualizadas', () => { console.log('📊 Estadísticas actualizadas'); actualizarEstadisticasGlobales(); if (moduloActual === 'metricas') cargarMetricas(); });
+socket.on('estadisticas_actualizadas', () => { console.log(' Estadísticas actualizadas'); actualizarEstadisticasGlobales(); if (moduloActual === 'metricas') cargarMetricas(); });
 socket.on('vencimientos_procesados', (data) => {
-console.log('⏰ Vencimientos procesados:', data);
+console.log(' Vencimientos procesados:', data);
 notificarD4('warning');
 mostrarNotificacion(`${ico('archive')} Vencimientos: ${data.movidos} movidos, ${data.notificados} notificados`, 'info');
 recargarVistaActual();
 });
 socket.on('nuevo_recordatorio', (data) => {
-console.log('📨 Nuevo recordatorio:', data);
-mostrarNotificacion('📨 Tienes un nuevo recordatorio', 'info');
+console.log(' Nuevo recordatorio:', data);
+mostrarNotificacion(' Tienes un nuevo recordatorio', 'info');
 if (proveedorActualId) cargarRecordatoriosEnviados();
 });
 socket.on('nueva_nota', (data) => {
-console.log('📝 Nueva nota:', data);
-mostrarNotificacion('📝 Tienes una nueva nota', 'info');
+console.log(' Nueva nota:', data);
+mostrarNotificacion(' Tienes una nueva nota', 'info');
 if (proveedorActualId) cargarNotas();
 });
 }
@@ -612,9 +612,9 @@ const reqResp = await fetchAPI('/api/proveedor/requerimientos');
 if (reqResp.ok) {
 requeridos = await reqResp.json();
 requeridosDefault = requeridos.slice(); // 
-console.log('✅ Requerimientos cargados:', requeridos.length);
+console.log(' Requerimientos cargados:', requeridos.length);
 } else {
-console.error('❌ Error al cargar requerimientos');
+console.error(' Error al cargar requerimientos');
 requeridos = [];
 }
 
@@ -631,6 +631,12 @@ if (cardInicial) cardInicial.classList.add('kpi-active');
 //  D2: nombres accesibles en botones solo-ícono + rol de diálogo en modales estáticos
 const bCamD2 = document.getElementById('btnCampanaD4');
 if (bCamD2 && !bCamD2.getAttribute('aria-label')) bCamD2.setAttribute('aria-label', 'Eventos en tiempo real');
+// V4-fix: la campana nació como pictograma estático en admin.html y el barrido
+// (strip de nodos de texto) la dejó sin glifo. Se hidrata desde el catálogo
+// único ICONOS antes del badge, idempotente (solo si no hay SVG previo).
+if (bCamD2 && !bCamD2.querySelector('svg')) {
+  bCamD2.insertAdjacentHTML('afterbegin', ico('bell'));
+}
 const bSonD2 = document.getElementById('btnSonidoD4');
 if (bSonD2 && !bSonD2.getAttribute('aria-label')) bSonD2.setAttribute('aria-label', 'Activar o silenciar sonido de notificaciones');
 document.querySelectorAll('.modal-overlay').forEach(ov => {
@@ -640,7 +646,7 @@ ov.setAttribute('aria-modal', 'true');
 
 //  D4: reflejar el estado persistido del sonido en el botón de la topbar
 const btnSonido = document.getElementById('btnSonidoD4');
-if (btnSonido) btnSonido.textContent = sonidoActivado ? '🔊' : '🔇';
+if (btnSonido) btnSonido.innerHTML = sonidoActivado ? ico('volume') : ico('volume-off');
 conectarSocket();
 
 document.addEventListener('click', function(e) {
@@ -709,7 +715,7 @@ renderSparkline(sparkId, tend.por_etapa_dia[etapa], colores[etapa] || '#6b7280')
 }
 }
 } catch (err) {
-console.error('❌ Error actualizando estadísticas:', err);
+console.error(' Error actualizando estadísticas:', err);
 }
 }
 // ==========================================
@@ -798,7 +804,7 @@ ${dias.slice().reverse().map(d => `
 <small style="color:#6b7280;display:block;margin-top:.8rem;">Fuente: auditoría interna (historial) de los últimos 7 días · solo acciones de administradores.</small>
 `;
 } catch (e) {
-console.warn('⚠️ Métricas no disponibles:', e);
+console.warn(' Métricas no disponibles:', e);
 const cont = document.getElementById('metricasContenido');
 if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error al cargar métricas: ${e.message}</div>`;
 }
@@ -1156,7 +1162,7 @@ actualizarPaginacion();
 actualizarEstadisticasGlobales();
 if (modulo === 'registrados') actualizarContadoresEstado();
 } catch (err) {
-console.error('❌ Error cargando proveedores:', err);
+console.error(' Error cargando proveedores:', err);
 mostrarAlerta('Error al cargar proveedores: ' + err.message);
 }
 }
@@ -1343,7 +1349,7 @@ return;
 }
 const data = await response.json();
 if (!data.proveedor) {
-mostrarAlerta('❌ No se encontró información del proveedor');
+mostrarAlerta(' No se encontró información del proveedor');
 return;
 }
 
@@ -1372,7 +1378,7 @@ if (listaTipo.length) requeridos = listaTipo;
 } else {
 requeridos = requeridosDefault.slice(); //  tipo sin definir → lista estándar
 }
-} catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
+} catch (e) { console.warn(' No se pudieron cargar requerimientos por tipo:', e); }
 //  C5-fix: el panel se pinta DESPUÉS de refrescar requeridos.
 // Antes calculaba con la lista del proveedor anterior (12/14 erróneo).
 actualizarPanelContexto(data.proveedor);
@@ -1413,7 +1419,7 @@ renderGestion(data.proveedor, data.documentos);
 
 document.getElementById('modal').classList.add('active');
 } catch (error) {
-console.error('❌ Error en verProveedor:', error);
+console.error(' Error en verProveedor:', error);
 mostrarAlerta(`${ico('x')} Error de conexión: ${error.message}`);
 }
 }
@@ -1429,7 +1435,7 @@ const countBadge = document.getElementById('countHistoricos');
 
 if (!historicos || historicos.length === 0) {
 if (countBadge) countBadge.style.display = 'none';
-cont.innerHTML = '<div class="historial-vacio">📭 Este proveedor no tiene documentos históricos archivados.</div>';
+cont.innerHTML = '<div class="historial-vacio"> Este proveedor no tiene documentos históricos archivados.</div>';
 return;
 }
 
@@ -1477,7 +1483,7 @@ ${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">${ico('calendar')} Ve
 </div>
 <div class="doc-row-actions">
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
-? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
@@ -1497,14 +1503,14 @@ cont.innerHTML = html;
 // ==========================================
 function renderDocumentosConBotones(proveedor, documentos, mostrarSubida = true, modo = 'verificacion') {
 if (!proveedor) {
-console.error('❌ proveedor es undefined en renderDocumentosConBotones');
+console.error(' proveedor es undefined en renderDocumentosConBotones');
 return '<div class="alert alert-error">Error: No se pudo cargar la información del proveedor.</div>';
 }
 const map = {};
 documentos.forEach(d => { if (!map[d.tipo]) map[d.tipo] = []; map[d.tipo].push(d); });
 let html = `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
-<strong>Tipo de persona:</strong> ${proveedor.tipo_proveedor === 'natural' ? '🧍 Persona Natural' : proveedor.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : '<span style="color:#dc2626;">⚠️ Sin definir</span>'}<br>
+<strong>Tipo de persona:</strong> ${proveedor.tipo_proveedor === 'natural' ? ' Persona Natural' : proveedor.tipo_proveedor === 'juridica' ? ' Persona Jurídica' : '<span style="color:#dc2626;"> Sin definir</span>'}<br>
 <strong>Email:</strong> ${escapeHtml(proveedor.email || '')}<br>
 <strong>NIT/RUT:</strong> ${escapeHtml(proveedor.rfc || '—')}<br>
 <strong>Representante:</strong> ${escapeHtml(proveedor.representante || '—')}<br>
@@ -1537,7 +1543,7 @@ ${noAplica ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;backg
 </div>`;
 // ---- DOCUMENTOS SUBIDOS ----
 if (!sub.length) {
-html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
+html += '<small style="color:#9ca3af;"> No ha subido</small>';
 } else {
 sub.forEach(d => {
 const verificado = d.verificado === 1;
@@ -1551,9 +1557,9 @@ extraInfo += `
 <br><label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:${checkDeshabilitado ? 'not-allowed' : 'pointer'};margin-top:0.2rem;">
 <input type="checkbox" class="checkbox-verificado" data-docid="${d.id}"
 ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
-<span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
+<span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? ' Verificado' : 'Marcar como verificado'}</span>
 </label>
-${rechazado ? '<small style="color:#dc2626;display:block;">⚠️ Documento rechazado - Debe corregirse</small>' : ''}
+${rechazado ? '<small style="color:#dc2626;display:block;"> Documento rechazado - Debe corregirse</small>' : ''}
 `;
 } else if (modo === 'aprobacion') {
 if (esNoAplica) extraInfo += `<br><span style="color:#92400e;font-size:0.85rem;">${ico('file-text')} No aplica</span>`;
@@ -1569,7 +1575,7 @@ html += `<div class="doc-row">
 ${infoDocRow(d, { conBadgeNoAplica: true, extra: extraInfo })}
 <div class="doc-row-actions" style="margin-left:auto;justify-content:flex-end;align-items:center;">
 ${esNoAplica
-? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
@@ -1600,9 +1606,9 @@ ${noAplicaChecked ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
 </label>
 <small style="color:#78350f;display:block;margin-top:0.3rem;">
 ${noAplicaChecked
-? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
+? ' Documento marcado como "No aplica". La carga de archivos está desactivada.'
 : (checkboxDisabled
-? 'ℹ️ Ya hay archivos subidos. No puedes marcar "No aplica" si ya hay documentos cargados.'
+? ' Ya hay archivos subidos. No puedes marcar "No aplica" si ya hay documentos cargados.'
 : 'Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"')
 }
 </small>
@@ -1620,14 +1626,14 @@ html += `<div class="box-exito">
  <span style="font-size:0.85rem;color:#065f46;">
 ${ico('file-text')} Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
 ${subidosRechazados > 0 ? ` (${subidosRechazados} rechazados)` : ''}
-${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
+${maxAlcanzado ? '  Límite alcanzado' : ''}
 </span>
 ${(!maxAlcanzado || subidosRechazados > 0) && puedeSubir ? `
 <form class="form-upload dropzone form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${proveedor.id}">
 <div class="dz-icon">${ICONOS.upload}</div>
 <div class="dz-text"><strong>Subir como administrador</strong><small>Adjunta el PDF en nombre del proveedor · PDF · máx. 15 MB</small></div>
 <input type="file" name="archivo" required accept=".pdf">
-<button type="submit" class="btn btn-sm" style="background:#0284c7;">${subidosRechazados > 0 ? '🔄 Reemplazar rechazado' : ICONOS.upload + ' Subir PDF'}</button>
+<button type="submit" class="btn btn-sm" style="background:#0284c7;">${subidosRechazados > 0 ? ' Reemplazar rechazado' : ICONOS.upload + ' Subir PDF'}</button>
 </form>
 ` : `
 <span style="color:#6b7280;font-size:0.9rem;">
@@ -1687,12 +1693,12 @@ La lista de documentos requeridos depende de esta definición. Puedes definirla 
 async function guardarTipoPersona(proveedorId) {
     const seleccion = document.querySelector('input[name="tipoPersonaDefinicion"]:checked');
     if (!seleccion) {
-        mostrarAlerta('⚠️ Debes seleccionar un tipo de persona', 'warning');
+        mostrarAlerta(' Debes seleccionar un tipo de persona', 'warning');
         return;
     }
     const tipo = seleccion.value;
     try {
-        mostrarAlerta('⏳ Guardando tipo de persona...', 'info');
+        mostrarAlerta(' Guardando tipo de persona...', 'info');
         const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1700,30 +1706,30 @@ async function guardarTipoPersona(proveedorId) {
         });
         const data = await res.json();
         if (res.ok) {
-            mostrarAlerta('✅ Tipo de persona definido. Recargando documentos...', 'success');
+            mostrarAlerta(' Tipo de persona definido. Recargando documentos...', 'success');
             await recargarVistaProveedor();
             await cargarProveedoresPorModulo(moduloActual, paginaActual);
         } else if (data.requiere_confirmacion) {
-            if (await confirmarSwal({ titulo: '⚠️ Forzar cambio de tipo', texto: data.error, textoConfirmar: 'Sí, forzar' })) {
+            if (await confirmarSwal({ titulo: ' Forzar cambio de tipo', texto: data.error, textoConfirmar: 'Sí, forzar' })) {
                 const res2 = await fetchAPI(`/api/admin/proveedor/${proveedorId}/tipo-persona`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tipo_proveedor: tipo, forzar: true })
                 });
                 if (res2.ok) {
-                    mostrarAlerta('✅ Tipo de persona forzado. Recargando...', 'success');
+                    mostrarAlerta(' Tipo de persona forzado. Recargando...', 'success');
                     await recargarVistaProveedor();
                     await cargarProveedoresPorModulo(moduloActual, paginaActual);
                 } else {
-                    mostrarAlerta('❌ Error al forzar el cambio');
+                    mostrarAlerta(' Error al forzar el cambio');
                 }
             }
         } else {
-            mostrarAlerta('❌ ' + (data.error || 'Error al guardar el tipo'));
+            mostrarAlerta(' ' + (data.error || 'Error al guardar el tipo'));
         }
     } catch (err) {
         console.error('Error guardando tipo:', err);
-        mostrarAlerta('❌ Error de conexión');
+        mostrarAlerta(' Error de conexión');
     }
 }
 
@@ -1770,7 +1776,7 @@ html += `
 ${proveedor.evaluacion_inicial ? `
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
 <p><strong>${ico('file')} Archivo:</strong> Evaluación Inicial.pdf</p>
-<p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? ' Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? ' Rechazado' : ' Pendiente'}</p>
 <p><strong>${ico('calendar')} Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
@@ -1833,20 +1839,20 @@ html += `<div class="doc-item doc-item-col">
 <div class="doc-item-head">
 <h4>${req.nombre}</h4>
 <small style="color:#6b7280;">Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}</small>
-${todosAprobados && tieneArchivos ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">✅ Aprobado</span>' : ''}
+${todosAprobados && tieneArchivos ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;"> Aprobado</span>' : ''}
 </div>`;
 
 if (!sub.length) {
-html += '<small style="color:#9ca3af;">📭 No ha subido documentos</small>';
+html += '<small style="color:#9ca3af;"> No ha subido documentos</small>';
 } else {
 sub.forEach(d => {
 const aprobado = d.estado === 'aprobado';
-const extraGest = `<br>${aprobado ? '<span style="color:#059669;font-size:0.85rem;">✅ Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;">⏳ Pendiente</span>'}`;
+const extraGest = `<br>${aprobado ? '<span style="color:#059669;font-size:0.85rem;"> Aprobado</span>' : '<span style="color:#d97706;font-size:0.85rem;"> Pendiente</span>'}`;
 html += `<div class="doc-row">
 ${infoDocRow(d, { extra: extraGest })}
 <div class="doc-row-actions">
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
-? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
@@ -1865,7 +1871,7 @@ html += `
 ${proveedor.evaluacion_inicial ? `
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
 <p><strong>${ico('file')} Archivo:</strong> Evaluación Inicial.pdf</p>
-<p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? ' Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? ' Rechazado' : ' Pendiente'}</p>
 <p><strong>${ico('calendar')} Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
@@ -1919,7 +1925,7 @@ ${ico('refresh')} Actualización
 <small style="color:#6b7280;font-size:0.8rem;">Define la documentación requerida del proveedor. Normalmente lo selecciona el propio proveedor en "Mis datos".</small>
 </div>
  <button type= "submit " class= "btn " style= "background:#059669; " >${ICONOS.save} Guardar gestión </button >
- </form >` : '<div class="alert alert-info" style="margin-top:1rem;">ℹ️ Tu perfil no tiene permiso de inscripción (solo consulta).</div>'}
+ </form >` : '<div class="alert alert-info" style="margin-top:1rem;"> Tu perfil no tiene permiso de inscripción (solo consulta).</div>'}
 </div>
 `;
 document.getElementById('modalContenidoDocs').innerHTML = html;
@@ -1964,8 +1970,8 @@ ${tienePermisoUI('proveedores.gestionar') ? ` <button class= "btn btn-sm btn-sec
 <strong>Teléfono:</strong> ${escapeHtml(p.telefono || '—')}<br>
 <strong>Dirección:</strong> ${escapeHtml(p.direccion || '—')}
 ${p.numero_registro ? `<br><strong>Fecha Movimiento:</strong> ${escapeHtml(p.numero_registro)}` : ''}
-<br><strong>Tipo de persona:</strong> ${p.tipo_proveedor === 'natural' ? '🧍 Persona Natural' : p.tipo_proveedor === 'juridica' ? '🏢 Persona Jurídica' : '⚠️ Sin definir'}
-${p.tipo_gestion ? `<br><strong>Tipo gestión:</strong> ${p.tipo_gestion === 'inscripcion' ? '📝 Inscripción' : '🔄 Actualización'}` : ''}
+<br><strong>Tipo de persona:</strong> ${p.tipo_proveedor === 'natural' ? ' Persona Natural' : p.tipo_proveedor === 'juridica' ? ' Persona Jurídica' : ' Sin definir'}
+${p.tipo_gestion ? `<br><strong>Tipo gestión:</strong> ${p.tipo_gestion === 'inscripcion' ? ' Inscripción' : ' Actualización'}` : ''}
 ${p.tipo_proveedor ? `<br><strong>Tipo de proveedor:</strong> ${escapeHtml(p.tipo_proveedor)}` : ''}
 ${p.notas_gestion ? `<br><strong>Nota:</strong> ${escapeHtml(p.notas_gestion)}` : ''}
 ${esRechazado ? `<br><span class="badge badge-rechazado" style="background:#dc2626;color:white;">${ico('x')} Rechazado</span>` : ''}
@@ -1976,7 +1982,7 @@ ${esRechazado ? `
 <p style="color:#991b1b;font-weight:600;margin-bottom:0.5rem;">${ico('alert')} Este proveedor fue rechazado${esVencimiento ? ' por vencimiento de documentos' : ''}.</p>
 <p style="color:#7f1d1d;margin-bottom:0;">
 ${esVencimiento
-? 'Todos sus documentos fueron movidos a histórico (ver pestaña 📦 Históricos). Como administrador ya puedes subir documentos en nombre del proveedor para iniciar la actualización. El proveedor deberá seleccionar su tipo de persona y completar su documentación en el portal.'
+? 'Todos sus documentos fueron movidos a histórico (ver pestaña  Históricos). Como administrador ya puedes subir documentos en nombre del proveedor para iniciar la actualización. El proveedor deberá seleccionar su tipo de persona y completar su documentación en el portal.'
 : 'Sus documentos quedaron rechazados. Como administrador puedes subir documentos corregidos en nombre del proveedor si es necesario; el proveedor debe eliminar los rechazados activos antes de volver a cargar.'}
 </p>
 </div>
@@ -2036,7 +2042,7 @@ ${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo<
 </div>`;
 
 if (!sub.length) {
-html += '<small style="color:#9ca3af;">📭 No ha subido</small>';
+html += '<small style="color:#9ca3af;"> No ha subido</small>';
 } else {
 sub.forEach(d => {
 const verificado = d.verificado === 1;
@@ -2048,14 +2054,14 @@ const extraCheck = mostrarCheck ? `
 <br><label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:pointer;margin-top:0.2rem;">
 <input type="checkbox" class="checkbox-verificado" data-docid="${d.id}"
 ${verificado ? 'checked' : ''} ${checkDeshabilitado ? 'disabled' : ''}>
-<span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? '✅ Verificado' : 'Marcar como verificado'}</span>
+<span style="color:${verificado ? '#059669' : '#6b7280'};">${verificado ? ' Verificado' : 'Marcar como verificado'}</span>
 </label>
 ` : '';
 html += `<div class="doc-row">
 ${infoDocRow(d, { extra: extraCheck })}
 <div class="doc-row-actions">
 ${esNoAplica
-? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
@@ -2081,8 +2087,8 @@ ${noAplica ? 'checked' : ''} ${checkboxDisabled ? 'disabled' : ''}>
 <span style="font-weight:500;color:#92400e;opacity:${checkboxDisabled ? 0.6 : 1};">${ico('file-text')} Marcar como "No Aplica" para este proveedor</span>
 </label>
 <small style="color:#78350f;display:block;margin-top:0.3rem;">
-${noAplica ? '✅ Documento marcado como "No aplica". La carga de archivos está desactivada.'
-: (checkboxDisabled ? 'ℹ️ Ya hay archivos subidos. No puedes marcar "No aplica" si ya hay documentos cargados.'
+${noAplica ? ' Documento marcado como "No aplica". La carga de archivos está desactivada.'
+: (checkboxDisabled ? ' Ya hay archivos subidos. No puedes marcar "No aplica" si ya hay documentos cargados.'
 : 'Si marcas esta opción, el documento se aprobará automáticamente como "No aplica"')}
 </small>
 </div>`;
@@ -2096,7 +2102,7 @@ html += `<div class="box-exito">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
  <span style="font-size:0.85rem;color:#065f46;">
 ${ico('file-text')} Certificados subidos: <strong>${subidosValidos}/${maxExp}</strong>
-${maxAlcanzado ? ' ✅ Límite alcanzado' : ''}
+${maxAlcanzado ? '  Límite alcanzado' : ''}
 </span>
 ${!maxAlcanzado && puedeSubir ? `
 <form class="form-upload dropzone form-upload-admin" data-tipo="${req.tipo}" data-proveedorid="${p.id}">
@@ -2135,7 +2141,7 @@ html += `
 ${p.evaluacion_inicial ? `
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
 <p><strong>${ico('file')} Archivo:</strong> Evaluación Inicial.pdf</p>
-<p><strong>${ico('file-text')} Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? '✅ Aprobado' : p.evaluacion_estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente'}</p>
+<p><strong>${ico('file-text')} Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? ' Aprobado' : p.evaluacion_estado === 'rechazado' ? ' Rechazado' : ' Pendiente'}</p>
 <p><strong>${ico('calendar')} Fecha:</strong> ${p.evaluacion_fecha ? formatearFecha(p.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 <button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${p.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
@@ -2229,7 +2235,7 @@ plantillasRequeridas.forEach(req => {
                 fd.append('tipo', e.target.dataset.tipo);
                 const res = await fetchAPI('/api/admin/plantilla', { method: 'POST', body: fd });
                 if (res.ok) {
-                    mostrarAlerta('👌 Plantilla cargada', 'success');
+                    mostrarAlerta(' Plantilla cargada', 'success');
                     cargarPlantillas();
                     actualizarContadorPlantillas();
                 } else {
@@ -2346,7 +2352,7 @@ const hr = document.getElementById('historialRfc');
 if (hb) hb.addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
 if (hr) hr.addEventListener('keyup', (e) => { if (e.key === 'Enter') aplicarFiltrosHistorial(); });
 } catch (err) {
-console.error('❌ Error cargando historial:', err);
+console.error(' Error cargando historial:', err);
 const contenedor = document.getElementById('contenedor-modulos');
 contenedor.innerHTML = `<div class="alert alert-error">${ico('x')} Error al cargar historial: ${err.message}</div>`;
 }
@@ -2395,7 +2401,7 @@ let html = `
 `;
 ciclos.forEach(c => {
 const estadoColor = c.estado === 'activo' ? '#059669' : c.estado === 'cerrado' ? '#6b7280' : '#dc2626';
-const estadoIcon = c.estado === 'activo' ? '🟢' : c.estado === 'cerrado' ? '🔒' : '🔴';
+const estadoIcon = c.estado === 'activo' ? ico('check-circle', 'ico-exito') : c.estado === 'cerrado' ? ico('lock', 'ico-muted') : ico('x-circle', 'ico-peligro');
 const fechaFin = c.fecha_fin ? formatearFecha(c.fecha_fin) : '—';
 html += `
 <tr style="border-bottom:1px solid #e5e7eb;">
@@ -2488,10 +2494,10 @@ modal.style.zIndex = '1000';
 let docsHtml = '';
 if (evaluacion && evaluacion.archivo) {
 const evalBadge = evaluacion.es_historico === 1
-? '<span class="badge badge-faltante">📦 Histórica</span>'
-: (evaluacion.estado === 'aprobado' ? '<span class="badge badge-aprobado">✅ Aprobada</span>'
-: evaluacion.estado === 'rechazado' ? '<span class="badge badge-rechazado">❌ Rechazada</span>'
-: '<span class="badge badge-pendiente">⏳ Pendiente</span>');
+? '<span class="badge badge-faltante">' + ico('archive') + ' Histórica</span>'
+: (evaluacion.estado === 'aprobado' ? '<span class="badge badge-aprobado">' + ico('check') + ' Aprobada</span>'
+: evaluacion.estado === 'rechazado' ? '<span class="badge badge-rechazado">' + ico('x') + ' Rechazada</span>'
+: '<span class="badge badge-pendiente"> Pendiente</span>');
 docsHtml += `
 <div class="doc-item" style="flex-direction:column;align-items:stretch;background:#f5f3ff;border:1px solid #c4b5fd;">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
@@ -2516,7 +2522,7 @@ docsHtml += `
 documentos.forEach(d => {
 const estadoVencimiento = d.estado_vencimiento || 'vigente';
 const vencimientoColor = estadoVencimiento === 'vencido' ? '#dc2626' : estadoVencimiento === 'proximo_a_vencer' ? '#d97706' : '#059669';
-const vencimientoLabel = estadoVencimiento === 'vencido' ? '🔴 Vencido' : estadoVencimiento === 'proximo_a_vencer' ? '🟡 Próximo a vencer' : '🟢 Vigente';
+const vencimientoLabel = estadoVencimiento === 'vencido' ? ico('x-circle', 'ico-peligro') + ' Vencido' : estadoVencimiento === 'proximo_a_vencer' ? ico('clock', 'ico-advertencia') + ' Próximo a vencer' : ico('check-circle', 'ico-exito') + ' Vigente';
 docsHtml += `
 <div class="doc-item" style="flex-direction:column;align-items:stretch;">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
@@ -2529,7 +2535,7 @@ ${d.fecha_vencimiento ? `<span style="color:${vencimientoColor};font-size:0.8rem
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
-? '<small style="color:#92400e;font-weight:600;">📋 Sin archivo (No aplica)</small>'
+? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
 <button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
@@ -2548,7 +2554,7 @@ modal.innerHTML = `
 <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
 <h3 style="margin:0;"> Ciclo: ${escapeHtml(ciclo.numero_registro)}</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModalCiclo()">✕ Cerrar</button>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModalCiclo()"> Cerrar</button>
 </div>
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
 <p><strong>Proveedor:</strong> ${escapeHtml(ciclo.razon_social)}</p>
@@ -2563,8 +2569,8 @@ ${docsHtml}
 document.body.appendChild(modal);
 modal.addEventListener('click', (e) => { if (e.target === modal) cerrarModalCiclo(); });
 } catch (err) {
-console.error('❌ Error viendo ciclo:', err);
-mostrarAlerta('❌ Error al cargar los documentos del ciclo: ' + err.message);
+console.error(' Error viendo ciclo:', err);
+mostrarAlerta(' Error al cargar los documentos del ciclo: ' + err.message);
 }
 }
 function cerrarModalCiclo() {
@@ -2577,7 +2583,7 @@ if (modal) modal.remove();
 // ==========================================
 async function descargarZIPCiclo(cicloId) {
 try {
-mostrarAlerta('⏳ Generando ZIP del ciclo...', 'info');
+mostrarAlerta(' Generando ZIP del ciclo...', 'info');
 const response = await fetchAPI(`/api/admin/ciclos/${cicloId}/zip`);
 if (!response.ok) {
 const err = await response.json();
@@ -2595,10 +2601,10 @@ const a = document.createElement('a');
 a.href = url; a.download = filename;
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 window.URL.revokeObjectURL(url);
-mostrarAlerta('✅ ZIP descargado correctamente', 'success');
+mostrarAlerta(' ZIP descargado correctamente', 'success');
 } catch (err) {
-console.error('❌ Error descargando ZIP del ciclo:', err);
-mostrarAlerta('❌ Error al descargar: ' + err.message);
+console.error(' Error descargando ZIP del ciclo:', err);
+mostrarAlerta(' Error al descargar: ' + err.message);
 }
 }
 
@@ -2636,8 +2642,8 @@ document.body.appendChild(a); a.click(); document.body.removeChild(a);
 window.URL.revokeObjectURL(urlBlob);
 mostrarAlerta(`${ico('check')} Historial exportado (${ciclos.length} ciclos)`, 'success');
 } catch (err) {
-console.error('❌ Error exportando historial:', err);
-mostrarAlerta('❌ Error al exportar: ' + err.message);
+console.error(' Error exportando historial:', err);
+mostrarAlerta(' Error al exportar: ' + err.message);
 }
 }
 
@@ -2676,7 +2682,7 @@ const config = await response.json();
 renderizarFormularioConfiguracion(config);
 cargarBackups();
 } catch (err) {
-console.error('❌ Error cargando configuración:', err);
+console.error(' Error cargando configuración:', err);
 const cont = document.getElementById('configuracionContenido');
 if (cont) cont.innerHTML = `<div class="alert alert-error">${ico('x')} Error al cargar configuración: ${err.message}</div>`;
 }
@@ -2773,12 +2779,12 @@ async function lanzarJobVencimientos(url, etiqueta) {
         mostrarAlerta(`${ico('clock')} ${etiqueta}: iniciando en segundo plano...`, 'info');
         const res = await fetchAPI(url, { method: 'POST' });
         const data = await res.json().catch(() => ({}));
-        if (res.status === 409) { mostrarAlerta('⚠️ ' + (data.error || 'Ya hay un procesamiento en curso.'), 'warning'); return; }
-        if (!res.ok) { mostrarAlerta('❌ ' + (data.error || 'Error al iniciar el proceso.'), 'error'); return; }
+        if (res.status === 409) { mostrarAlerta(' ' + (data.error || 'Ya hay un procesamiento en curso.'), 'warning'); return; }
+        if (!res.ok) { mostrarAlerta(' ' + (data.error || 'Error al iniciar el proceso.'), 'error'); return; }
         await pollJobVencimientos(etiqueta);
     } catch (err) {
         console.error('Error lanzando job de vencimientos:', err);
-        mostrarAlerta('❌ Error de conexión', 'error');
+        mostrarAlerta(' Error de conexión', 'error');
     }
 }
 async function pollJobVencimientos(etiqueta) {
@@ -2801,11 +2807,11 @@ async function pollJobVencimientos(etiqueta) {
     });
 }
 async function ejecutarVencimientosAhora() {
-    if (!await confirmarSwal({ titulo: '⏰ Ejecutar vencimientos ahora', texto: 'Se moverán todos los documentos vencidos a histórico.', icono: 'question', peligro: false, textoConfirmar: 'Sí, ejecutar' })) return;
+    if (!await confirmarSwal({ titulo: ' Ejecutar vencimientos ahora', texto: 'Se moverán todos los documentos vencidos a histórico.', icono: 'question', peligro: false, textoConfirmar: 'Sí, ejecutar' })) return;
     await lanzarJobVencimientos('/api/admin/ejecutar-vencimientos', 'Procesamiento de vencimientos');
 }
 async function forzarVencimientosAhora() {
-    if (!await confirmarSwal({ titulo: '♻️ Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
+    if (!await confirmarSwal({ titulo: ' Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
     await lanzarJobVencimientos('/api/admin/forzar-vencimientos', 'Vencimiento forzado');
 }
 
@@ -2813,16 +2819,16 @@ async function guardarConfiguracion() {
 const input = document.getElementById('fechaVencimientoInput');
 if (!input) return;
 const fecha = input.value;
-if (!fecha) { mostrarAlerta('❌ Debes seleccionar una fecha y hora', 'error'); return; }
+if (!fecha) { mostrarAlerta(' Debes seleccionar una fecha y hora', 'error'); return; }
 const fechaSeleccionada = new Date(fecha);
 const hoy = new Date();
 if (fechaSeleccionada < hoy) {
-mostrarAlerta('⚠️ La fecha de vencimiento no puede ser anterior a la fecha actual', 'warning');
-if (!await confirmarSwal({ titulo: '⚠️ Fecha en el pasado', texto: 'La fecha elegida ya pasó. ¿Usarla de todos modos?', icono: 'question', textoConfirmar: 'Sí, usar' })) return;
+mostrarAlerta(' La fecha de vencimiento no puede ser anterior a la fecha actual', 'warning');
+if (!await confirmarSwal({ titulo: ' Fecha en el pasado', texto: 'La fecha elegida ya pasó. ¿Usarla de todos modos?', icono: 'question', textoConfirmar: 'Sí, usar' })) return;
 }
 const btn = document.querySelector('#configuracionContenido .btn');
 const textoOriginal = btn.textContent;
-btn.disabled = true; btn.textContent = '⏳ Guardando...';
+btn.disabled = true; btn.textContent = ' Guardando...';
 try {
 const response = await fetchAPI('/api/admin/configuracion', {
 method: 'PUT',
@@ -2833,24 +2839,24 @@ const data = await response.json();
 if (response.ok) { mostrarAlerta(`${ico('check')} ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
 else { mostrarAlerta(`${ico('x')} ${data.error || 'Error al guardar'}`, 'error'); }
 } catch (err) {
-console.error('❌ Error guardando configuración:', err);
-mostrarAlerta('❌ Error de conexión', 'error');
+console.error(' Error guardando configuración:', err);
+mostrarAlerta(' Error de conexión', 'error');
 } finally { btn.disabled = false; btn.textContent = textoOriginal; }
 }
 
 async function recalcularVencimientos() {
-if (!await confirmarSwal({ titulo: '⚠️ Recalcular vencimientos', texto: 'Se aplicará la fecha fija configurada a TODOS los documentos aprobados y activos (no históricos).', textoConfirmar: 'Sí, recalcular' })) return;const btn = document.querySelector('#configuracionContenido .btn-warning');
+if (!await confirmarSwal({ titulo: ' Recalcular vencimientos', texto: 'Se aplicará la fecha fija configurada a TODOS los documentos aprobados y activos (no históricos).', textoConfirmar: 'Sí, recalcular' })) return;const btn = document.querySelector('#configuracionContenido .btn-warning');
 if (!btn) return;
 const textoOriginal = btn.textContent;
-btn.disabled = true; btn.textContent = '⏳ Procesando...';
+btn.disabled = true; btn.textContent = ' Procesando...';
 try {
 const response = await fetchAPI('/api/admin/recalcular-vencimientos', { method: 'POST' });
 const data = await response.json();
 if (response.ok) { mostrarAlerta(`${ico('check')} ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
 else { mostrarAlerta(`${ico('x')} ${data.error || 'Error al recalcular'}`, 'error'); }
 } catch (err) {
-console.error('❌ Error recalculando:', err);
-mostrarAlerta('❌ Error de conexión', 'error');
+console.error(' Error recalculando:', err);
+mostrarAlerta(' Error de conexión', 'error');
 } finally { btn.disabled = false; btn.textContent = textoOriginal; }
 }
 
@@ -2888,35 +2894,35 @@ cont.innerHTML = '<p style="color:#dc2626;">Error al cargar la lista de backups.
 }
 async function crearBackupAhora() {
 if (!await confirmarSwal({ titulo: 'Crear backup manual', texto: 'Se respaldará la base de datos y los archivos ahora.', icono: 'question', peligro: false, textoConfirmar: 'Sí, crear backup' })) return;
-mostrarAlerta('⏳ Creando backup…', 'info');
+mostrarAlerta(' Creando backup…', 'info');
 try {
 const res = await fetchAPI('/api/admin/backups/crear', { method: 'POST' });
 const r = await res.json();
-if (res.ok) { mostrarAlerta('✅ ' + (r.mensaje || 'Backup creado'), 'success'); await cargarBackups(); }
-else mostrarAlerta('❌ ' + (r.error || 'Error al crear el backup'), 'error');
-} catch (err) { mostrarAlerta('❌ Error de conexión', 'error'); }
+if (res.ok) { mostrarAlerta(' ' + (r.mensaje || 'Backup creado'), 'success'); await cargarBackups(); }
+else mostrarAlerta(' ' + (r.error || 'Error al crear el backup'), 'error');
+} catch (err) { mostrarAlerta(' Error de conexión', 'error'); }
 }
 async function verificarBackup(nombre) {
-mostrarAlerta('⏳ Verificando integridad de ' + nombre + '…', 'info');
+mostrarAlerta(' Verificando integridad de ' + nombre + '…', 'info');
 try {
 const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/verificar');
 const r = await res.json();
 if (res.ok && r.integro) {
 mostrarAlerta(`${ico('check')} ${nombre} ÍNTEGRO · usuarios: ${r.conteos.usuarios ?? '-'} · proveedores: ${r.conteos.proveedores ?? '-'} · documentos: ${r.conteos.documentos ?? '-'}`, 'success');
 } else {
-mostrarAlerta('❌ ' + (r.mensaje || 'Backup dañado'), 'error');
+mostrarAlerta(' ' + (r.mensaje || 'Backup dañado'), 'error');
 }
-} catch (err) { mostrarAlerta('❌ Error al verificar: ' + err.message, 'error'); }
+} catch (err) { mostrarAlerta(' Error al verificar: ' + err.message, 'error'); }
 }
 async function restaurarBackup(nombre) {
 if (!await confirmarSwal({ titulo: `${ico('alert')} Restaurar "${nombre}"`, texto: 'Los datos ACTUALES se reemplazarán por los del backup. Se creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.', textoConfirmar: 'Sí, restaurar' })) return;
 if (!await confirmarSwal({ titulo: 'ÚLTIMA ADVERTENCIA', texto: 'El servicio se reiniciará tras restaurar.', textoConfirmar: 'Sí, continuar' })) return;
-mostrarAlerta('⏳ Restaurando… el servicio se reiniciará en unos segundos.', 'info');
+mostrarAlerta(' Restaurando… el servicio se reiniciará en unos segundos.', 'info');
 try {
 const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/restaurar', { method: 'POST' });
 const r = await res.json();
-if (res.ok) { mostrarAlerta('✅ ' + (r.mensaje || 'Restauración completada.'), 'success'); setTimeout(() => location.reload(), 8000); }
-else mostrarAlerta('❌ ' + (r.error || 'Error al restaurar'), 'error');
+if (res.ok) { mostrarAlerta(' ' + (r.mensaje || 'Restauración completada.'), 'success'); setTimeout(() => location.reload(), 8000); }
+else mostrarAlerta(' ' + (r.error || 'Error al restaurar'), 'error');
 } catch (err) { setTimeout(() => location.reload(), 8000); }
 }
 
@@ -2924,16 +2930,16 @@ else mostrarAlerta('❌ ' + (r.error || 'Error al restaurar'), 'error');
 //  ELIMINAR DOCUMENTO (admin)
 // ==========================================
 async function eliminarDocumentoAdmin(docId, proveedorId) {
-if (!docId) { mostrarAlerta('❌ ID de documento no válido', 'error'); return; }
+if (!docId) { mostrarAlerta(' ID de documento no válido', 'error'); return; }
 if (!proveedorId) {
 if (proveedorActualId) proveedorId = proveedorActualId;
-else { mostrarAlerta('❌ No se pudo identificar al proveedor', 'error'); return; }
+else { mostrarAlerta(' No se pudo identificar al proveedor', 'error'); return; }
 }
 if (!await confirmarSwal({ titulo: '¿Eliminar este documento?', texto: 'El documento se eliminará de forma permanente.', textoConfirmar: 'Sí, eliminar' })) return;
 try {
 const res = await fetchAPI(`/api/admin/documento/${docId}`, { method: 'DELETE' });
 if (res.ok) {
-mostrarAlerta('👌 Documento eliminado', 'success');
+mostrarAlerta(' Documento eliminado', 'success');
 await Promise.all([recargarVistaProveedor(), cargarProveedoresPorModulo(moduloActual, paginaActual)]);
 } else {
 const r = await res.json();
@@ -2972,7 +2978,7 @@ body: JSON.stringify({ no_aplica: false, tipo: tipo })
 });
 } catch (err) {
 console.error('Error desmarcando No Aplica:', err);
-mostrarAlerta('❌ Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
+mostrarAlerta(' Error al desmarcar "No Aplica". Intenta de nuevo.', 'error');
 adminFormSubmitted = false;
 return;
 }
@@ -2990,7 +2996,7 @@ mostrarAlerta(`${ico('x')} ${r.error || 'Error desconocido'}`);
 }
 } catch (err) {
 console.error('Error subiendo documento:', err);
-mostrarAlerta('❌ Error al subir el documento: ' + err.message);
+mostrarAlerta(' Error al subir el documento: ' + err.message);
 } finally {
 setTimeout(() => { adminFormSubmitted = false; }, 500);
 }
@@ -3002,7 +3008,7 @@ try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/evaluacion`, { method: 'POST', body: fd });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta('✅ Evaluación subida correctamente', 'success');
+mostrarAlerta(' Evaluación subida correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else { mostrarAlerta(`${ico('x')} ${r.error}`); }
@@ -3026,7 +3032,7 @@ body: JSON.stringify({ numero_registro, tipo_gestion, notas_gestion, tipo_provee
 });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta('✅ Gestión guardada correctamente', 'success');
+mostrarAlerta(' Gestión guardada correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
@@ -3042,7 +3048,7 @@ campo.style.boxShadow = '0 0 0 3px rgba(220,38,38,.15)';
 }
 } catch (err) {
 console.error('Error guardando gestión:', err);
-mostrarAlerta('❌ Error al guardar la gestión');
+mostrarAlerta(' Error al guardar la gestión');
 }
 }
 });
@@ -3073,7 +3079,7 @@ checkbox.checked = !verificado;
 }
 } catch (err) {
 console.error('Error:', err);
-mostrarAlerta('❌ Error de conexión al actualizar verificación');
+mostrarAlerta(' Error de conexión al actualizar verificación');
 checkbox.checked = !verificado;
 } finally { checkbox.disabled = false; }
 }
@@ -3096,7 +3102,7 @@ body: JSON.stringify({ no_aplica: noAplica, tipo: tipo })
 });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta(noAplica ? '✅ Documento marcado como "No Aplica"' : '✅ Documento ahora requiere carga', 'success');
+mostrarAlerta(noAplica ? ' Documento marcado como "No Aplica"' : ' Documento ahora requiere carga', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
@@ -3125,19 +3131,19 @@ await enviarEstadoEvaluacion(proveedorId, estado, '');
 }
 }
 async function eliminarEvaluacion(proveedorId) {
-if (!proveedorId) { mostrarAlerta('❌ ID de proveedor no válido', 'error'); return; }
-if (!await confirmarSwal({ titulo: '⚠️ Eliminar Evaluación Inicial', texto: 'Esta acción no se puede deshacer.', textoConfirmar: 'Sí, eliminar' })) return;
+if (!proveedorId) { mostrarAlerta(' ID de proveedor no válido', 'error'); return; }
+if (!await confirmarSwal({ titulo: ' Eliminar Evaluación Inicial', texto: 'Esta acción no se puede deshacer.', textoConfirmar: 'Sí, eliminar' })) return;
 try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/evaluacion`, { method: 'DELETE' });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta('✅ Evaluación inicial eliminada correctamente', 'success');
+mostrarAlerta(' Evaluación inicial eliminada correctamente', 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else { mostrarAlerta(`${ico('x')} ${r.error || 'Error al eliminar'}`, 'error'); }
 } catch (err) {
 console.error('Error eliminando evaluación:', err);
-mostrarAlerta('❌ Error de conexión', 'error');
+mostrarAlerta(' Error de conexión', 'error');
 }
 }
 async function enviarEstadoEvaluacion(proveedorId, estado, comentario) {
@@ -3159,7 +3165,7 @@ mostrarAlerta('Error al cambiar estado');
 }
 }
 async function rechazarEvaluacion(proveedorId) {
-if (!await confirmarSwal({ titulo: '⚠️ ADVERTENCIA', texto: 'Al rechazar la evaluación inicial, TODOS los documentos activos serán rechazados. El proveedor volverá a verificación (si es actualización) o pasará a rechazado (si es inscripción).', textoConfirmar: 'Sí, rechazar todo' })) return;
+if (!await confirmarSwal({ titulo: ' ADVERTENCIA', texto: 'Al rechazar la evaluación inicial, TODOS los documentos activos serán rechazados. El proveedor volverá a verificación (si es actualización) o pasará a rechazado (si es inscripción).', textoConfirmar: 'Sí, rechazar todo' })) return;
 cambiarEstadoEvaluacion(proveedorId, 'rechazado');
 }
 
@@ -3170,7 +3176,7 @@ async function cambiarEstado(docId, estado, comentario = null) {
 if (estado === 'aprobado') {
 const checkbox = document.querySelector(`.checkbox-verificado[data-docid="${docId}"]`);
 if (checkbox && !checkbox.checked) {
-mostrarAlerta('⚠️ Primero debes marcar el documento como "Verificado" antes de aprobarlo.', 'error');
+mostrarAlerta(' Primero debes marcar el documento como "Verificado" antes de aprobarlo.', 'error');
 return;
 }
 }
@@ -3202,7 +3208,7 @@ async function rechazar(docId) {
   // Paso 1: select de motivos predefinidos
   const opciones = { '': '— Selecciona un motivo —' };
   MOTIVOS_RECHAZO.forEach((m, i) => { opciones[String(i)] = m; });
-  opciones['otro'] = '✏️ Otro (escribir)…';
+  opciones['otro'] = ' Otro (escribir)…';
   const r1 = await Swal.fire({
     title: 'Motivo del rechazo',
     text: 'El proveedor lo verá en su portal y por correo.',
@@ -3239,7 +3245,7 @@ async function rechazar(docId) {
 //  RECARGAR VISTA DEL PROVEEDOR (modal)
 // ==========================================
 async function recargarVistaProveedor() {
-if (!proveedorActualId) { console.warn('⚠️ proveedorActualId no definido, no se puede recargar'); return; }
+if (!proveedorActualId) { console.warn(' proveedorActualId no definido, no se puede recargar'); return; }
 try {
 const response = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`);
 if (!response.ok) {
@@ -3249,7 +3255,7 @@ return;
 }
 const data = await response.json();
 if (!data.proveedor) {
-mostrarAlerta('❌ No se encontró información del proveedor. Puede que haya sido eliminado.');
+mostrarAlerta(' No se encontró información del proveedor. Puede que haya sido eliminado.');
 cerrarModal();
 return;
 }
@@ -3263,7 +3269,7 @@ if (rr.ok) {
 const listaTipo = await rr.json();
 if (listaTipo.length) requeridos = listaTipo;
 }
-} catch (e) { console.warn('⚠️ No se pudieron cargar requerimientos por tipo:', e); }
+} catch (e) { console.warn(' No se pudieron cargar requerimientos por tipo:', e); }
 //  F2: invalidar flags lazy tras recarga; si hay una sub-pestaña dinámica
 // VISIBLE en este momento, se refresca solo esa (no las cuatro).
 resetSubTabFlags(proveedorActualId);
@@ -3335,8 +3341,8 @@ function iniciarRevisionEnfocada(modo) {
   const cola = construirColaRevision(modo);
   if (!cola.length) {
     mostrarAlerta(modo === 'verificacion'
-      ? 'ℹ️ No hay documentos pendientes por verificar ni opcionales por definir en este proveedor.'
-      : 'ℹ️ No hay documentos verificados pendientes de aprobación.', 'info');
+      ? ' No hay documentos pendientes por verificar ni opcionales por definir en este proveedor.'
+      : ' No hay documentos verificados pendientes de aprobación.', 'info');
     return;
   }
   revisionEnfocada = { activa: true, modo, cola, indice: 0 };
@@ -3356,7 +3362,7 @@ function montarOverlayRevision() {
       <h3 style="margin:0;font-size:1.05rem;" id="revTitulo">Documento</h3>
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
         <span id="revContador" class="badge-count"></span>
-        <button class="btn btn-sm btn-secondary" onclick="cerrarRevisionEnfocada()">✕ Cerrar</button>
+        <button class="btn btn-sm btn-secondary" onclick="cerrarRevisionEnfocada()"> Cerrar</button>
       </div>
     </div>
     <div id="revMeta" style="font-size:0.85rem;color:#6b7280;"></div>
@@ -3394,7 +3400,7 @@ function pintarRevisionActual() {
       ? `${ico('file-text')} <strong>NO APLICA</strong> · ${escapeHtml((doc.comentario || 'Marcado sin archivo').replace('No aplica - ', ''))}`
       : doc.sinDocumento
         ? ` <strong>Sin documento</strong> · requisito opcional aún sin cargar`
-        : `Estado: <strong>${doc.estado}</strong> · ${doc.verificado === 1 ? '✅ Verificado' : '⏳ Sin verificar'} · Subido: ${formatearFecha(doc.subido_en)}`;
+        : `Estado: <strong>${doc.estado}</strong> · ${doc.verificado === 1 ? ' Verificado' : ' Sin verificar'} · Subido: ${formatearFecha(doc.subido_en)}`;
   }
   if (tieneArchivo) {
     if (iframe) { iframe.style.display = 'block'; iframe.src = `/uploads/${doc.archivo}`; }
@@ -3425,7 +3431,7 @@ acciones.innerHTML = `
     } else {
       acciones.innerHTML = `
         <button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">${ico('x')} Rechazar</button>
-        <button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${r.modo === 'verificacion' ? '✅ Verificar y siguiente' : '✅ Aprobar y siguiente'}</button>`;
+        <button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${r.modo === 'verificacion' ? ' Verificar y siguiente' : ' Aprobar y siguiente'}</button>`;
     }
   }
 }
@@ -3457,8 +3463,8 @@ const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, {
 method: 'POST', headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ estado: 'aprobado' })
 });
-if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al aprobar'), 'error'); return; }
-mostrarAlerta('✅ No aplica aprobado', 'success');
+if (!res.ok) { const e = await res.json(); mostrarAlerta(' ' + (e.error || 'Error al aprobar'), 'error'); return; }
+mostrarAlerta(' No aplica aprobado', 'success');
 r.cola.splice(r.indice, 1);
 if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
 pintarRevisionActual();
@@ -3470,8 +3476,8 @@ return;
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ no_aplica: false, tipo: doc.tipo })
       });
-      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al desmarcar'), 'error'); return; }
-      mostrarAlerta('↩️ No aplica desmarcado: el documento vuelve a requerir carga', 'success');
+      if (!res.ok) { const e = await res.json(); mostrarAlerta(' ' + (e.error || 'Error al desmarcar'), 'error'); return; }
+      mostrarAlerta(' No aplica desmarcado: el documento vuelve a requerir carga', 'success');
       await refrescarColaRevision();
       return;
     }
@@ -3481,36 +3487,36 @@ return;
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ no_aplica: true, tipo: doc.tipo })
       });
-      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al marcar'), 'error'); return; }
-      mostrarAlerta('📋 Documento marcado como No aplica', 'success');
+      if (!res.ok) { const e = await res.json(); mostrarAlerta(' ' + (e.error || 'Error al marcar'), 'error'); return; }
+      mostrarAlerta(' Documento marcado como No aplica', 'success');
       await refrescarColaRevision();
       return;
     }
     if (accion === 'rechazar') {
       if (doc.sinDocumento) { //  FIX: los marcadores No aplica SÍ pueden rechazarse (como en la lista normal)
-        mostrarAlerta('️ Este elemento no tiene archivo para rechazar. Usa Desmarcar o Marcar No aplica.', 'warning');
+        mostrarAlerta(' Este elemento no tiene archivo para rechazar. Usa Desmarcar o Marcar No aplica.', 'warning');
         return;
       }
       const motivo = await promptSwal({ titulo: 'Motivo del rechazo', texto: 'El proveedor verá este motivo en su portal y por correo.', placeholder: 'Ej: Documento ilegible…', obligatorio: false });
       if (motivo === null) return;
       const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'rechazado', comentario: motivo }) });
-      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al rechazar'), 'error'); return; }
-      mostrarAlerta('❌ Documento rechazado', 'success');
+      if (!res.ok) { const e = await res.json(); mostrarAlerta(' ' + (e.error || 'Error al rechazar'), 'error'); return; }
+      mostrarAlerta(' Documento rechazado', 'success');
     } else if (r.modo === 'verificacion') {
       const res = await fetchAPI(`/api/admin/documento/${doc.id}/verificar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verificado: true }) });
-      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al verificar'), 'error'); return; }
-      mostrarAlerta('✅ Documento verificado', 'success');
+      if (!res.ok) { const e = await res.json(); mostrarAlerta(' ' + (e.error || 'Error al verificar'), 'error'); return; }
+      mostrarAlerta(' Documento verificado', 'success');
     } else {
       const res = await fetchAPI(`/api/admin/documento/${doc.id}/estado`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'aprobado' }) });
-      if (!res.ok) { const e = await res.json(); mostrarAlerta('❌ ' + (e.error || 'Error al aprobar'), 'error'); return; }
-      mostrarAlerta('✅ Documento aprobado', 'success');
+      if (!res.ok) { const e = await res.json(); mostrarAlerta(' ' + (e.error || 'Error al aprobar'), 'error'); return; }
+      mostrarAlerta(' Documento aprobado', 'success');
     }
     r.cola.splice(r.indice, 1);
     if (r.indice >= r.cola.length) r.indice = Math.max(0, r.cola.length - 1);
     pintarRevisionActual();
   } catch (err) {
     console.error('Error en revisión enfocada:', err);
-    mostrarAlerta('❌ Error de conexión', 'error');
+    mostrarAlerta(' Error de conexión', 'error');
   }
 }
 //  Reconstruye la cola desde la caché fresca tras marcar/desmarcar No aplica
@@ -3521,7 +3527,7 @@ async function refrescarColaRevision() {
   const cola = construirColaRevision(modo);
   if (!cola.length) {
     cerrarRevisionEnfocada();
-    mostrarAlerta('✅ Revisión enfocada completada: no quedan elementos en la cola.', 'success');
+    mostrarAlerta(' Revisión enfocada completada: no quedan elementos en la cola.', 'success');
     return;
   }
   revisionEnfocada.cola = cola;
@@ -3532,7 +3538,7 @@ function finalizarRevisionEnfocada(completada) {
   const ov = document.getElementById('modalRevisionEnfocada');
   if (ov) ov.remove();
   revisionEnfocada.activa = false;
-  mostrarAlerta(completada ? '✅ Revisión enfocada completada: no quedan documentos en la cola.' : '👌 Sesión de revisión finalizada.', completada ? 'success' : 'info');
+  mostrarAlerta(completada ? ' Revisión enfocada completada: no quedan documentos en la cola.' : ' Sesión de revisión finalizada.', completada ? 'success' : 'info');
   recargarVistaProveedor();
   cargarProveedoresPorModulo(moduloActual, paginaActual);
   actualizarEstadisticasGlobales();
@@ -3619,7 +3625,7 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ titulo: titulo || 'Nota', nota })
 });
 if (res.ok) {
-mostrarAlerta('👌 Nota guardada', 'success');
+mostrarAlerta(' Nota guardada', 'success');
 document.getElementById('tituloNota').value = '';
 document.getElementById('detalleNota').value = '';
 await cargarNotas();
@@ -3634,16 +3640,16 @@ async function cargarHistorialProveedor() {
 if (!proveedorActualId) return;
 const hist = await (await fetchAPI(`/api/admin/proveedor/${proveedorActualId}/historial`)).json();
 const cont = document.getElementById('modalHistorial');
-if (!hist.length) { cont.innerHTML = '<div class="historial-vacio">📭 Sin actividad.</div>'; return; }
+if (!hist.length) { cont.innerHTML = '<div class="historial-vacio"> Sin actividad.</div>'; return; }
 cont.innerHTML = '<h4 style="margin-bottom:0.8rem;">Historial completo</h4>' + hist.map(h => {
 const iconos = {
-registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
-documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
-datos_actualizados: '✏️', recordatorio_enviado: '📨', nota_agregada: '📝',
-documento_no_aplica: '📋', documento_requiere_carga: '📄', gestion_actualizada: '📋',
-cambio_etapa: '🔄', evaluacion_subida: '📄', evaluacion_estado_cambiado: '📋',
-solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰', vencimiento_forzado: '⚡',
-reinicio_automatico: '♻️',tipo_persona_definido: '🧾'
+registro: ico('award'), documento_subido: ico('upload'), documento_reemplazado: ico('refresh'),
+documento_eliminado: ico('trash'), documento_aprobado: ico('check'), documento_rechazado: ico('x'),
+datos_actualizados: ico('edit'), recordatorio_enviado: ico('send'), nota_agregada: ico('message'),
+documento_no_aplica: ico('clipboard'), documento_requiere_carga: ico('file'), gestion_actualizada: ico('clipboard'),
+cambio_etapa: ico('refresh'), evaluacion_subida: ico('file'), evaluacion_estado_cambiado: ico('clipboard'),
+solicitud_actualizacion: ico('refresh'), vencimiento_automatico: ico('clock'), vencimiento_forzado: ico('zap'),
+reinicio_automatico: ico('refresh'),tipo_persona_definido: ico('file-text')
 };
 const clases = {
 documento_subido: 'subida', documento_reemplazado: 'subida',
@@ -3658,7 +3664,7 @@ vencimiento_forzado: 'rechazado', reinicio_automatico: 'subida',tipo_persona_def
 };
 return `
 <div class="historial-item">
-<div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || '📌'}</div>
+<div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || ico('pin')}</div>
 <div class="historial-contenido">
 <div class="detalle">${h.detalle}</div>
 <div class="meta"><span>${ico('clock')} ${formatearFecha(h.creado_en)}</span><span class="usuario"> ${escapeHtml(h.usuario_nombre)}</span></div>
@@ -3696,7 +3702,7 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ mensaje: msg })
 });
 if (res.ok) {
-mostrarAlerta('👌 Recordatorio enviado', 'success');
+mostrarAlerta(' Recordatorio enviado', 'success');
 document.getElementById('mensajeRecordatorio').value = '';
 await cargarRecordatoriosEnviados();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
@@ -3707,16 +3713,16 @@ await cargarProveedoresPorModulo(moduloActual, paginaActual);
 //  C3: RECORDATORIO MASIVO A INACTIVOS
 // ==========================================
 async function recordarInactivos() {
-if (!await confirmarSwal({ titulo: '📨 Recordar a proveedores inactivos', texto: 'Se enviará un recordatorio por correo y en el portal a todos los proveedores con más de 7 días sin subir documentos (máx. 1 por día por proveedor).', peligro: false, textoConfirmar: 'Sí, enviar' })) return;
+if (!await confirmarSwal({ titulo: ' Recordar a proveedores inactivos', texto: 'Se enviará un recordatorio por correo y en el portal a todos los proveedores con más de 7 días sin subir documentos (máx. 1 por día por proveedor).', peligro: false, textoConfirmar: 'Sí, enviar' })) return;
 try {
 const res = await fetchAPI('/api/admin/recordatorio-inactivos', { method: 'POST' });
 const r = await res.json();
 if (res.ok) mostrarAlerta(`${ico('check')} Recordatorios enviados: ${r.enviados}${r.omitidos ? ` · omitidos (ya recordados hoy): ${r.omitidos}` : ''}`, 'success');
-else mostrarAlerta('❌ ' + (r.error || 'Error al enviar'), 'error');
+else mostrarAlerta(' ' + (r.error || 'Error al enviar'), 'error');
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } catch (err) {
 console.error('Error recordatorio masivo:', err);
-mostrarAlerta('❌ Error de conexión', 'error');
+mostrarAlerta(' Error de conexión', 'error');
 }
 }
 
@@ -3745,7 +3751,7 @@ if (!password) {
 alertaEl.innerHTML = '<div class="alert alert-error">Debes ingresar tu contraseña de administrador</div>';
 return;
 }
-if (!await confirmarSwal({ titulo: '⚠️ ÚLTIMA ADVERTENCIA', texto: `¿Estás 100% seguro de eliminar a "${proveedorActualNombre}"? Esta acción es PERMANENTE y NO se puede deshacer.`, textoConfirmar: 'Sí, eliminar definitivamente' })) return;
+if (!await confirmarSwal({ titulo: ' ÚLTIMA ADVERTENCIA', texto: `¿Estás 100% seguro de eliminar a "${proveedorActualNombre}"? Esta acción es PERMANENTE y NO se puede deshacer.`, textoConfirmar: 'Sí, eliminar definitivamente' })) return;
 try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorActualId}`, {
 method: 'DELETE',
@@ -3783,7 +3789,7 @@ if (countBadge) countBadge.style.display = 'none';
 // ==========================================
 async function descargarZIP(proveedorId) {
 try {
-mostrarAlerta('⏳ Generando archivo ZIP... Esto puede tomar unos segundos.', 'info');
+mostrarAlerta(' Generando archivo ZIP... Esto puede tomar unos segundos.', 'info');
 const response = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documentos/zip`);
 if (!response.ok) {
 const errorData = await response.json().catch(() => ({}));
@@ -3801,25 +3807,25 @@ const a = document.createElement('a');
 a.href = url; a.download = filename;
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 window.URL.revokeObjectURL(url);
-mostrarAlerta('👌 ZIP descargado correctamente', 'success');
+mostrarAlerta(' ZIP descargado correctamente', 'success');
 } catch (err) {
-console.error('❌ Error descargando ZIP:', err);
-mostrarAlerta('❌ Error al descargar: ' + err.message);
+console.error(' Error descargando ZIP:', err);
+mostrarAlerta(' Error al descargar: ' + err.message);
 }
 }
 async function reiniciarProceso(proveedorId) {
-if (!await confirmarSwal({ titulo: '♻️ Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
+if (!await confirmarSwal({ titulo: ' Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
 try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/reiniciar-proceso`, { method: 'POST' });
 const data = await res.json();
 if (res.ok) {
-mostrarAlerta('✅ Proceso reiniciado. El proveedor vuelve a verificación.', 'success');
+mostrarAlerta(' Proceso reiniciado. El proveedor vuelve a verificación.', 'success');
 cerrarModal();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
-} else { mostrarAlerta('❌ ' + (data.error || 'Error al reiniciar el proceso')); }
+} else { mostrarAlerta(' ' + (data.error || 'Error al reiniciar el proceso')); }
 } catch (err) {
 console.error('Error reiniciando:', err);
-mostrarAlerta('❌ Error de conexión al reiniciar el proceso');
+mostrarAlerta(' Error de conexión al reiniciar el proceso');
 }
 }
 
@@ -3843,7 +3849,7 @@ overlay.innerHTML = `
 <div class="modal" style="max-width:540px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h3 style="margin:0;">${ico('refresh')} Solicitar actualización de documentos</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModalSolicitarActualizacion()">✕ Cerrar</button>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModalSolicitarActualizacion()"> Cerrar</button>
 </div>
 <p style="color:#374151;margin-bottom:0.8rem;">
 Vas a solicitar la actualización anual a <strong>${escapeHtml(nombreProveedor)}</strong>.
@@ -3875,7 +3881,7 @@ if (modal) modal.remove();
 async function confirmarSolicitarActualizacion(proveedorId) {
 const mensaje = document.getElementById('mensajeActualizacion')?.value?.trim() || '';
 try {
-mostrarAlerta('⏳ Enviando solicitud de actualización...', 'info');
+mostrarAlerta(' Enviando solicitud de actualización...', 'info');
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/solicitar-actualizacion`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
@@ -3883,17 +3889,17 @@ body: JSON.stringify({ mensaje })
 });
 const data = await res.json();
 if (res.ok) {
-mostrarAlerta('✅ ' + data.mensaje, 'success', 6000);
+mostrarAlerta(' ' + data.mensaje, 'success', 6000);
 cerrarModalSolicitarActualizacion();
 cerrarModal();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 await actualizarEstadisticasGlobales();
 } else {
-mostrarAlerta('❌ ' + (data.error || 'Error al solicitar la actualización'));
+mostrarAlerta(' ' + (data.error || 'Error al solicitar la actualización'));
 }
 } catch (err) {
 console.error('Error solicitando actualización:', err);
-mostrarAlerta('❌ Error de conexión al solicitar la actualización');
+mostrarAlerta(' Error de conexión al solicitar la actualización');
 }
 }
 
@@ -3929,7 +3935,7 @@ descargarBlob(blob, `proveedores_${fechaArchivo()}.csv`);
 mostrarAlerta(` CSV exportado (${proveedores.length} proveedores)`, 'success');
 } catch (err) {
 console.error('Error exportando CSV:', err);
-mostrarAlerta('❌ Error al exportar: ' + err.message);
+mostrarAlerta(' Error al exportar: ' + err.message);
 }
 }
 
@@ -3965,7 +3971,7 @@ descargarBlob(blob, `proveedores_${fechaArchivo()}.xlsx`);
 mostrarAlerta(` Excel exportado (${proveedores.length} proveedores)`, 'success');
 } catch (err) {
 console.error('Error exportando Excel:', err);
-mostrarAlerta('❌ Error al exportar: ' + err.message);
+mostrarAlerta(' Error al exportar: ' + err.message);
 }
 }
 
@@ -4022,8 +4028,8 @@ const pintar = () => {
 const r = validarDocumentoCO(sel.value, inp.value);
 if (hint) {
 hint.textContent = r.valido
-? (inp.value ? '✅ Formato ' + sel.value.toUpperCase() + ' válido' : 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos')
-: '❌ ' + r.mensaje;
+? (inp.value ? ' Formato ' + sel.value.toUpperCase() + ' válido' : 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos')
+: ' ' + r.mensaje;
 hint.style.color = r.valido ? '#059669' : '#dc2626';
 }
 inp.dataset.docOk = r.valido ? '1' : '0';
@@ -4039,10 +4045,10 @@ const sel = document.querySelector('#formCrearProveedor select[name="tipo_docume
 const hint = document.getElementById('hintDocCrear');
 if (valor === 'juridica') {
 if (sel) sel.value = 'nit';
-if (hint) { hint.textContent = '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'; hint.style.color = '#1e40af'; }
+if (hint) { hint.textContent = ' Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'; hint.style.color = '#1e40af'; }
 } else if (valor === 'natural') {
 if (sel) sel.value = 'cc';
-if (hint) { hint.textContent = '🧍 Persona natural: su NIT es su misma cédula. Recomendado: C.C. (equivalentes anti-duplicados).'; hint.style.color = '#1e40af'; }
+if (hint) { hint.textContent = ' Persona natural: su NIT es su misma cédula. Recomendado: C.C. (equivalentes anti-duplicados).'; hint.style.color = '#1e40af'; }
 } else if (hint) {
 hint.textContent = 'NIT: 7–15 dígitos · CC: 6–12 · CE: 6–15 · Pasaporte: 6–15 alfanuméricos';
 hint.style.color = '#6b7280';
@@ -4051,8 +4057,8 @@ if (window.pintarDocAdmin) window.pintarDocAdmin();
 if (hint && (valor === 'juridica' || valor === 'natural')) {
 // reaplica la guía tras el repintado de validación
 hint.textContent = valor === 'juridica'
-? '🏢 Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'
-: '🧍 Persona natural: su NIT es su misma cédula. Recomendado: C.C. (equivalentes anti-duplicados).';
+? ' Persona jurídica: usa el NIT de la empresa (asignado por la DIAN). No es la cédula del representante.'
+: ' Persona natural: su NIT es su misma cédula. Recomendado: C.C. (equivalentes anti-duplicados).';
 hint.style.color = '#1e40af';
 }
 }
@@ -4184,7 +4190,7 @@ function editarEmailProveedor(proveedorId, emailActual) {
         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
             <input type="email" id="nuevoEmailProveedor" value="${escapeAttr(emailActual)}" placeholder="nuevo@correo.com" style="flex:1;min-width:200px;padding:0.45rem;border:1px solid #bfdbfe;border-radius:6px;">
             <button class="btn btn-sm" style="background:#2563eb;" onclick="guardarEmailProveedor(${proveedorId})">${ico('save')} Guardar</button>
-            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('contenedorEditarEmail').style.display='none'">✕ Cancelar</button>
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('contenedorEditarEmail').style.display='none'"> Cancelar</button>
         </div>
         <small style="color:#1e40af;font-size:0.78rem;display:block;margin-top:0.3rem;">El proveedor conservará historial, documentos y contraseña; solo cambia su correo de acceso.</small>
     </div>`;
@@ -4195,9 +4201,9 @@ async function guardarEmailProveedor(proveedorId) {
     const input = document.getElementById('nuevoEmailProveedor');
     if (!input) return;
     const emailNuevo = input.value.trim();
-    if (!emailNuevo) { mostrarAlerta('❌ Escribe un correo', 'error'); return; }
+    if (!emailNuevo) { mostrarAlerta(' Escribe un correo', 'error'); return; }
     try {
-        mostrarAlerta('⏳ Actualizando correo...', 'info');
+        mostrarAlerta(' Actualizando correo...', 'info');
         const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4205,16 +4211,16 @@ async function guardarEmailProveedor(proveedorId) {
         });
         const r = await res.json();
         if (res.ok) {
-            mostrarAlerta('✅ ' + r.mensaje, 'success');
+            mostrarAlerta(' ' + r.mensaje, 'success');
             const span = document.getElementById('emailActualProv');
             if (span) span.textContent = emailNuevo;
             document.getElementById('contenedorEditarEmail').style.display = 'none';
             await cargarProveedoresPorModulo(moduloActual, paginaActual);
         } else {
-            mostrarAlerta('❌ ' + (r.error || 'Error'), 'error');
+            mostrarAlerta(' ' + (r.error || 'Error'), 'error');
         }
     } catch (err) {
-        mostrarAlerta('❌ Error de conexión', 'error');
+        mostrarAlerta(' Error de conexión', 'error');
     }
 }
 
@@ -4232,8 +4238,8 @@ return [
 { tipo: 'accion', nombre: 'Ir a: Historial', run: () => { cargarHistorial(1); } },
 { tipo: 'accion', nombre: 'Ir a: Configuración', run: () => { cargarConfiguracion(); } },
 { tipo: 'accion', nombre: 'Ir a: Plantillas', run: () => { renderizarPlantillas(); } },
-{ tipo: 'accion', nombre: '➕ Crear proveedor', run: () => mostrarModalCrearProveedor() },
-{ tipo: 'accion', nombre: '💾 Crear backup ahora', run: () => crearBackupAhora() },
+{ tipo: 'accion', nombre: ' Crear proveedor', run: () => mostrarModalCrearProveedor() },
+{ tipo: 'accion', nombre: ' Crear backup ahora', run: () => crearBackupAhora() },
 { tipo: 'accion', nombre: 'Ir a: Métricas', run: () => { moduloActual = 'metricas'; cargarMetricas(); } },
 { tipo: 'accion', nombre: 'Ir a: Auditoría', run: () => { moduloActual = 'auditoria'; cargarAuditoria(); } },
 { tipo: 'accion', nombre: 'Ir a: Equipo', run: () => { moduloActual = 'equipo'; cargarModulo('equipo'); } }
@@ -4242,7 +4248,7 @@ return [
 function abrirCtrlK() {
 if (ctrlKState.abierta) { cerrarCtrlK(); return; }
 Swal.fire({
-title: '🔍 Búsqueda global',
+title: ' Búsqueda global',
 html: `
 <input type="text" id="ctrlKInput" class="swal2-input" placeholder="Buscar proveedor por nombre, NIT o email… o escribe una acción" style="width:100%;margin:0 0 0.6rem 0;">
 <div id="ctrlKResults" style="max-height:320px;overflow-y:auto;text-align:left;"></div>
@@ -4321,7 +4327,7 @@ if (it.tipo === 'accion') {
 return `<div class="ctrlk-item" data-i="${i}" style="${sel}display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0.8rem;border-radius:6px;cursor:pointer;"><span></span><span style="font-size:0.9rem;">${escapeHtml(it.nombre)}</span></div>`;
 }
 const p = it.p;
-return `<div class="ctrlk-item" data-i="${i}" style="${sel}display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0.8rem;border-radius:6px;cursor:pointer;"><span>${p.tipo_proveedor === 'natural' ? '🧍' : '🏢'}</span><span style="flex:1;font-size:0.9rem;"><strong>${escapeHtml(p.razon_social || p.nombre_empresa || '')}</strong> <small style="color:#6b7280;">· ${escapeHtml(p.rfc || '')} · ${escapeHtml(p.email || '')}</small></span><span class="badge-count">${escapeHtml(p.etapa || '')}</span></div>`;
+return `<div class="ctrlk-item" data-i="${i}" style="${sel}display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0.8rem;border-radius:6px;cursor:pointer;"><span>${p.tipo_proveedor === 'natural' ? '' : ''}</span><span style="flex:1;font-size:0.9rem;"><strong>${escapeHtml(p.razon_social || p.nombre_empresa || '')}</strong> <small style="color:#6b7280;">· ${escapeHtml(p.rfc || '')} · ${escapeHtml(p.email || '')}</small></span><span class="badge-count">${escapeHtml(p.etapa || '')}</span></div>`;
 }).join('');
 //  C6-fix: los clicks se manejan por delegación en didOpen (parche 1).
 // Ya NO se adjuntan listeners por elemento: se perdían en cada re-render.
@@ -4358,12 +4364,12 @@ verProveedor(p.id, mod);
 console.log('[C6] Modal abierto para proveedor', p.id);
 } catch (err2) {
 console.error('[C6] Error abriendo modal:', err2);
-mostrarAlerta('❌ Error al abrir el proveedor: ' + err2.message, 'error');
+mostrarAlerta(' Error al abrir el proveedor: ' + err2.message, 'error');
 }
 }, 300);
 } catch (err) {
 console.error('[C6] Error en ejecutarCtrlK:', err);
-mostrarAlerta('❌ Error al navegar: ' + err.message, 'error');
+mostrarAlerta(' Error al navegar: ' + err.message, 'error');
 cerrarCtrlK();
 }
 }
@@ -4555,14 +4561,14 @@ cont.innerHTML = '<p style="color:#6b7280;text-align:center;padding:2rem;">No ha
 return;
 }
 const iconosAccion = {
-registro: '🎉', documento_subido: '📤', documento_reemplazado: '🔄',
-documento_eliminado: '🗑️', documento_aprobado: '✅', documento_rechazado: '❌',
-documento_verificado: '🔍', datos_actualizados: '✏️', recordatorio_enviado: '📨',
-nota_agregada: '📝', documento_no_aplica: '📋', gestion_actualizada: '📋',
-cambio_etapa: '🔄', evaluacion_subida: '📄', evaluacion_estado_cambiado: '📋',
-solicitud_actualizacion: '🔄', vencimiento_automatico: '⏰', vencimiento_forzado: '⚡',
-proceso_reiniciado: '♻️', tipo_persona_definido: '🧾', email_cambiado: '📧',
-evaluacion_eliminada: '🗑️', login_exitoso: '🔐', login_fallido_admin: '⚠️'
+registro: ico('award'), documento_subido: ico('upload'), documento_reemplazado: ico('refresh'),
+documento_eliminado: ico('trash'), documento_aprobado: ico('check'), documento_rechazado: ico('x'),
+documento_verificado: ico('search'), datos_actualizados: ico('edit'), recordatorio_enviado: ico('send'),
+nota_agregada: ico('message'), documento_no_aplica: ico('clipboard'), gestion_actualizada: ico('clipboard'),
+cambio_etapa: ico('refresh'), evaluacion_subida: ico('file'), evaluacion_estado_cambiado: ico('clipboard'),
+solicitud_actualizacion: ico('refresh'), vencimiento_automatico: ico('clock'), vencimiento_forzado: ico('zap'),
+proceso_reiniciado: ico('refresh'), tipo_persona_definido: ico('file-text'), email_cambiado: ico('mail'),
+evaluacion_eliminada: ico('trash'), login_exitoso: ico('lock'), login_fallido_admin: ico('alert')
 };
 cont.innerHTML = `
 <div style="margin-bottom:0.5rem;font-size:0.85rem;color:#6b7280;">
@@ -4585,7 +4591,7 @@ ${registros.map(r => `
 <tr style="border-bottom:1px solid #e5e7eb;">
 <td style="padding:0.45rem;font-size:0.8rem;white-space:nowrap;">${formatearFecha(r.creado_en)}</td>
 <td style="padding:0.45rem;font-weight:600;">${escapeHtml(r.usuario_nombre || 'Sistema')}</td>
-<td style="padding:0.45rem;">${iconosAccion[r.accion] || '📌'} ${escapeHtml(r.accion)}</td>
+<td style="padding:0.45rem;">${iconosAccion[r.accion] || ico('pin')} ${escapeHtml(r.accion)}</td>
 <td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.detalle || '')}</td>
 <td style="padding:0.45rem;">${escapeHtml(r.razon_social || r.proveedor_email || '—')}</td>
 <td style="padding:0.45rem;text-align:center;font-family:monospace;font-size:0.75rem;">${escapeHtml(r.ip_origen || '—')}</td>
@@ -4613,14 +4619,14 @@ if (f.accion) url += `&accion=${encodeURIComponent(f.accion)}`;
 if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
 if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
 try {
-mostrarAlerta('⏳ Generando CSV…', 'info');
+mostrarAlerta(' Generando CSV…', 'info');
 const res = await fetchAPI(url);
 if (!res.ok) throw new Error((await res.json()).error || 'Error');
 const blob = await res.blob();
 descargarBlob(blob, `auditoria_historial_${fechaArchivo()}.csv`);
-mostrarAlerta('✅ Historial exportado', 'success');
+mostrarAlerta(' Historial exportado', 'success');
 } catch (e) {
-mostrarAlerta('❌ Error exportando: ' + e.message, 'error');
+mostrarAlerta(' Error exportando: ' + e.message, 'error');
 }
 }
 
@@ -4703,7 +4709,7 @@ ${registros.map(r => `
 <td style="padding:0.45rem;font-size:0.8rem;white-space:nowrap;">${formatearFecha(r.creado_en)}</td>
 <td style="padding:0.45rem;font-weight:600;">${escapeHtml(r.email || '—')}</td>
 <td style="padding:0.45rem;">${escapeHtml(r.accion)}</td>
-<td style="padding:0.45rem;text-align:center;">${r.exitoso ? '<span class="badge badge-aprobado">✅ Exitoso</span>' : '<span class="badge badge-rechazado">❌ Fallido</span>'}</td>
+<td style="padding:0.45rem;text-align:center;">${r.exitoso ? '<span class="badge badge-aprobado">' + ico('check') + ' Exitoso</span>' : '<span class="badge badge-rechazado">' + ico('x') + ' Fallido</span>'}</td>
 <td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.detalle || '')}</td>
 <td style="padding:0.45rem;text-align:center;font-family:monospace;font-size:0.75rem;">${escapeHtml(r.ip_origen || '—')}</td>
 </tr>`).join('')}
@@ -4729,14 +4735,14 @@ if (f.exitoso !== '') url += `&exitoso=${encodeURIComponent(f.exitoso)}`;
 if (f.fecha_desde) url += `&fecha_desde=${encodeURIComponent(f.fecha_desde)}`;
 if (f.fecha_hasta) url += `&fecha_hasta=${encodeURIComponent(f.fecha_hasta)}`;
 try {
-mostrarAlerta('⏳ Generando CSV…', 'info');
+mostrarAlerta(' Generando CSV…', 'info');
 const res = await fetchAPI(url);
 if (!res.ok) throw new Error((await res.json()).error || 'Error');
 const blob = await res.blob();
 descargarBlob(blob, `logs_seguridad_${fechaArchivo()}.csv`);
-mostrarAlerta('✅ Logs exportados', 'success');
+mostrarAlerta(' Logs exportados', 'success');
 } catch (e) {
-mostrarAlerta('❌ Error exportando: ' + e.message, 'error');
+mostrarAlerta(' Error exportando: ' + e.message, 'error');
 }
 }
 
@@ -4950,13 +4956,13 @@ function togglePermisosMiembro(uid, btn) {
   if (!caja) return;
   const abierto = caja.style.display !== 'none';
   caja.style.display = abierto ? 'none' : 'block';
-  if (btn) btn.textContent = abierto ? '👁️ Ver permisos' : '🙈 Ocultar permisos';
+  if (btn) btn.textContent = abierto ? ' Ver permisos' : ' Ocultar permisos';
 }
 //  R4-fix: eliminar miembro del equipo (baja definitiva con confirmación Swal).
 // El server aplica los candados D8 (no auto-eliminación, último superadmin intocable).
 async function eliminarMiembroEquipo(uid, email) {
   const ok = await confirmarSwal({
-    titulo: '🗑️ Eliminar miembro del equipo',
+    titulo: ' Eliminar miembro del equipo',
     texto: `Se eliminará permanentemente la cuenta ${email} y se cerrarán sus sesiones activas. Esta acción NO se puede deshacer.`,
     textoConfirmar: 'Sí, eliminar'
   });
@@ -4964,11 +4970,11 @@ async function eliminarMiembroEquipo(uid, email) {
   try {
     const res = await fetchAPI(`/api/admin/usuarios/${uid}`, { method: 'DELETE' });
     const r = await res.json().catch(() => ({}));
-    if (!res.ok) { mostrarAlerta('❌ ' + (r.error || 'Error al eliminar'), 'error'); return; }
-    mostrarAlerta('✅ ' + (r.mensaje || 'Miembro eliminado'), 'success');
+    if (!res.ok) { mostrarAlerta(' ' + (r.error || 'Error al eliminar'), 'error'); return; }
+    mostrarAlerta(' ' + (r.mensaje || 'Miembro eliminado'), 'success');
     await cargarEquipo();
   } catch (e) {
-    mostrarAlerta('❌ Error de conexión', 'error');
+    mostrarAlerta(' Error de conexión', 'error');
   }
 }
 //  R4.1: ¿el miembro es yo mismo? (oculta promover/degradar propios — D8)
@@ -4978,12 +4984,12 @@ function esYoMiembro(u) {
 //  R4.1: cambiar correo de un miembro (conserva superadmin, permisos e historial)
 async function cambiarEmailMiembro(uid, emailActual) {
   const r = await Swal.fire({
-    title: '✏️ Cambiar correo del miembro',
+    title: ' Cambiar correo del miembro',
     html: `<p style="margin:0 0 .6rem 0;color:#6b7280;">Actual: <strong>${escapeHtml(emailActual)}</strong></p>`,
     input: 'email',
     inputValue: emailActual,
     showCancelButton: true,
-    confirmButtonText: '💾 Guardar',
+    confirmButtonText: ' Guardar',
     cancelButtonText: 'Cancelar',
     confirmButtonColor: '#8600dd',
     cancelButtonColor: '#6b7280',
@@ -4997,14 +5003,14 @@ async function cambiarEmailMiembro(uid, emailActual) {
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'Error');
-    mostrarAlerta('✅ ' + d.mensaje, 'success');
+    mostrarAlerta(' ' + d.mensaje, 'success');
     await cargarEquipo();
-  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+  } catch (e) { mostrarAlerta(' ' + e.message, 'error'); }
 }
 //  R4.1: promover/degradar superadmin (D8: sin auto-cambio; último activo intocable)
 async function toggleSuperadminMiembro(uid, promover, email) {
   const ok = await confirmarSwal({
-    titulo: promover ? '⭐ Hacer superadmin' : '⬇️ Quitar superadmin',
+    titulo: promover ? ' Hacer superadmin' : ' Quitar superadmin',
     texto: promover
       ? `${email} tendrá bypass total: equipo, permisos y todos los módulos.`
       : `${email} pasará a admin regular: solo lo que permitan sus permisos.`,
@@ -5019,14 +5025,14 @@ async function toggleSuperadminMiembro(uid, promover, email) {
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'Error');
-    mostrarAlerta('✅ ' + d.mensaje, 'success');
+    mostrarAlerta(' ' + d.mensaje, 'success');
     await cargarEquipo();
-  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+  } catch (e) { mostrarAlerta(' ' + e.message, 'error'); }
 }
 async function guardarPermisosUsuario(uid) {
   const claves = [];
   document.querySelectorAll(`.chk-permiso[data-uid="${uid}"]:checked`).forEach(c => claves.push(c.dataset.clave));
-  if (!await confirmarSwal({ titulo: '💾 Cambiar permisos', texto: 'Se cerrará la sesión activa del miembro afectado.', peligro: false, textoConfirmar: 'Sí, guardar' })) return;
+  if (!await confirmarSwal({ titulo: ' Cambiar permisos', texto: 'Se cerrará la sesión activa del miembro afectado.', peligro: false, textoConfirmar: 'Sí, guardar' })) return;
   try {
     const res = await fetchAPI(`/api/admin/usuarios/${uid}/permisos`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -5034,13 +5040,13 @@ async function guardarPermisosUsuario(uid) {
     });
     const r = await res.json();
     if (!res.ok) throw new Error(r.error || 'Error');
-    mostrarAlerta('✅ ' + r.mensaje, 'success');
+    mostrarAlerta(' ' + r.mensaje, 'success');
     await cargarEquipo();
-  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+  } catch (e) { mostrarAlerta(' ' + e.message, 'error'); }
 }
 async function toggleActivoUsuario(uid, activo, email) {
   const texto = activo ? `Activar a ${email}` : `Desactivar a ${email}. Sus sesiones activas se cerrarán.`;
-  if (!await confirmarSwal({ titulo: activo ? '✅ Activar miembro' : '🚫 Desactivar miembro', texto, peligro: !activo, textoConfirmar: 'Sí, continuar' })) return;
+  if (!await confirmarSwal({ titulo: activo ? ' Activar miembro' : ' Desactivar miembro', texto, peligro: !activo, textoConfirmar: 'Sí, continuar' })) return;
   try {
     const res = await fetchAPI(`/api/admin/usuarios/${uid}/activo`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -5048,9 +5054,9 @@ async function toggleActivoUsuario(uid, activo, email) {
     });
     const r = await res.json();
     if (!res.ok) throw new Error(r.error || 'Error');
-    mostrarAlerta('✅ ' + r.mensaje, 'success');
+    mostrarAlerta(' ' + r.mensaje, 'success');
     await cargarEquipo();
-  } catch (e) { mostrarAlerta('❌ ' + e.message, 'error'); }
+  } catch (e) { mostrarAlerta(' ' + e.message, 'error'); }
 }
 function mostrarModalInvitar() {
   const previo = document.getElementById('modalInvitarStaff');
@@ -5063,7 +5069,7 @@ function mostrarModalInvitar() {
   <div class="modal" style="max-width:560px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <h3 style="margin:0;">${ico('plus')} Invitar miembro al equipo</h3>
-      <button class="btn btn-sm btn-secondary" onclick="cerrarModalInvitar()">✕ Cerrar</button>
+      <button class="btn btn-sm btn-secondary" onclick="cerrarModalInvitar()"> Cerrar</button>
     </div>
     <div class="form-group"><label>${ico('mail')} Email corporativo *</label><input type="email" id="invEmail" placeholder="nombre@unab.edu.co"></div>
     <div class="form-group"><label> Nombre o área (opcional)</label><input type="text" id="invNombre" placeholder="Ej: Nayardy — Verificación"></div>
@@ -5101,13 +5107,13 @@ async function enviarInvitacionStaff() {
     const r = await res.json();
     if (!res.ok) throw new Error(r.error || 'Error');
     cerrarModalInvitar();
-    mostrarAlerta('✅ ' + r.mensaje, 'success', 6000);
+    mostrarAlerta(' ' + r.mensaje, 'success', 6000);
     await cargarEquipo();
   } catch (e) { alerta.innerHTML = `<div class="alert alert-error">${ico('x')} ${e.message}</div>`; }
 }
 // ==========================================
 //  INICIAR APLICACIÓN
 // ==========================================
-console.log('✅ Panel de Administración con nuevo flujo cargado');
-console.log('🔧 fetchAPI helper activo (credentials: include)');
+console.log(' Panel de Administración con nuevo flujo cargado');
+console.log(' fetchAPI helper activo (credentials: include)');
 init();

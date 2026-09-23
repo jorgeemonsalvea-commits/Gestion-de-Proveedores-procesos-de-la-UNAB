@@ -18,7 +18,7 @@ const compression = require('compression');
 const crypto = require('crypto');
 
 if (typeof archiver !== 'function') {
-  console.error('❌ archiver no está instalado o no se cargó correctamente.');
+  console.error(' archiver no está instalado o no se cargó correctamente.');
   console.error('   Ejecuta: npm install archiver');
   process.exit(1);
 }
@@ -48,7 +48,7 @@ const {
   emailRecordatorioDocumentosFaltantes,
   emailEvaluacionRechazada,
   emailSolicitudActualizacion,
-  emailInvitacionStaff            // 🆕 R3: invitación a miembros del staff (token 7d)
+  emailInvitacionStaff            //  R3: invitación a miembros del staff (token 7d)
 } = require('./email');
 
 const app = express();
@@ -61,29 +61,29 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-console.log('✅ Socket.IO inicializado sobre el servidor HTTP');
+console.log(' Socket.IO inicializado sobre el servidor HTTP');
 
 app.set('trust proxy', 1);
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const SESSION_SECRET = process.env.SESSION_SECRET;
-// 🔗 URL base normalizada (a prueba de errores en .env), igual que en email.js.
+//  URL base normalizada (a prueba de errores en .env), igual que en email.js.
 // Previene enlaces rotos tipo "Cannot GET /;/proveedor.html".
 const APP_URL_NORMALIZADO = (process.env.APP_URL || `http://localhost:${PORT}`)
 .trim()
 .replace(/[;,\s]+$/g, '')
 .replace(/\/+$/g, '');
-// 🛡️ Validación básica de formato de email (local@dominio.tld).
+//  Validación básica de formato de email (local@dominio.tld).
 // Evita que basura llegue a la BD y llamadas inútiles a Brevo.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 if (!validarClaveMaestra(ENCRYPTION_KEY)) {
-  console.error('❌ ENCRYPTION_KEY no es válida (mínimo 32 caracteres)');
+  console.error(' ENCRYPTION_KEY no es válida (mínimo 32 caracteres)');
   process.exit(1);
 }
 
 if (!validarClaveMaestra(SESSION_SECRET)) {
-  console.error('❌ SESSION_SECRET no es válida (mínimo 32 caracteres)');
+  console.error(' SESSION_SECRET no es válida (mínimo 32 caracteres)');
   process.exit(1);
 }
 
@@ -94,16 +94,16 @@ const plantillasDir = path.join(dataDir, 'plantillas');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(plantillasDir)) fs.mkdirSync(plantillasDir, { recursive: true });
 
-console.log('\n🔐 Configuración de seguridad:');
+console.log('\n Configuración de seguridad:');
 console.table(obtenerConfiguracionSeguridad());
 
 const testCifrado = verificarSistemaCifrado(ENCRYPTION_KEY);
 console.log(testCifrado.mensaje);
 if (!testCifrado.funcional) {
-  console.error('❌ El sistema de cifrado NO está funcionando');
+  console.error(' El sistema de cifrado NO está funcionando');
   process.exit(1);
 }
-// 🛡️ M2 (Fase 3): hash bcrypt dummy (cost 12) para igualar el tiempo de respuesta
+//  M2 (Fase 3): hash bcrypt dummy (cost 12) para igualar el tiempo de respuesta
 // en login cuando el email no existe. Evita la enumeración de usuarios por timing.
 // Este hash nunca va a matchear con una contraseña real; solo consume tiempo de CPU.
 const DUMMY_BCRYPT_HASH = '$2a$12$WApznUPhDubN0oeveSXoqOe6eHZMVj7S5rJtgvQXlhQl1JqF.F8O2';
@@ -111,7 +111,7 @@ const DUMMY_BCRYPT_HASH = '$2a$12$WApznUPhDubN0oeveSXoqOe6eHZMVj7S5rJtgvQXlhQl1J
 // ==========================================
 // 2. SEGURIDAD Y MIDDLEWARES
 // ==========================================
-// ⚡ OPT RENDIMIENTO (#4): comprime HTML/JSON/JS/CSS (~70% menos transferencia).
+//  OPT RENDIMIENTO (#4): comprime HTML/JSON/JS/CSS (~70% menos transferencia).
 // PDF/ZIP ya están comprimidos: el filtro por defecto los deja pasar sin tocarlos.
 app.use(compression());
 app.use(helmet({
@@ -131,10 +131,10 @@ app.use(helmet({
       formAction: ["'self'"]
     }
   },
-// 🛡️ HSTS: fuerza HTTPS por 1 año en el navegador (anti downgrade/SSL-stripping)
+//  HSTS: fuerza HTTPS por 1 año en el navegador (anti downgrade/SSL-stripping)
 hsts: { maxAge: 31536000, includeSubDomains: true },
 crossOriginEmbedderPolicy: false,
-// 🛡️ R4-fix: este Chrome no reconoce 'join-ad-interest-group' / 'run-ad-auction'
+//  R4-fix: este Chrome no reconoce 'join-ad-interest-group' / 'run-ad-auction'
 // y Helmet los envía por defecto → 2 errores cosméticos en consola en cada carga.
 // Se desactiva solo ese header (Permissions-Policy); el resto de Helmet queda intacto.
 permissionsPolicy: false,
@@ -186,14 +186,14 @@ app.use('/api/', limiterGeneral);
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-// 🛡️ Endurecimiento: nunca filtrar detalles internos (SQL, stack, rutas, paths)
+//  Endurecimiento: nunca filtrar detalles internos (SQL, stack, rutas, paths)
 // en respuestas 500. Envolvemos res.json: si el status es 500+ y hay `error`,
 // se loguea el detalle real en consola y al cliente va un mensaje genérico.
 app.use((req, res, next) => {
   const originalJson = res.json.bind(res);
   res.json = (body) => {
     if (res.statusCode >= 500 && body && typeof body === 'object' && body.error) {
-      console.error(`🛡️ [500 sanitizado] ${req.method} ${req.originalUrl} → ${body.error}`);
+      console.error(` [500 sanitizado] ${req.method} ${req.originalUrl} → ${body.error}`);
       body = { ...body, error: 'Error interno del servidor. Intenta nuevamente.' };
     }
     return originalJson(body);
@@ -222,7 +222,7 @@ function limpiarArchivosTemporalesSesiones() {
     });
 
     if (eliminados > 0) {
-      console.log(`🧹 ${eliminados} archivos temporales de sesión eliminados`);
+      console.log(` ${eliminados} archivos temporales de sesión eliminados`);
     }
   } catch (err) {
     console.error('Error limpiando archivos temporales de sesión:', err.message);
@@ -258,7 +258,7 @@ function limpiarSesionesCorruptas() {
     });
 
     if (limpiados > 0) {
-      console.log(`🧹 ${limpiados} sesión(es) corrupta(s) eliminada(s)`);
+      console.log(` ${limpiados} sesión(es) corrupta(s) eliminada(s)`);
     }
   } catch (err) {
     console.error('Error limpiando sesiones:', err.message);
@@ -268,7 +268,7 @@ function limpiarSesionesCorruptas() {
 limpiarArchivosTemporalesSesiones();
 limpiarSesionesCorruptas();
 
-// 🆕 Cierra todas las sesiones activas de un usuario (se usa al cambiar su correo)
+//  Cierra todas las sesiones activas de un usuario (se usa al cambiar su correo)
 function cerrarSesionesDeUsuario(usuarioId) {
 let cerradas = 0;
 try {
@@ -317,7 +317,7 @@ const sessionMiddleware = session({
 cookie: {
 maxAge: 1000 * 60 * 60 * 8,
 httpOnly: true,
-// 🛡️ A4: 'lax' también en producción para mitigar CSRF.
+//  A4: 'lax' también en producción para mitigar CSRF.
 // 'none' permitía enviar la cookie en peticiones cross-site (vector CSRF clásico:
 // un <form> oculto en otro sitio disparaba POST con la sesión del admin).
 // 'lax' sigue permitiendo: navegación por enlace desde correos (top-level GET)
@@ -328,7 +328,7 @@ secure: process.env.NODE_ENV === 'production'
 });
 
 app.use(sessionMiddleware);
-// 🛡️ R2: parseo de permisos UNA vez por request (API + uploads, donde se decide acceso).
+//  R2: parseo de permisos UNA vez por request (API + uploads, donde se decide acceso).
 // middlewareRBAC va global pero solo actúa sobre rutas del catálogo (regex anclados).
 app.use('/api/', cargarPermisosReq);
 app.use('/uploads/', cargarPermisosReq);
@@ -349,34 +349,34 @@ io.use((socket, next) => {
     socket.usuario = sess.usuario;
     next();
   } else {
-    console.log('⚠️ Socket rechazado: sesión inválida');
+    console.log(' Socket rechazado: sesión inválida');
     next(new Error('No autorizado'));
   }
 });
 
 io.on('connection', (socket) => {
   const usuario = socket.usuario;
-  console.log(`🔌 Cliente conectado: ${usuario.email} (${usuario.rol}) · socket.id=${socket.id}`);
+  console.log(` Cliente conectado: ${usuario.email} (${usuario.rol}) · socket.id=${socket.id}`);
   if (usuario.rol === 'admin') {
     socket.join('admin');
-    console.log(`📡 [SOCKET] ${usuario.email} entró a la sala 'admin'`);
+    console.log(` [SOCKET] ${usuario.email} entró a la sala 'admin'`);
   } else if (usuario.rol === 'proveedor') {
     const proveedor = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(usuario.id);
     if (proveedor) {
       socket.join(`proveedor_${proveedor.id}`);
-      console.log(`📡 [SOCKET] ${usuario.email} entró a la sala 'proveedor_${proveedor.id}'`);
+      console.log(` [SOCKET] ${usuario.email} entró a la sala 'proveedor_${proveedor.id}'`);
     } else {
-      console.warn(`⚠️ [SOCKET] ${usuario.email} tiene rol proveedor pero NO tiene fila en proveedores: no entrará a ninguna sala.`);
+      console.warn(` [SOCKET] ${usuario.email} tiene rol proveedor pero NO tiene fila en proveedores: no entrará a ninguna sala.`);
     }
   }
-  // 🆕 Confirmación al cliente de las salas en que quedó (diagnóstico en F12)
+  //  Confirmación al cliente de las salas en que quedó (diagnóstico en F12)
   socket.emit('socket_info', { rol: usuario.rol, salas: Array.from(socket.rooms) });
   socket.on('disconnect', (motivo) => {
-    console.log(`🔌 Cliente desconectado: ${usuario.email} (${motivo || 'sin motivo'})`);
+    console.log(` Cliente desconectado: ${usuario.email} (${motivo || 'sin motivo'})`);
   });
 });
 
-// 📈 F3: caché TTL corta para /api/admin/stats (6 COUNT por llamada).
+//  F3: caché TTL corta para /api/admin/stats (6 COUNT por llamada).
 // Se invalida en cualquier mutación que emita eventos de stats/proveedores,
 // así la consistencia es inmediata y el TTL solo cubre rachas de lecturas.
 const statsCache = { ts: 0, data: null };
@@ -387,15 +387,15 @@ function invalidarStatsCache() { statsCache.ts = 0; statsCache.data = null; tend
 function emitirAdmin(evento, datos) {
 if (evento === 'estadisticas_actualizadas' || evento === 'proveedores_actualizados') invalidarStatsCache();
 const n = io.sockets.adapter.rooms.get('admin')?.size || 0;
-  console.log(`📡 [SOCKET] emit '${evento}' → sala 'admin' (${n} cliente(s))`);
+  console.log(` [SOCKET] emit '${evento}' → sala 'admin' (${n} cliente(s))`);
   io.to('admin').emit(evento, datos);
 }
 function emitirProveedor(proveedorId, evento, datos) {
   const sala = `proveedor_${proveedorId}`;
   const n = io.sockets.adapter.rooms.get(sala)?.size || 0;
-  console.log(`📡 [SOCKET] emit '${evento}' → sala '${sala}' (${n} cliente(s))`);
+  console.log(` [SOCKET] emit '${evento}' → sala '${sala}' (${n} cliente(s))`);
   if (n === 0) {
-    console.warn(`⚠️ [SOCKET] Sala '${sala}' VACÍA: el proveedor no tiene socket conectado o no entró a la sala (¿ambos en el mismo ambiente/servidor?).`);
+    console.warn(` [SOCKET] Sala '${sala}' VACÍA: el proveedor no tiene socket conectado o no entró a la sala (¿ambos en el mismo ambiente/servidor?).`);
   }
   io.to(sala).emit(evento, datos);
 }
@@ -403,7 +403,7 @@ function emitirTodos(proveedorId, evento, datos) {
 emitirAdmin(evento, datos);
 emitirProveedor(proveedorId, evento, datos);
 }
-// 🔔 D4-b: enriquece los payloads Socket de documentos con proveedor,
+//  D4-b: enriquece los payloads Socket de documentos con proveedor,
 // actor (quién ejecutó) y nombre del formato, para que la campana/feed
 // del admin muestre QUIÉN hizo QUÉ sin consultas extra en el front.
 function payloadEventoDoc(proveedorId, tipo, actorEmail, extra = {}) {
@@ -426,7 +426,7 @@ actor: actorEmail || 'Sistema'
 
 app.use((err, req, res, next) => {
   if (err && err.message && (err.message.includes('expires') || err.message.includes('corrupt'))) {
-    console.log('⚠️ Sesión corrupta/expired detectada, destruyendo...');
+    console.log(' Sesión corrupta/expired detectada, destruyendo...');
     if (req.session) {
       req.session.destroy(() => {});
     }
@@ -435,13 +435,13 @@ app.use((err, req, res, next) => {
   }
 
   if (err && err.code === 'EPERM' && err.syscall === 'rename') {
-    console.warn(`⚠️ Error EPERM al guardar sesión, reintentando...`);
+    console.warn(` Error EPERM al guardar sesión, reintentando...`);
     if (req.session) {
       req.session.save((saveErr) => {
         if (saveErr) {
-          console.error('❌ Error al guardar sesión después de reintento:', saveErr.message);
+          console.error(' Error al guardar sesión después de reintento:', saveErr.message);
         } else {
-          console.log('✅ Sesión guardada después de reintento');
+          console.log(' Sesión guardada después de reintento');
         }
       });
     }
@@ -452,7 +452,7 @@ app.use((err, req, res, next) => {
 });
 
 app.use('/plantillas', express.static(plantillasDir));
-// ⚡ OPT: caché larga para fuentes e imágenes (no cambian entre versiones)
+//  OPT: caché larga para fuentes e imágenes (no cambian entre versiones)
 app.use('/fonts', express.static(path.join(__dirname, 'public', 'fonts'), { maxAge: '30d', immutable: true }));
 app.use('/img', express.static(path.join(__dirname, 'public', 'img'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -525,7 +525,7 @@ return String(text)
 .replace(/'/g, '&#39;');
 }
 
-// 🛡️ Escapa celdas CSV y neutraliza inyección de fórmulas: todo valor que
+//  Escapa celdas CSV y neutraliza inyección de fórmulas: todo valor que
 // empiece por =, +, - o @ se prefija con ' para que Excel/LibreOffice no lo
 // ejecute como fórmula al abrir el archivo exportado.
 function csvEscapar(valor) {
@@ -534,7 +534,7 @@ if (/^[=+\-@]/.test(s)) s = "'" + s;
 return '"' + s.replace(/"/g, '""') + '"';
 }
 
-// 🏷️ Busca la configuración de un tipo en cualquier lista (jurídica o natural),
+//  Busca la configuración de un tipo en cualquier lista (jurídica o natural),
 //    para cubrir tipos exclusivos de persona natural (ej. 'competencias').
 function configDocGlobal(tipo) {
   return DOCUMENTOS_REQUERIDOS.find(d => d.tipo === tipo)
@@ -546,7 +546,7 @@ const c = configDocGlobal(tipo);
 return c ? c.nombre : null;
 }
 // ==========================================
-// 🪪 G7: TIPO DE DOCUMENTO + VALIDACIÓN FLEXIBLE POR TIPO
+//  G7: TIPO DE DOCUMENTO + VALIDACIÓN FLEXIBLE POR TIPO
 // Nota de diseño: el dígito de verificación DIAN (mod-11) NO se exige aquí
 // porque registros reales del sistema no lo pasan; se difiere a F22 (Sprint 9).
 // G7 valida FORMATO (clase y longitud) y normaliza separadores.
@@ -567,7 +567,7 @@ if (t === 'pas' && !/^[A-Z0-9]{6,15}$/.test(n)) return { valido: false, mensaje:
 return { valido: true, numero: n };
 }
 // ==========================================
-// 📄 E8: NOMBRE DESCRIPTIVO DE DESCARGA
+//  E8: NOMBRE DESCRIPTIVO DE DESCARGA
 // Patrón: TIPO_NIT_RazonSocial_FAAA-MM-DD.pdf
 // Solo afecta el header Content-Disposition al descargar; el .enc interno
 // NO se renombra (el dedup por hash y el cifrado dependen de ese nombre).
@@ -596,7 +596,7 @@ fecha = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 return `${tipo}_${nit}_${razon}_F${fecha}.pdf`;
 }
 // ==========================================
-// 📞 G11: TELEFONÍA COLOMBIA (normalización + validación)
+//  G11: TELEFONÍA COLOMBIA (normalización + validación)
 // Plan de numeración: celular 3XX XXX XXXX · fijo 60X/70X XXX XXXX (10 dígitos).
 // Acepta +57/57 prefijado y separadores; devuelve formato legible 3-3-4.
 // Vacío = opcional (no bloquea). Inválido = { ok:false } para que el endpoint decida.
@@ -614,7 +614,7 @@ return { ok: false, telefono: String(valor).trim(), mensaje: 'Teléfono colombia
 return { ok: true, telefono: d.replace(/^(.{3})(.{3})(.{4})$/, '$1 $2 $3'), mensaje: null };
 }
 
-// 🏷️ Estado legible para exportaciones (diferencia las etapas reales)
+//  Estado legible para exportaciones (diferencia las etapas reales)
 function estadoLegibleServer(p) {
 const etapa = p.etapa || '';
 if (etapa === 'registrado') return 'Registrado';
@@ -627,7 +627,7 @@ if (p.estado_general === 'rechazado') return 'Rechazado';
 return 'Pendiente';
 }
 
-// 🆕 A1: formatear fecha para mostrar en correos (legible)
+//  A1: formatear fecha para mostrar en correos (legible)
 function formatearFechaServer(fecha) {
   if (!fecha) return '—';
   try {
@@ -643,7 +643,7 @@ function formatearFechaServer(fecha) {
 
 function formatearFechaExcel(fecha) {
   if (!fecha) return '';
-  // 🕐 FIX TZ: la BD guarda hora civil de Bogotá; forzamos -05:00 para no desplazar 5h.
+  //  FIX TZ: la BD guarda hora civil de Bogotá; forzamos -05:00 para no desplazar 5h.
   const d = new Date(String(fecha).replace(' ', 'T') + '-05:00');
   return d.toLocaleString('es-CO', {
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -658,7 +658,7 @@ function fechaArchivo() {
 }
 
 
-// 🕐 FIX TZ: devuelve la fecha fija de vencimiento como STRING CIVIL de Bogotá,
+//  FIX TZ: devuelve la fecha fija de vencimiento como STRING CIVIL de Bogotá,
 // sin pasar por Date/toISOString (que desplazan 5h en servidores UTC como Railway).
 function obtenerFechaVencimientoStr() {
   try {
@@ -738,7 +738,7 @@ function asignarCicloADocumentosActivos(proveedorId, numeroRegistro) {
         AND es_historico = 0
     `).run(String(numeroRegistro).trim(), proveedorId);
 
-    console.log(`📌 ${result.changes} documentos activos asociados al ciclo ${numeroRegistro} para proveedor ${proveedorId}`);
+    console.log(` ${result.changes} documentos activos asociados al ciclo ${numeroRegistro} para proveedor ${proveedorId}`);
     return result.changes;
   } catch (err) {
     console.error('Error asignando ciclo a documentos activos:', err.message);
@@ -763,7 +763,7 @@ function cerrarCicloAnterior(proveedorId) {
         WHERE id = ?
       `).run(cicloActivo.id);
 
-      console.log(`🔒 Ciclo anterior cerrado para proveedor ${proveedorId}`);
+      console.log(` Ciclo anterior cerrado para proveedor ${proveedorId}`);
       return true;
     }
 
@@ -781,14 +781,14 @@ function crearNuevoCiclo(proveedorId, numeroRegistro, tipoGestion = 'inscripcion
       VALUES (?, ?, 'activo')
     `).run(proveedorId, numeroRegistro);
 
-    console.log(`🔄 Nuevo ciclo creado para proveedor ${proveedorId}: ${numeroRegistro}`);
+    console.log(` Nuevo ciclo creado para proveedor ${proveedorId}: ${numeroRegistro}`);
     return result.lastInsertRowid;
   } catch (err) {
 console.error('Error creando nuevo ciclo:', err.message);
 return null;
 }
 }
-// 🏷️ Helper: resuelve la Evaluación Inicial de un ciclo (activo o histórico).
+//  Helper: resuelve la Evaluación Inicial de un ciclo (activo o histórico).
 //   - Ciclo ACTIVO con evaluación subida -> la toma de proveedores.evaluacion_inicial
 //   - Ciclo CERRADO (o sin eval activa)  -> la busca en disco: uploads/<id>/<ciclo>/evaluacion_*.enc
 //   Devuelve { archivo, estado, es_historico, fecha } o null. Reusado por el endpoint de
@@ -819,12 +819,12 @@ fecha: null
 }
 return null;
 } catch (e) {
-console.error('⚠️ Error resolviendo evaluación del ciclo:', e.message);
+console.error(' Error resolviendo evaluación del ciclo:', e.message);
 return null;
 }
 }
 
-// 🛡️ ANTI-DUPLICADOS: mueve rutaActual → rutaNueva. Si el destino ya existe con
+//  ANTI-DUPLICADOS: mueve rutaActual → rutaNueva. Si el destino ya existe con
 // contenido IDÉNTICO (mismo tamaño + hash SHA-256), elimina el origen y REUTILIZA
 // el destino sin crear copia. Solo usa sufijo _timestamp si el contenido difiere.
 function moverArchivoConDedup(rutaActual, rutaNueva) {
@@ -853,12 +853,12 @@ function moverDocumentoAHistorico(doc, comentarioPersonalizado = null) {
 const comentario = comentarioPersonalizado || 'Documento movido a histórico por vencimiento';
 try {
 const proveedor = db.prepare(`SELECT id, razon_social, numero_registro FROM proveedores WHERE id = ?`).get(doc.proveedor_id);
-if (!proveedor) { console.warn(`⚠️ Proveedor ${doc.proveedor_id} no encontrado para mover documento ${doc.id}`); return false; }
+if (!proveedor) { console.warn(` Proveedor ${doc.proveedor_id} no encontrado para mover documento ${doc.id}`); return false; }
 const ciclo = String(obtenerCicloParaDocumento(doc, proveedor.id));
 if (doc.id) db.prepare(`UPDATE documentos SET ciclo = ? WHERE id = ?`).run(ciclo, doc.id);
 if (doc.archivo === 'no_aplica') {
 if (doc.id) db.prepare(`UPDATE documentos SET es_historico = 1, fecha_archivado = datetime('now','-05:00'), estado = 'rechazado', comentario = ?, ciclo = ? WHERE id = ?`).run(comentario, ciclo, doc.id);
-console.log(`📄 Documento ${doc.id} (no_aplica) marcado como histórico en ciclo ${ciclo}.`);
+console.log(` Documento ${doc.id} (no_aplica) marcado como histórico en ciclo ${ciclo}.`);
 return true;
 }
 const dirCiclo = path.join(uploadsDir, String(proveedor.id), ciclo);
@@ -867,11 +867,11 @@ const rutaActual = path.join(uploadsDir, doc.archivo);
 let nombreArchivo = path.basename(doc.archivo);
 let rutaNueva = path.join(dirCiclo, nombreArchivo);
 if (fs.existsSync(rutaActual)) {
-// 🛡️ Dedup: si el ciclo ya tiene este mismo contenido, se reutiliza (♻️) y no se duplica.
+//  Dedup: si el ciclo ya tiene este mismo contenido, se reutiliza () y no se duplica.
 const r = moverArchivoConDedup(rutaActual, rutaNueva);
 rutaNueva = r.rutaFinal;
 nombreArchivo = path.basename(r.rutaFinal);
-if (r.reutilizado) console.log(`♻️ Doc ${doc.id}: contenido idéntico ya estaba en el ciclo; se reutilizó sin duplicar`);
+if (r.reutilizado) console.log(` Doc ${doc.id}: contenido idéntico ya estaba en el ciclo; se reutilizó sin duplicar`);
 } else {
 // El archivo ya estaba en el ciclo (residuo de un archivado previo o de un restore):
 // se reutiliza esa ruta; si no, se recupera del mirror.
@@ -879,14 +879,14 @@ const enCiclo = path.join(dirCiclo, nombreArchivo);
 const mirror = path.join(dataDir, 'backups', 'uploads_mirror', doc.archivo);
 if (fs.existsSync(enCiclo)) { rutaNueva = enCiclo; }
 else if (fs.existsSync(mirror)) { fs.copyFileSync(mirror, rutaNueva); }
-else console.warn(`⚠️ Archivo físico no encontrado para doc ${doc.id} (${rutaActual}); se archiva solo el registro.`);
+else console.warn(` Archivo físico no encontrado para doc ${doc.id} (${rutaActual}); se archiva solo el registro.`);
 }
 const rutaRelativa = `${proveedor.id}/${ciclo}/${nombreArchivo}`;
 if (doc.id) db.prepare(`UPDATE documentos SET archivo = ?, es_historico = 1, fecha_archivado = datetime('now','-05:00'), estado = 'rechazado', comentario = ?, ciclo = ? WHERE id = ?`).run(rutaRelativa, comentario, ciclo, doc.id);
-console.log(`📦 Documento ${doc.id} movido a histórico: ${rutaNueva}`);
+console.log(` Documento ${doc.id} movido a histórico: ${rutaNueva}`);
 return true;
 } catch (err) {
-console.error(`❌ Error moviendo documento ${doc.id} a histórico:`, err.message);
+console.error(` Error moviendo documento ${doc.id} a histórico:`, err.message);
 return false;
 }
 }
@@ -901,7 +901,7 @@ function notificarVencimientoProveedor(proveedorId) {
     `).get(proveedorId);
 
     if (!proveedor) {
-      console.warn(`⚠️ Proveedor ${proveedorId} no encontrado para notificación`);
+      console.warn(` Proveedor ${proveedorId} no encontrado para notificación`);
       return;
     }
 
@@ -916,11 +916,11 @@ function notificarVencimientoProveedor(proveedorId) {
     `).get(proveedorId);
 
     if (yaNotificado) {
-      console.log(`⏳ Proveedor ${nombreProveedor} ya fue notificado en los últimos 7 días.`);
+      console.log(` Proveedor ${nombreProveedor} ya fue notificado en los últimos 7 días.`);
       return;
     }
 
-    const mensaje = `⚠️ Tus documentos han vencido. Ingresa al portal, selecciona tu tipo de persona (Natural o Jurídica) en Mis datos y sube la documentación actualizada para continuar como proveedor activo.`;
+    const mensaje = ` Tus documentos han vencido. Ingresa al portal, selecciona tu tipo de persona (Natural o Jurídica) en Mis datos y sube la documentación actualizada para continuar como proveedor activo.`;
 
     db.prepare(`
       INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje)
@@ -937,12 +937,12 @@ function notificarVencimientoProveedor(proveedorId) {
       null
     );
 
-    // 🛡️ M4 (Fase 3): escapar nombre del proveedor en HTML inline del correo
+    //  M4 (Fase 3): escapar nombre del proveedor en HTML inline del correo
     const nombreProveedorEscapado = escapeHtml(nombreProveedor);
     const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
-        <h2 style="margin: 0;">⚠️ Documentos Vencidos</h2>
+        <h2 style="margin: 0;"> Documentos Vencidos</h2>
       </div>
       <div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
         <p>Hola <strong>${nombreProveedorEscapado}</strong>,</p>
@@ -961,24 +961,24 @@ function notificarVencimientoProveedor(proveedorId) {
       </div>
     `;
 
-    enviarEmail(proveedor.email, '⚠️ Documentos vencidos - Actualización requerida', html)
+    enviarEmail(proveedor.email, ' Documentos vencidos - Actualización requerida', html)
       .then(result => {
         if (result.ok) {
-          console.log(`✅ Correo de vencimiento enviado a ${proveedor.email}`);
+          console.log(` Correo de vencimiento enviado a ${proveedor.email}`);
         } else {
-          console.error(`❌ Error enviando correo de vencimiento: ${result.error}`);
+          console.error(` Error enviando correo de vencimiento: ${result.error}`);
         }
       })
       .catch(err => console.error('Error enviando correo de vencimiento:', err));
 
-    console.log(`📨 Notificación de vencimiento enviada al proveedor ${proveedorId}`);
+    console.log(` Notificación de vencimiento enviada al proveedor ${proveedorId}`);
   } catch (err) {
-    console.error(`❌ Error notificando vencimiento a proveedor ${proveedorId}:`, err.message);
+    console.error(` Error notificando vencimiento a proveedor ${proveedorId}:`, err.message);
   }
 }
 
 // ==========================================
-// ⏰ VENCIMIENTOS — JOB EN SEGUNDO PLANO CON LOTES (anti-congelamiento)
+//  VENCIMIENTOS — JOB EN SEGUNDO PLANO CON LOTES (anti-congelamiento)
 // ==========================================
 const LOTE_VENCIMIENTOS = 200;
 const jobVencimientos = {
@@ -1009,9 +1009,9 @@ async function procesarVencimientosCore({ forzar = false } = {}) {
             ? db.prepare(`SELECT id, proveedor_id, archivo, ciclo FROM documentos WHERE es_historico = 0`).all()
             : db.prepare(`SELECT id, proveedor_id, archivo, ciclo FROM documentos WHERE es_historico = 0 AND fecha_vencimiento <= datetime('now', '-5 hours')`).all();
         jobVencimientos.total = docs.length;
-        console.log(`🔄 [VENCIMIENTOS ${forzar ? 'FORZADOS' : 'PROGRAMADOS'}] ${docs.length} documento(s) a procesar - ${new Date().toLocaleString()}`);
+        console.log(` [VENCIMIENTOS ${forzar ? 'FORZADOS' : 'PROGRAMADOS'}] ${docs.length} documento(s) a procesar - ${new Date().toLocaleString()}`);
         if (docs.length === 0) {
-            console.log('✅ No hay documentos vencidos para procesar.');
+            console.log(' No hay documentos vencidos para procesar.');
             const resultado = { movidos: 0, notificados: 0, errores: 0 };
             emitirAdmin('vencimientos_procesados', resultado);
             return resultado;
@@ -1024,7 +1024,7 @@ async function procesarVencimientosCore({ forzar = false } = {}) {
                 if (exito) { jobVencimientos.movidos++; proveedoresAfectados.add(doc.proveedor_id); }
                 else jobVencimientos.errores++;
             } catch (err) {
-                console.error(`❌ Error procesando documento ${doc.id}:`, err.message);
+                console.error(` Error procesando documento ${doc.id}:`, err.message);
                 jobVencimientos.errores++;
             }
             jobVencimientos.procesados = i + 1;
@@ -1051,21 +1051,21 @@ async function procesarVencimientosCore({ forzar = false } = {}) {
                         const exito = moverDocumentoAHistorico(docEvaluacion);
                         if (exito) {
                             db.prepare(`UPDATE proveedores SET evaluacion_inicial = NULL WHERE id = ?`).run(proveedorId);
-                            console.log(`📄 Evaluación inicial del proveedor ${proveedorId} movida a histórico.`);
+                            console.log(` Evaluación inicial del proveedor ${proveedorId} movida a histórico.`);
                         } else {
-                            console.warn(`⚠️ No se pudo mover la evaluación del proveedor ${proveedorId}.`);
+                            console.warn(` No se pudo mover la evaluación del proveedor ${proveedorId}.`);
                         }
                     }
                     db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente', evaluacion_fecha = NULL WHERE id = ?`).run(proveedorId);
                     db.prepare(`UPDATE proveedores SET etapa = 'rechazado', estado_general = 'rechazado', notas_gestion = ?, tipo_proveedor = NULL WHERE id = ?`)
                         .run(forzar ? 'Rechazado por vencimiento forzado de todos los documentos.' : 'Rechazado por vencimiento de documentos', proveedorId);
                     registrarHistorial(proveedorId, { id: 1, email: 'Sistema' }, forzar ? 'vencimiento_forzado' : 'vencimiento_automatico', `Proveedor rechazado por vencimiento ${forzar ? 'forzado' : 'automático'} de todos los documentos.`, null, null, null);
-                    console.log(`❌ Proveedor ${proveedorId} cambiado a RECHAZADO por vencimiento.`);
+                    console.log(` Proveedor ${proveedorId} cambiado a RECHAZADO por vencimiento.`);
                     await notificarVencimientoProveedor(proveedorId);
                     jobVencimientos.notificados++;
                 }
             } catch (err) {
-                console.error(`❌ Error procesando proveedor ${proveedorId}:`, err.message);
+                console.error(` Error procesando proveedor ${proveedorId}:`, err.message);
                 jobVencimientos.errores++;
             }
             jobVencimientos.procesados = docs.length + i + 1;
@@ -1075,11 +1075,11 @@ async function procesarVencimientosCore({ forzar = false } = {}) {
             }
         }
         const resultado = { movidos: jobVencimientos.movidos, notificados: jobVencimientos.notificados, errores: jobVencimientos.errores };
-        console.log(`✅ [VENCIMIENTOS] completado en ${((Date.now() - inicio) / 1000).toFixed(1)}s: ${resultado.movidos} movidos, ${resultado.notificados} notificados, ${resultado.errores} errores`);
+        console.log(` [VENCIMIENTOS] completado en ${((Date.now() - inicio) / 1000).toFixed(1)}s: ${resultado.movidos} movidos, ${resultado.notificados} notificados, ${resultado.errores} errores`);
         emitirAdmin('vencimientos_procesados', resultado);
         return resultado;
     } catch (err) {
-        console.error('❌ Error en procesarVencimientosCore:', err.message);
+        console.error(' Error en procesarVencimientosCore:', err.message);
         const resultado = { movidos: jobVencimientos.movidos, notificados: jobVencimientos.notificados, errores: jobVencimientos.errores };
         emitirAdmin('vencimientos_procesados', resultado);
         return resultado;
@@ -1092,15 +1092,15 @@ async function procesarVencimientosCore({ forzar = false } = {}) {
 
 function arrancarVencimientos(opts = {}) {
     if (jobVencimientos.enCurso) return { ok: false, yaEnCurso: true };
-    procesarVencimientosCore(opts).catch(err => console.error('❌ Job de vencimientos falló:', err.message));
+    procesarVencimientosCore(opts).catch(err => console.error(' Job de vencimientos falló:', err.message));
     return { ok: true, iniciado: true };
 }
 
 // ==========================================
-// 🆕 A1: PRE-AVISO DE VENCIMIENTO (30 y 15 días)
+//  A1: PRE-AVISO DE VENCIMIENTO (30 y 15 días)
 // ==========================================
 async function procesarPreAvisoVencimientos() {
-  console.log(`\n🔔 [PRE-AVISO] Iniciando verificación de documentos próximos a vencer - ${new Date().toLocaleString()}`);
+  console.log(`\n [PRE-AVISO] Iniciando verificación de documentos próximos a vencer - ${new Date().toLocaleString()}`);
   const umbrales = [30, 15];
   let totalNotificados = 0;
   let totalDocs = 0;
@@ -1148,7 +1148,7 @@ async function procesarPreAvisoVencimientos() {
         `).get(proveedorId, dias);
 
         if (yaNotificado) {
-          console.log(`⏳ Proveedor ${info.nombre}: ya fue pre-notificado a ${dias} días. Saltando.`);
+          console.log(` Proveedor ${info.nombre}: ya fue pre-notificado a ${dias} días. Saltando.`);
           continue;
         }
 
@@ -1164,8 +1164,8 @@ async function procesarPreAvisoVencimientos() {
         const esUrgente = dias <= 15;
         const colorHeader = esUrgente ? '#dc2626' : '#d97706';
         const titulo = esUrgente
-          ? `⚠️ URGENTE: Documentos vencen en ${dias} días`
-          : `📅 Recordatorio: Documentos vencen en ${dias} días`;
+          ? ` URGENTE: Documentos vencen en ${dias} días`
+          : ` Recordatorio: Documentos vencen en ${dias} días`;
 
         const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -1182,7 +1182,7 @@ async function procesarPreAvisoVencimientos() {
               <p>Prepara los documentos actualizados con anticipación. Cuando el administrador solicite la renovación, podrás subirlos directamente desde el portal.</p>
               <div style="background: #f0f9ff; padding: 15px; border-radius: 6px; margin: 15px 0;">
                 <p style="margin: 0; color: #0369a1;">
-                  💡 <strong>Consejo:</strong> ${esUrgente
+                   <strong>Consejo:</strong> ${esUrgente
                     ? 'Este documento vence pronto. Asegúrate de tener la versión actualizada lista para subir cuando se solicite la renovación.'
                     : 'Empieza a preparar los documentos actualizados. Tendrás tiempo suficiente para subirlos cuando se solicite la renovación.'}
                 </p>
@@ -1201,12 +1201,12 @@ async function procesarPreAvisoVencimientos() {
         try {
           const result = await enviarEmail(info.email, titulo, html);
           if (result.ok) {
-            console.log(`✅ Pre-aviso (${dias} días) enviado a ${info.email} — ${info.docs.length} doc(s)`);
+            console.log(` Pre-aviso (${dias} días) enviado a ${info.email} — ${info.docs.length} doc(s)`);
           } else {
-            console.error(`❌ Error enviando pre-aviso a ${info.email}: ${result.error}`);
+            console.error(` Error enviando pre-aviso a ${info.email}: ${result.error}`);
           }
         } catch (emailErr) {
-          console.error(`❌ Error enviando pre-aviso a ${info.email}:`, emailErr.message);
+          console.error(` Error enviando pre-aviso a ${info.email}:`, emailErr.message);
         }
 
         // Registrar en historial
@@ -1222,21 +1222,21 @@ async function procesarPreAvisoVencimientos() {
         totalDocs += info.docs.length;
       }
     } catch (err) {
-      console.error(`❌ Error procesando pre-aviso de ${dias} días:`, err.message);
+      console.error(` Error procesando pre-aviso de ${dias} días:`, err.message);
     }
   }
 
   if (totalNotificados > 0) {
-    console.log(`✅ PRE-AVISO completado: ${totalNotificados} proveedor(es) notificados, ${totalDocs} documento(s)`);
+    console.log(` PRE-AVISO completado: ${totalNotificados} proveedor(es) notificados, ${totalDocs} documento(s)`);
   } else {
-    console.log('✅ PRE-AVISO: no hay documentos próximos a vencer.');
+    console.log(' PRE-AVISO: no hay documentos próximos a vencer.');
   }
 
   return { notificados: totalNotificados, documentos: totalDocs };
 }
 
 async function enviarRecordatoriosFaltantes() {
-  console.log(`\n📨 [CRON RECORDATORIOS] Iniciando envío de recordatorios - ${new Date().toLocaleString()}`);
+  console.log(`\n [CRON RECORDATORIOS] Iniciando envío de recordatorios - ${new Date().toLocaleString()}`);
 
   try {
     const proveedores = db.prepare(`
@@ -1248,7 +1248,7 @@ FROM proveedores p
     `).all();
 
     if (!proveedores.length) {
-      console.log('✅ No hay proveedores que necesiten recordatorios.');
+      console.log(' No hay proveedores que necesiten recordatorios.');
       return;
     }
 
@@ -1286,22 +1286,22 @@ FROM proveedores p
       const nombreProveedor = prov.razon_social || prov.nombre_empresa || 'Proveedor';
       const html = emailRecordatorioDocumentosFaltantes(nombreProveedor, faltantes);
 
-      await enviarEmail(prov.email, '⚠️ Recordatorio - Documentos pendientes', html)
+      await enviarEmail(prov.email, ' Recordatorio - Documentos pendientes', html)
         .then(result => {
           if (result.ok) {
-            console.log(`✅ Recordatorio enviado a ${prov.email}`);
+            console.log(` Recordatorio enviado a ${prov.email}`);
             db.prepare(`UPDATE proveedores SET ultimo_recordatorio_envio = datetime('now', '-05:00') WHERE id = ?`).run(prov.id);
             enviados++;
           } else {
-            console.error(`❌ Error enviando recordatorio a ${prov.email}: ${result.error}`);
+            console.error(` Error enviando recordatorio a ${prov.email}: ${result.error}`);
           }
         })
         .catch(err => console.error(`Error enviando recordatorio a ${prov.email}:`, err));
     }
 
-    console.log(`📨 Recordatorios enviados: ${enviados}`);
+    console.log(` Recordatorios enviados: ${enviados}`);
   } catch (err) {
-    console.error('❌ Error en enviarRecordatoriosFaltantes:', err.message);
+    console.error(' Error en enviarRecordatoriosFaltantes:', err.message);
   }
 }
 
@@ -1331,7 +1331,7 @@ const uploadPlantilla = multer({
   }
 });
 
-// 🛡️ Valida los "magic bytes" del PDF (%PDF-) además de la extensión.
+//  Valida los "magic bytes" del PDF (%PDF-) además de la extensión.
 // fileFilter solo ve el nombre del archivo; aquí ya tenemos el buffer real.
 function validarPDFMagico(req, res, next) {
   if (!req.file || !req.file.buffer) return next(); // sin archivo → lo maneja el endpoint
@@ -1343,7 +1343,7 @@ function validarPDFMagico(req, res, next) {
 }
 
 // ==========================================
-// 🔐 VALIDACIÓN DE ETAPA PARA SUBIDA DE DOCUMENTOS
+//  VALIDACIÓN DE ETAPA PARA SUBIDA DE DOCUMENTOS
 // ==========================================
 function validarEtapaParaSubida(proveedor) {
   const etapa = (proveedor.etapa || '').trim();
@@ -1360,7 +1360,7 @@ function validarEtapaParaSubida(proveedor) {
 }
 
 // ==========================================
-// 🚫 BLOQUEO POR DOCUMENTOS RECHAZADOS ACTIVOS
+//  BLOQUEO POR DOCUMENTOS RECHAZADOS ACTIVOS
 // ==========================================
 
 /**
@@ -1430,7 +1430,7 @@ function validarCargaConRechazados(proveedor, tipo = null) {
 }
 
 // ==========================================
-// 🛡️ R2: RBAC COMPOSABLE (D1/D2/D9)
+//  R2: RBAC COMPOSABLE (D1/D2/D9)
 // Catálogo: 15 claves conmutables (viven en usuarios.permisos como JSON)
 // + 4 reservadas que NUNCA viven en el JSON (solo superadmin).
 // Mecánica: es_superadmin=1 ⇒ bypass total · parseo UNA vez por request
@@ -1447,7 +1447,7 @@ const PERMISOS_RESERVADOS = [
 ];
 
 /**
- * 🛡️ R2: carga permisos UNA vez por request (evita N consultas por endpoint).
+ *  R2: carga permisos UNA vez por request (evita N consultas por endpoint).
  * Fail-closed: sin fila o JSON corrupto ⇒ permisos vacíos y sin bypass.
  */
 function cargarPermisosReq(req, res, next) {
@@ -1470,7 +1470,7 @@ function cargarPermisosReq(req, res, next) {
   next();
 }
 
-/** 🛡️ R2: consulta de permiso reutilizable dentro de handlers (caso dinámico aprobar/rechazar). */
+/**  R2: consulta de permiso reutilizable dentro de handlers (caso dinámico aprobar/rechazar). */
 function tienePermisoReq(res, clave) {
   if (res.locals.esSuper) return true;
   if (PERMISOS_RESERVADOS.includes(clave)) return false; // reservadas: jamás desde el JSON
@@ -1478,7 +1478,7 @@ function tienePermisoReq(res, clave) {
 }
 
 /**
- * 🛡️ R2 (D6): perfil REVISOR = solo lectura.
+ *  R2 (D6): perfil REVISOR = solo lectura.
 // Tiene docs.ver y NINGÚN permiso de acción ⇒ el server restringe a etapa 'registrado'.
  */
 function esSoloLectorReq(res) {
@@ -1490,7 +1490,7 @@ function esSoloLectorReq(res) {
 }
 
 /**
- * 🛡️ R2: mapa ruta→permiso. [MÉTODO, regex de req.path, clave].
+ *  R2: mapa ruta→permiso. [MÉTODO, regex de req.path, clave].
  * Lo que NO está en la tabla = solo autenticación (auth pública, /api/me, portal proveedor).
  * El orden no importa: los regex están anclados (^...$) y no se solapan.
  */
@@ -1564,14 +1564,14 @@ const RUTAS_PERMISO = [
   ['GET', /^\/api\/admin\/actividad$/, 'auditoria.ver'],
   ['GET', /^\/api\/admin\/logs-seguridad$/, 'auditoria.ver'],
   ['GET', /^\/api\/admin\/logs-seguridad\/export$/, 'auditoria.ver'],
-  // ---- 🆕 R3: Equipo/staff (reservada ⇒ solo superadmin) ----
+  // ----  R3: Equipo/staff (reservada ⇒ solo superadmin) ----
   ['GET', /^\/api\/admin\/usuarios$/, 'usuarios.gestionar'],
   ['POST', /^\/api\/admin\/usuarios$/, 'usuarios.gestionar'],
   ['PUT', /^\/api\/admin\/usuarios\/\d+\/permisos$/, 'usuarios.gestionar'],
   ['PUT', /^\/api\/admin\/usuarios\/\d+\/activo$/, 'usuarios.gestionar'],
   // ---- Baja de miembro (reservada: solo superadmin) ----
   ['DELETE', /^\/api\/admin\/usuarios\/\d+$/, 'usuarios.gestionar'],
-  // ---- 🆕 R4.1: cambio de email y superadmin (reservada ⇒ solo superadmin) ----
+  // ----  R4.1: cambio de email y superadmin (reservada ⇒ solo superadmin) ----
   ['PUT', /^\/api\/admin\/usuarios\/\d+\/email$/, 'usuarios.gestionar'],
   ['PUT', /^\/api\/admin\/usuarios\/\d+\/superadmin$/, 'usuarios.gestionar'],
   // ---- Reservadas superadmin (nunca concedidas desde el JSON) ----
@@ -1582,7 +1582,7 @@ const RUTAS_PERMISO = [
 ];
 
 /**
- * 🛡️ R2: middleware de permisos. Sin sesión → deja pasar (responderá 401
+ *  R2: middleware de permisos. Sin sesión → deja pasar (responderá 401
  * requiereLogin/requiereAdmin después). Superadmin → bypass (D1).
  * Deniego ⇒ 403 + log logs_seguridad 'acceso_denegado'.
  */
@@ -1603,13 +1603,13 @@ function middlewareRBAC(req, res, next) {
 // ==========================================
 function requiereLogin(req, res, next) {
 if (!req.session.usuario) return res.status(401).json({ error: 'No autorizado' });
-// 🛡️ R2 (D8): red de seguridad ante cuentas desactivadas con sesión viva
+//  R2 (D8): red de seguridad ante cuentas desactivadas con sesión viva
 if (res.locals.activoUsuario === 0) return res.status(403).json({ error: 'Cuenta desactivada. Contacta al administrador.' });
 next();
 }
 function requiereAdmin(req, res, next) {
 if (!req.session.usuario || req.session.usuario.rol !== 'admin') return res.status(403).json({ error: 'Acceso denegado' });
-// 🛡️ R2 (D8): admin desactivado no opera aunque conserve cookie
+//  R2 (D8): admin desactivado no opera aunque conserve cookie
 if (res.locals.activoUsuario === 0) return res.status(403).json({ error: 'Cuenta desactivada. Contacta al administrador.' });
 next();
 }
@@ -1635,12 +1635,12 @@ function requiereHabeasData(req, res, next) {
   next();
 }
 
-// 🛡️ Si un proveedor aún debe cambiar su contraseña, bloquea escrituras hasta que lo haga.
+//  Si un proveedor aún debe cambiar su contraseña, bloquea escrituras hasta que lo haga.
 function requierePasswordCambiada(req, res, next) {
   const u = req.session.usuario;
   if (!u || u.rol !== 'proveedor') return next();   // sin sesión o admin → no aplica
   if (req.method === 'GET') return next();          // lecturas siempre permitidas
-  // ⚠️ FIX DEADLOCK: usamos originalUrl (ruta completa). Con app.use('/api/', ...),
+  //  FIX DEADLOCK: usamos originalUrl (ruta completa). Con app.use('/api/', ...),
   // req.path llega RELATIVO y la whitelist nunca coincidía: el middleware bloqueaba
   // incluso /api/cambiar-password y el usuario no podía salir del bloqueo.
   const ruta = (req.originalUrl || req.url).split('?')[0];
@@ -1680,7 +1680,7 @@ app.post('/api/proveedor/habeas-data/aceptar', requiereLogin, (req, res) => {
     VALUES (?, 1, datetime('now', '-05:00'), ?, ?, '1.0')
   `).run(usuarioId, ip, userAgent);
 
-  console.log(`📋 Habeas Data aceptado por usuario ${usuarioId} (${req.session.usuario.email})`);
+  console.log(` Habeas Data aceptado por usuario ${usuarioId} (${req.session.usuario.email})`);
   registrarLogSeguridad(usuarioId, req.session.usuario.email, 'habeas_data_aceptado', true, `IP: ${ip}`, req);
 
   res.json({ ok: true, mensaje: 'Política de datos aceptada correctamente' });
@@ -1696,13 +1696,13 @@ return res.status(400).json({
 error: 'Debe aceptar la Política de Tratamiento de Datos Personales para registrarse'
 });
 }
-// 🛡️ M6 anti-bot (1/2) — HONEYPOT: el campo oculto lo rellenan los bots, nunca un humano.
+//  M6 anti-bot (1/2) — HONEYPOT: el campo oculto lo rellenan los bots, nunca un humano.
 // Respondemos 200 FALSO (idéntico al éxito real) para no revelar la trampa, y NO creamos la cuenta.
 if (website && String(website).trim() !== '') {
 registrarLogSeguridad(null, email || 'bot', 'registro_bot_honeypot', false, 'Honeypot rellenado', req);
 return res.json({ ok: true, mensaje: 'Cuenta creada exitosamente' });
 }
-// 🛡️ M6 anti-bot (2/2) — TIMING: un humano tarda segundos (marca Habeas Data a mano);
+//  M6 anti-bot (2/2) — TIMING: un humano tarda segundos (marca Habeas Data a mano);
 // un bot envía en milisegundos. Umbral 3000 ms (ajustable). 429 reintentable, no silencioso.
 const _tsNum = parseInt(_ts, 10) || 0;
 const _elapsed = Date.now() - _tsNum;
@@ -1710,7 +1710,7 @@ if (!_tsNum || _elapsed < 3000) {
 registrarLogSeguridad(null, email || 'bot', 'registro_bot_too_fast', false, `elapsed=${_elapsed}ms`, req);
 return res.status(429).json({ error: 'Formulario enviado demasiado rápido. Espera unos segundos e inténtalo de nuevo.' });
 }
-// 🛡️ Formato de email válido después del anti-bot (no revela honeypot)
+//  Formato de email válido después del anti-bot (no revela honeypot)
 // y antes de tocar la BD.
 if (!EMAIL_REGEX.test(String(email).trim())) {
 return res.status(400).json({ error: 'Formato de email inválido' });
@@ -1746,7 +1746,7 @@ const validacion = validarPassword(password);
       VALUES (?, 1, datetime('now', '-05:00'), ?, ?, '1.0')
     `).run(usuarioId, ip, userAgent);
 
-    console.log(`✅ Habeas data registrado para usuario ${usuarioId} (${email})`);
+    console.log(` Habeas data registrado para usuario ${usuarioId} (${email})`);
 
     registrarHistorial(
       proveedorId,
@@ -1759,7 +1759,7 @@ const validacion = validarPassword(password);
     );
 
     registrarLogSeguridad(usuarioId, email, 'registro_proveedor', true, nombre_empresa, req);
-    // 🆕 G10b: evento en tiempo real al panel admin (toast + refresco de KPIs/listas)
+    //  G10b: evento en tiempo real al panel admin (toast + refresco de KPIs/listas)
     // Se emite ANTES del bloque G10 para que el toast llegue aunque el correo falle.
     emitirAdmin('nuevo_proveedor_registrado', {
       nombre: nombre_empresa,
@@ -1768,7 +1768,7 @@ const validacion = validarPassword(password);
     });
     emitirAdmin('proveedores_actualizados');
     emitirAdmin('estadisticas_actualizadas');
-    // 🆕 G10: avisar al admin de un registro público nuevo (email + socket en vivo)
+    //  G10: avisar al admin de un registro público nuevo (email + socket en vivo)
     try {
       const fechaRegistro = new Date().toLocaleString('es-CO', {
         timeZone: 'America/Bogota', dateStyle: 'full', timeStyle: 'short'
@@ -1776,7 +1776,7 @@ const validacion = validarPassword(password);
       const htmlG10 = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <div style="background: #8600dd; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
-    <h2 style="margin: 0;">📋 Nuevo proveedor registrado</h2>
+    <h2 style="margin: 0;"> Nuevo proveedor registrado</h2>
   </div>
   <div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p>Un nuevo proveedor se ha registrado en el portal y quedó en etapa de <strong>Verificación</strong>:</p>
@@ -1786,7 +1786,7 @@ const validacion = validarPassword(password);
       <li style="margin-bottom:0.5rem;"><strong>Fecha:</strong> ${escapeHtml(fechaRegistro)}</li>
     </ul>
     <div style="background: #f0f9ff; padding: 15px; border-radius: 6px; margin: 15px 0;">
-      <p style="margin: 0; color: #0369a1;">💡 El proveedor deberá completar sus datos y definir su tipo de persona (Natural/Jurídica) antes de poder subir documentos.</p>
+      <p style="margin: 0; color: #0369a1;"> El proveedor deberá completar sus datos y definir su tipo de persona (Natural/Jurídica) antes de poder subir documentos.</p>
     </div>
     <div style="text-align: center; margin-top: 20px;">
       <a href="${APP_URL_NORMALIZADO}/admin.html"
@@ -1799,15 +1799,15 @@ const validacion = validarPassword(password);
 `;
       enviarEmail(
         process.env.ADMIN_EMAIL,
-        `📋 Nuevo proveedor registrado: ${nombre_empresa}`,
+        ` Nuevo proveedor registrado: ${nombre_empresa}`,
         htmlG10
       ).then(r => {
-        if (r.ok) console.log(`✅ G10: aviso de nuevo registro enviado al admin (${email})`);
-        else console.error(`❌ G10: no se pudo enviar el aviso: ${r.error}`);
-      }).catch(e => console.error('❌ G10: error enviando aviso:', e.message));
+        if (r.ok) console.log(` G10: aviso de nuevo registro enviado al admin (${email})`);
+        else console.error(` G10: no se pudo enviar el aviso: ${r.error}`);
+      }).catch(e => console.error(' G10: error enviando aviso:', e.message));
       emitirAdmin('proveedores_actualizados');
     } catch (e) {
-      console.error('❌ G10: error interno al notificar:', e.message);
+      console.error(' G10: error interno al notificar:', e.message);
     }
     res.json({ ok: true, mensaje: 'Cuenta creada exitosamente' });
   } catch (err) {
@@ -1891,7 +1891,7 @@ db.prepare('UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?').run(intento
 return res.status(401).json({ error: `Credenciales inválidas. Intento ${intentos}/5` });
 }
 db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?').run(usuario.id);
-// 🛡️ OWASP: nuevo ID de sesión al autenticar (previene session fixation)
+//  OWASP: nuevo ID de sesión al autenticar (previene session fixation)
 req.session.regenerate((err) => {
 if (err) {
 console.error('Error regenerando sesión:', err);
@@ -1922,7 +1922,7 @@ app.post('/api/cambiar-password', requiereLogin, (req, res) => {
 
 const validacion = validarPassword(password_nueva);
 if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
-// 🛡️ OPT (#6): la nueva contraseña no puede ser igual a la actual.
+//  OPT (#6): la nueva contraseña no puede ser igual a la actual.
 // Se compara contra el hash almacenado (bcrypt), no contra texto plano.
 if (bcrypt.compareSync(password_nueva, usuario.password)) {
 return res.status(400).json({ error: 'La nueva contraseña debe ser diferente a la actual' });
@@ -1947,7 +1947,7 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', (req, res) => {
 if (!req.session.usuario) return res.json({ usuario: null });
-// 🛡️ R2: el cliente conoce permisos/rol completo para el gating de UI (R4).
+//  R2: el cliente conoce permisos/rol completo para el gating de UI (R4).
 // El server sigue siendo la autoridad: esto es solo presentación.
 const u = db.prepare('SELECT debe_cambiar_password, permisos, es_superadmin, activo FROM usuarios WHERE id = ?').get(req.session.usuario.id);
 let permisosMe = [];
@@ -1967,7 +1967,7 @@ const { email } = req.body;
 if (!email) {
 return res.status(400).json({ error: 'Email es requerido' });
 }
-// 🛡️ Formato inválido → 400 antes de la BD y antes de Brevo.
+//  Formato inválido → 400 antes de la BD y antes de Brevo.
 // No revela si el email existe (anti-enumeración intacta).
 if (!EMAIL_REGEX.test(String(email).trim())) {
 return res.status(400).json({ error: 'Formato de email inválido' });
@@ -1976,7 +1976,7 @@ try {
     const usuario = db.prepare('SELECT id, email, rol FROM usuarios WHERE email = ?').get(email);
 
     if (!usuario) {
-      console.log(`⚠️ Intento de recuperación para email no registrado: ${email}`);
+      console.log(` Intento de recuperación para email no registrado: ${email}`);
       return res.json({
         ok: true,
         mensaje: 'Si el email está registrado, recibirás instrucciones para recuperar tu contraseña'
@@ -1984,11 +1984,11 @@ try {
     }
 
         const token = crypto.randomBytes(32).toString('hex');
-        // 🛡️ M1 (Fase 3): guardamos el HASH del token, no el plaintext.
+        //  M1 (Fase 3): guardamos el HASH del token, no el plaintext.
         // Si alguien accede a la BD, no puede usar los tokens de recuperación.
         // El token plaintext solo se usa para construir el enlace del correo.
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        // 🕐 Formato 'YYYY-MM-DD HH:MM:SS' (UTC) para comparar bien contra datetime('now')
+        //  Formato 'YYYY-MM-DD HH:MM:SS' (UTC) para comparar bien contra datetime('now')
   const expiracion = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').substring(0, 19);
         db.prepare(`
           INSERT INTO password_resets (usuario_id, token, expiracion)
@@ -2000,7 +2000,7 @@ try {
     const htmlEmail = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #8600dd 0%, #6b00b0 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
-          <h1 style="margin: 0; color: white;">🔐 Recuperación de Contraseña</h1>
+          <h1 style="margin: 0; color: white;"> Recuperación de Contraseña</h1>
           </div>
         <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
           <p>Hola,</p>
@@ -2017,10 +2017,10 @@ try {
     `;
 
     try {
-      await enviarEmail(usuario.email, '🔐 Recuperación de Contraseña - Portal de Proveedores', htmlEmail);
-      console.log(`✅ Email de recuperación enviado a: ${usuario.email}`);
+      await enviarEmail(usuario.email, ' Recuperación de Contraseña - Portal de Proveedores', htmlEmail);
+      console.log(` Email de recuperación enviado a: ${usuario.email}`);
     } catch (emailError) {
-      console.error('❌ Error enviando email de recuperación:', emailError.message);
+      console.error(' Error enviando email de recuperación:', emailError.message);
     }
 
     res.json({
@@ -2028,7 +2028,7 @@ try {
       mensaje: 'Si el email está registrado, recibirás instrucciones para recuperar tu contraseña'
     });
   } catch (err) {
-    console.error('❌ Error en recuperación de contraseña:', err.message);
+    console.error(' Error en recuperación de contraseña:', err.message);
     res.status(500).json({ error: 'Error al procesar la solicitud' });
   }
 });
@@ -2046,7 +2046,7 @@ app.post('/api/restablecer-password', async (req, res) => {
   }
 
   try {
-    // 🛡️ M1 (Fase 3): comparamos contra el hash guardado, no contra plaintext.
+    //  M1 (Fase 3): comparamos contra el hash guardado, no contra plaintext.
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const resetToken = db.prepare(`
       SELECT *
@@ -2073,17 +2073,17 @@ app.post('/api/restablecer-password', async (req, res) => {
       WHERE id = ?
     `).run(hash, resetToken.usuario_id);
 
-    // 🛡️ Invalida el token usado y cualquier otro pendiente del usuario
+    //  Invalida el token usado y cualquier otro pendiente del usuario
     db.prepare(`DELETE FROM password_resets WHERE usuario_id = ?`).run(resetToken.usuario_id);
 
-    console.log(`✅ Contraseña restablecida para usuario ID: ${resetToken.usuario_id}`);
+    console.log(` Contraseña restablecida para usuario ID: ${resetToken.usuario_id}`);
 
     res.json({
       ok: true,
       mensaje: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión.'
     });
   } catch (err) {
-    console.error('❌ Error restableciendo contraseña:', err.message);
+    console.error(' Error restableciendo contraseña:', err.message);
     res.status(500).json({ error: 'Error al restablecer la contraseña' });
   }
 });
@@ -2091,7 +2091,7 @@ app.post('/api/restablecer-password', async (req, res) => {
 app.get('/api/verificar-token/:token', (req, res) => {
   const { token } = req.params;
   try {
-    // 🛡️ M1 (Fase 3): el token viaja en plaintext en la URL, pero en BD
+    //  M1 (Fase 3): el token viaja en plaintext en la URL, pero en BD
     // solo existe su hash. Hasheamos antes de buscar.
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const resetToken = db.prepare(`
@@ -2137,7 +2137,7 @@ WHERE proveedor_id = ?
 AND es_historico = 0
 `).all(proveedor.id);
 
-// 🆕 Requerimientos según el tipo de persona del proveedor
+//  Requerimientos según el tipo de persona del proveedor
 const REQS = requerimientosPara(proveedor.tipo_proveedor);
 let tiposSubidos = 0;
 REQS.forEach(reqDoc => {
@@ -2167,7 +2167,7 @@ tiposVerificados++;
 tiposVerificados++;
 }
 });
-const todos_verificados = (tiposVerificados === REQS.length);  // 👈 AQUÍ estaba el error
+const todos_verificados = (tiposVerificados === REQS.length);  //  AQUÍ estaba el error
 
 res.json({
 ...proveedor,
@@ -2190,10 +2190,10 @@ app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
         }
         tipoPersona = tipo_persona;
     }
-    // ✅ prov se define ANTES de usarlo (fix TDZ)
+    //  prov se define ANTES de usarlo (fix TDZ)
     const prov = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
     if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
-    // 🆕 Cambio de correo electrónico (proveedor) — ahora con "email" declarado y prov definido
+    //  Cambio de correo electrónico (proveedor) — ahora con "email" declarado y prov definido
     if (email && String(email).trim()) {
         const emailNuevo = String(email).trim().toLowerCase();
         if (!EMAIL_REGEX.test(emailNuevo)) {
@@ -2209,7 +2209,7 @@ app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
             registrarHistorial(prov.id, { id: usuario.id, email: emailNuevo }, 'email_cambiado', `Correo cambiado de ${usuario.email} a ${emailNuevo}`, null, null, req);
             registrarLogSeguridad(usuario.id, emailNuevo, 'email_cambiado_proveedor', true, `Anterior: ${usuario.email}`, req);
             req.session.usuario.email = emailNuevo;
-            console.log(`📧 Email del proveedor ${usuario.id} cambiado a ${emailNuevo}`);
+            console.log(` Email del proveedor ${usuario.id} cambiado a ${emailNuevo}`);
         }
     }
     // Bloquear cambio de tipo si ya tiene documentos ACTIVOS (en renovación por vencimiento los docs están archivados → permite elegir tipo)
@@ -2219,18 +2219,18 @@ app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
             return res.status(400).json({ error: 'No puedes cambiar el tipo de persona porque ya tienes documentos subidos. Contacta al administrador.' });
         }
     }
-// 📞 G11: valida el teléfono SOLO si cambió respecto al guardado (legacy tolerado)
+//  G11: valida el teléfono SOLO si cambió respecto al guardado (legacy tolerado)
 const tel = normalizarTelefonoCO(telefono);
 if (!tel.ok && String(telefono).trim() !== String(prov.telefono || '').trim()) {
 return res.status(400).json({ error: tel.mensaje });
 }
 const telefonoFinal = tel.ok ? tel.telefono : telefono.trim();
-// 🪪 G7: tipo de documento + validación flexible + unicidad por par (tipo, número).
+//  G7: tipo de documento + validación flexible + unicidad por par (tipo, número).
 // Legacy tolerado: las filas antiguas ('nit' sin normalizar) solo se validan al editar.
 const tipoDocumento = String(tipo_documento || prov.tipo_documento || 'nit').toLowerCase();
 const docVal = validarDocumentoCO(tipoDocumento, rfc);
 if (!docVal.valido) return res.status(400).json({ error: docVal.mensaje });
-// 🪪 G7-b: en persona NATURAL el NIT y la C.C. son el mismo número (la DIAN
+//  G7-b: en persona NATURAL el NIT y la C.C. son el mismo número (la DIAN
 // adopta la cédula como NIT): el anti-duplicados los trata como un solo grupo
 // para impedir que la misma persona se registre dos veces con tipos distintos.
 const tipoEfectivo = (tipoPersona || prov.tipo_proveedor || '').toLowerCase();
@@ -2263,7 +2263,7 @@ app.post('/api/proveedor/documento', requiereLogin, (req, res, next) => {
     const { tipo, no_aplica } = req.body;
     const config = configDocumento(tipo, proveedor.tipo_proveedor);
     if (!config) return res.status(400).json({ error: 'Tipo inválido' });
-     // 🚫 NUEVO: bloquear si hay documentos rechazados que primero deben eliminarse
+     //  NUEVO: bloquear si hay documentos rechazados que primero deben eliminarse
   const validacionRechazados = validarCargaConRechazados(proveedor, tipo);
   if (!validacionRechazados.valido) {
     return res.status(409).json({ error: validacionRechazados.mensaje });
@@ -2342,7 +2342,7 @@ app.post('/api/proveedor/documento', requiereLogin, (req, res, next) => {
       if (prov.todos_subidos && prov.todos_verificados && prov.etapa === 'verificacion') {
         db.prepare(`UPDATE proveedores SET etapa = 'aprobacion' WHERE id = ?`).run(proveedor.id);
 
-        console.log(`✅ Proveedor ${proveedor.id} pasa a etapa APROBACION (todos subidos y verificados)`);
+        console.log(` Proveedor ${proveedor.id} pasa a etapa APROBACION (todos subidos y verificados)`);
 
         registrarHistorial(
           proveedor.id,
@@ -2630,7 +2630,7 @@ app.post('/api/proveedor/documento/:id/no-aplica', requiereLogin, (req, res) => 
     });
   }
 
-  // 🚫 NUEVO: si está rechazado, debe eliminarse
+  //  NUEVO: si está rechazado, debe eliminarse
   if (doc.estado === 'rechazado') {
     return res.status(409).json({
       error: 'Este documento está rechazado. Debes eliminarlo antes de continuar.'
@@ -2760,10 +2760,10 @@ app.get('/api/proveedor/requerimientos', requiereLogin, (req, res) => {
 let tipo = 'juridica';
 
 if (req.session.usuario.rol === 'admin') {
-// 🆕 El admin puede pedir la lista de un tipo concreto (?tipo=natural|juridica)
+//  El admin puede pedir la lista de un tipo concreto (?tipo=natural|juridica)
 if (['natural', 'juridica'].includes(req.query.tipo)) tipo = req.query.tipo;
 } else {
-// 🆕 El proveedor solo ve su lista si ya eligió su tipo de persona
+//  El proveedor solo ve su lista si ya eligió su tipo de persona
 const p = db.prepare('SELECT tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
 if (!p || !['natural', 'juridica'].includes(p.tipo_proveedor)) {
 return res.json([]); // Aún no selecciona tipo → sin documentos hasta que lo haga
@@ -2983,7 +2983,7 @@ app.delete('/api/admin/documento/:id', requiereAdmin, (req, res) => {
 app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50; // 📈 F5: default 50 (solo proveedores; ciclos sigue en 20)
+    const limit = parseInt(req.query.limit) || 50; //  F5: default 50 (solo proveedores; ciclos sigue en 20)
     const offset = (page - 1) * limit;
     const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
     const estado = req.query.estado || null;
@@ -2992,7 +2992,7 @@ app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
 
  let whereConditions = [];
  let params = [];
- // 🛡️ R2 (D6): perfil revisor (solo lectura) consulta ÚNICAMENTE etapa registrado.
+ //  R2 (D6): perfil revisor (solo lectura) consulta ÚNICAMENTE etapa registrado.
  // Se combina con cualquier condición de módulo: si pedía verificacion/aprobacion/
  // inscripcion, el AND de etapas deja el listado vacío (sin fuga de datos).
  if (esSoloLectorReq(res)) {
@@ -3034,7 +3034,7 @@ app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
       }
     }
 
-    // 🆕 C3: vista de proveedores inactivos (+7 días sin subir documentos)
+    //  C3: vista de proveedores inactivos (+7 días sin subir documentos)
 if (modulo === 'inactivos') {
 whereConditions.push(`p.etapa = 'verificacion'`);
 whereConditions.push(`NOT EXISTS (SELECT 1 FROM documentos d2 WHERE d2.proveedor_id = p.id AND d2.es_historico = 0)`);
@@ -3049,7 +3049,7 @@ whereConditions.push('p.estado_general = ? AND p.todos_subidos = ? AND p.todos_v
 params.push('pendiente', 1, 1);
 }
 }
-// 🆕 A2: filtro por tipo de persona
+//  A2: filtro por tipo de persona
 const tipoPersona = req.query.tipoPersona || null;
 if (tipoPersona === 'sindefinir') {
 whereConditions.push(`(p.tipo_proveedor IS NULL OR p.tipo_proveedor = '')`);
@@ -3057,7 +3057,7 @@ whereConditions.push(`(p.tipo_proveedor IS NULL OR p.tipo_proveedor = '')`);
 whereConditions.push('p.tipo_proveedor = ?');
 params.push(tipoPersona);
 }
-// 🆕 A2: filtro por documento faltante (sin documento activo de ese tipo)
+//  A2: filtro por documento faltante (sin documento activo de ese tipo)
 const docFaltante = req.query.docFaltante || null;
 if (docFaltante && docFaltante !== 'todos') {
 whereConditions.push(`NOT EXISTS (
@@ -3092,7 +3092,7 @@ if (busqueda) {
 
     const total = db.prepare(countQuery).get(...params).total;
 
-// ⚡ F4: payload EXPLÍCITO y liviano. Se elimina p.* (traía columnas internas
+//  F4: payload EXPLÍCITO y liviano. Se elimina p.* (traía columnas internas
 // innecesarias) y las evaluacion_* (el listado NO las usa: el modal las pide
 // por /api/admin/proveedor/:id y el CSV/Excel por /export, con sus propias queries).
 const query = `
@@ -3113,7 +3113,7 @@ LIMIT ? OFFSET ?
 `;
 
 const proveedores = db.prepare(query).all(...params, limit, offset);
-// ⚡ OPT: una sola consulta para todos los documentos de la página (elimina N consultas)
+//  OPT: una sola consulta para todos los documentos de la página (elimina N consultas)
 const proveedorIds = proveedores.map(p => p.id);
 let docsPorProveedor = {};
 if (proveedorIds.length > 0) {
@@ -3146,7 +3146,7 @@ aprobados++;
 });
 p.aprobados = aprobados;
 p.total = REQS.length;
-// 🏷️ Conteo de tipos VERIFICADOS (o no-aplica)
+//  Conteo de tipos VERIFICADOS (o no-aplica)
 let verificados = 0;
 REQS.forEach(reqDoc => {
 const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
@@ -3159,7 +3159,7 @@ verificados++;
 }
 });
 p.verificados = verificados;
-// ⚡ OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries
+//  OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries
 if (p.estado_general === 'aprobado') {
 p.fecha_aprobacion = p.fecha_aprobacion || null;
 } else {
@@ -3179,7 +3179,7 @@ p.todos_verificados = p.todos_verificados === 1;
       totalPages
     });
   } catch (err) {
-    console.error('❌ Error en /api/admin/proveedores:', err);
+    console.error(' Error en /api/admin/proveedores:', err);
     res.status(500).json({ error: 'Error al cargar proveedores: ' + err.message });
   }
 });
@@ -3192,7 +3192,7 @@ const offset = (page - 1) * limit;
 const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
  const año = req.query.año ? parseInt(req.query.año) : null;
  const rfc = req.query.rfc ? `%${req.query.rfc}%` : null;
- const estado = (req.query.estado || '').trim() || null;  // 🛡️ FIX: trim para evitar espacios
+ const estado = (req.query.estado || '').trim() || null;  //  FIX: trim para evitar espacios
  let whereConditions = [];
  let params = [];
 
@@ -3216,7 +3216,7 @@ const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
       params.push(rfc);
     }
 
- // 🛡️ R2 (D6): revisor solo ve ciclos de proveedores actualmente registrados
+ //  R2 (D6): revisor solo ve ciclos de proveedores actualmente registrados
  if (esSoloLectorReq(res)) {
    whereConditions.push(`p.etapa = 'registrado'`);
  }
@@ -3271,7 +3271,7 @@ const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
       totalPages
     });
   } catch (err) {
-    console.error('❌ Error en /api/admin/ciclos:', err);
+    console.error(' Error en /api/admin/ciclos:', err);
     res.status(500).json({ error: 'Error al cargar el historial de ciclos: ' + err.message });
   }
 });
@@ -3284,7 +3284,7 @@ const ciclo = db.prepare(`SELECT c.*, p.razon_social, u.email, p.evaluacion_inic
 if (!ciclo) {
   return res.status(404).json({ error: 'Ciclo no encontrado' });
 }
-// 🛡️ R2 (D6): revisor solo consulta ciclos de proveedores registrados
+//  R2 (D6): revisor solo consulta ciclos de proveedores registrados
 if (esSoloLectorReq(res) && ciclo.etapa !== 'registrado') {
   registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Ciclo ${cicloId} bloqueado para perfil revisor`, req);
   return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
@@ -3309,7 +3309,7 @@ documentos,
 evaluacion
 });
   } catch (err) {
-    console.error('❌ Error en /api/admin/ciclos/:id/documentos:', err);
+    console.error(' Error en /api/admin/ciclos/:id/documentos:', err);
     res.status(500).json({ error: 'Error al obtener documentos del ciclo' });
   }
 });
@@ -3322,7 +3322,7 @@ const ciclo = db.prepare(`SELECT c.*, p.razon_social, p.id as proveedor_id, p.ev
 if (!ciclo) {
   return res.status(404).json({ error: 'Ciclo no encontrado' });
 }
-// 🛡️ R2 (D6): revisor solo descarga ZIP de ciclos de proveedores registrados
+//  R2 (D6): revisor solo descarga ZIP de ciclos de proveedores registrados
 if (esSoloLectorReq(res) && ciclo.etapa !== 'registrado') {
   registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `ZIP del ciclo ${cicloId} bloqueado para perfil revisor`, req);
   return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
@@ -3355,7 +3355,7 @@ return res.status(404).json({ error: 'Este ciclo no tiene documentos asociados' 
 
     let agregados = 0;
 const contadorTipos = {};
-// 🏷️ FIX: incluir la Evaluación Inicial del ciclo en el ZIP (activa o histórica),
+//  FIX: incluir la Evaluación Inicial del ciclo en el ZIP (activa o histórica),
 //   coherente con el ZIP de proveedor. Se descifra igual que el resto de documentos.
 if (evaluacion && evaluacion.archivo && evaluacion.archivo !== 'no_aplica') {
 try {
@@ -3366,17 +3366,17 @@ let bufferDescifrado;
 try {
 bufferDescifrado = descifrarArchivo(bufferCifrado, ENCRYPTION_KEY);
 } catch (decryptErr) {
-console.warn(`⚠️ Error descifrando evaluación del ciclo: ${decryptErr.message}. Se incluirá tal cual.`);
+console.warn(` Error descifrando evaluación del ciclo: ${decryptErr.message}. Se incluirá tal cual.`);
 bufferDescifrado = bufferCifrado;
 }
 archive.append(bufferDescifrado, { name: `${nombreProveedorLimpio} - Evaluación Inicial.pdf` });
 agregados++;
-console.log(`📄 Evaluación inicial agregada al ZIP del ciclo ${ciclo.numero_registro}`);
+console.log(` Evaluación inicial agregada al ZIP del ciclo ${ciclo.numero_registro}`);
 } else {
-console.warn(`⚠️ Archivo de evaluación del ciclo no encontrado: ${rutaEval}`);
+console.warn(` Archivo de evaluación del ciclo no encontrado: ${rutaEval}`);
 }
 } catch (err) {
-console.error(`❌ Error procesando evaluación del ciclo: ${err.message}`);
+console.error(` Error procesando evaluación del ciclo: ${err.message}`);
 }
 }
 for (const doc of documentos) {
@@ -3386,7 +3386,7 @@ for (const doc of documentos) {
         const rutaArchivo = path.join(uploadsDir, doc.archivo);
 
         if (!fs.existsSync(rutaArchivo)) {
-          console.warn(`⚠️ Archivo no encontrado: ${rutaArchivo}`);
+          console.warn(` Archivo no encontrado: ${rutaArchivo}`);
           continue;
         }
 
@@ -3397,7 +3397,7 @@ for (const doc of documentos) {
         try {
           bufferDescifrado = descifrarArchivo(bufferCifrado, ENCRYPTION_KEY);
         } catch (decryptErr) {
-          console.warn(`⚠️ Error descifrando ${doc.archivo}: ${decryptErr.message}. Se incluirá cifrado.`);
+          console.warn(` Error descifrando ${doc.archivo}: ${decryptErr.message}. Se incluirá cifrado.`);
           bufferDescifrado = bufferCifrado;
         }
 
@@ -3419,15 +3419,15 @@ for (const doc of documentos) {
         archive.append(bufferDescifrado, { name: nombreArchivo });
         agregados++;
       } catch (err) {
-        console.error(`❌ Error procesando documento ${doc.id}:`, err.message);
+        console.error(` Error procesando documento ${doc.id}:`, err.message);
       }
     }
 
     await archive.finalize();
 
-    console.log(`📦 ZIP generado para ciclo ${ciclo.numero_registro}: ${agregados} archivos`);
+    console.log(` ZIP generado para ciclo ${ciclo.numero_registro}: ${agregados} archivos`);
   } catch (err) {
-    console.error('❌ Error generando ZIP del ciclo:', err);
+    console.error(' Error generando ZIP del ciclo:', err);
 
     if (!res.headersSent) {
       res.status(500).json({ error: 'Error al generar el ZIP: ' + err.message });
@@ -3445,7 +3445,7 @@ app.get('/api/admin/ciclos/anos', requiereAdmin, (req, res) => {
 
     res.json(anos.map(a => a.año).filter(a => a !== null));
   } catch (err) {
-    console.error('❌ Error obteniendo años:', err);
+    console.error(' Error obteniendo años:', err);
     res.status(500).json({ error: 'Error al obtener años' });
   }
 });
@@ -3480,7 +3480,7 @@ app.get('/api/admin/configuracion', requiereAdmin, (req, res) => {
 
     res.json(config);
   } catch (err) {
-    console.error('❌ Error obteniendo configuración:', err);
+    console.error(' Error obteniendo configuración:', err);
     res.status(500).json({ error: 'Error al obtener configuración: ' + err.message });
   }
 });
@@ -3490,7 +3490,7 @@ app.put('/api/admin/configuracion', requiereAdmin, (req, res) => {
   if (!valor) {
     return res.status(400).json({ error: 'Debes proporcionar una fecha y hora' });
   }
-  // 🕐 FIX TZ: datetime-local del admin = hora civil Bogotá (UTC-5 fijo).
+  //  FIX TZ: datetime-local del admin = hora civil Bogotá (UTC-5 fijo).
   // NO pasar por new Date()/toISOString() (en Railway/UTC desplaza 5h).
   const m = String(valor).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/);
   if (!m) {
@@ -3516,11 +3516,11 @@ app.put('/api/admin/configuracion', requiereAdmin, (req, res) => {
 
     res.json({
       ok: true,
-      mensaje: `✅ Fecha de vencimiento actualizada a ${fechaStr}`,
+      mensaje: ` Fecha de vencimiento actualizada a ${fechaStr}`,
       valor: fechaStr
     });
   } catch (err) {
-    console.error('❌ Error actualizando configuración:', err);
+    console.error(' Error actualizando configuración:', err);
     res.status(500).json({ error: 'Error al actualizar configuración: ' + err.message });
   }
 });
@@ -3565,12 +3565,12 @@ app.post('/api/admin/recalcular-vencimientos', requiereAdmin, async (req, res) =
 
     res.json({
       ok: true,
-      mensaje: `✅ Fechas de vencimiento actualizadas a ${fechaStr} para ${actualizados} documentos`,
+      mensaje: ` Fechas de vencimiento actualizadas a ${fechaStr} para ${actualizados} documentos`,
       actualizados,
       fecha: fechaStr
     });
   } catch (err) {
-    console.error('❌ Error recalculando vencimientos:', err);
+    console.error(' Error recalculando vencimientos:', err);
     res.status(500).json({ error: 'Error al recalcular fechas de vencimiento: ' + err.message });
   }
 });
@@ -3623,7 +3623,7 @@ app.get('/api/admin/proveedores/export', requiereAdmin, (req, res) => {
     `;
 
 const proveedores = db.prepare(query).all(...params);
-// ⚡ OPT: una sola consulta para todos los documentos del export (elimina N consultas)
+//  OPT: una sola consulta para todos los documentos del export (elimina N consultas)
 const proveedorIds = proveedores.map(p => p.id);
 let docsPorProveedor = {};
 if (proveedorIds.length > 0) {
@@ -3656,7 +3656,7 @@ aprobados++;
 });
 p.aprobados = aprobados;
 p.total = REQS.length;
-// 🏷️ Conteo de tipos VERIFICADOS (o no-aplica)
+//  Conteo de tipos VERIFICADOS (o no-aplica)
 let verificados = 0;
 REQS.forEach(reqDoc => {
 const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
@@ -3669,7 +3669,7 @@ verificados++;
 }
 });
 p.verificados = verificados;
-// ⚡ OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries de la query principal
+//  OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries de la query principal
 if (p.estado_general === 'aprobado') {
 p.fecha_aprobacion = p.fecha_aprobacion || null;
 } else {
@@ -3681,14 +3681,14 @@ p.todos_verificados = p.todos_verificados === 1;
 
     res.json({ data: proveedores });
   } catch (err) {
-    console.error('❌ Error en exportación de proveedores:', err);
+    console.error(' Error en exportación de proveedores:', err);
     res.status(500).json({ error: 'Error al exportar proveedores: ' + err.message });
   }
 });
 
 app.get('/api/admin/stats', requiereAdmin, (req, res) => {
 try {
-// 📈 F3: sirve caché fresca si está dentro del TTL (evita 6 COUNT repetidos)
+//  F3: sirve caché fresca si está dentro del TTL (evita 6 COUNT repetidos)
 if (statsCache.data && (Date.now() - statsCache.ts) < STATS_TTL_MS) {
 return res.json(statsCache.data);
 }
@@ -3719,7 +3719,7 @@ SELECT COUNT(*) as count
 FROM proveedores
 WHERE etapa = 'rechazado'
 `).get().count;
-// 🆕 C3: proveedores inactivos (verificación sin documentos y registro > 7 días)
+//  C3: proveedores inactivos (verificación sin documentos y registro > 7 días)
 const inactivos = db.prepare(`
 SELECT COUNT(*) as count
 FROM proveedores p
@@ -3733,17 +3733,17 @@ statsCache.data = payload;
 statsCache.ts = Date.now();
 res.json(payload);
 } catch (err) {
-console.error('❌ Error obteniendo estadísticas:', err);
+console.error(' Error obteniendo estadísticas:', err);
 res.status(500).json({ error: 'Error al obtener estadísticas' });
 }
 });
 
 // ==========================================
-// 🆕 C5: TENDENCIA 14 DÍAS (sparklines + distribución por etapa)
+//  C5: TENDENCIA 14 DÍAS (sparklines + distribución por etapa)
 // ==========================================
 app.get('/api/admin/stats/tendencia', requiereAdmin, (req, res) => {
 try {
-// 🚀 R4-perf: caché TTL (≈100 queries por llamada); se invalida con cada mutación
+//  R4-perf: caché TTL (≈100 queries por llamada); se invalida con cada mutación
 if (tendCache.data && (Date.now() - tendCache.ts) < TEND_TTL_MS) {
 return res.json(tendCache.data);
 }
@@ -3754,7 +3754,7 @@ const porEtapaDia = {};
 etapas.forEach(e => { porEtapaDia[e] = []; });
 
 for (let i = 13; i >= 0; i--) {
-// 🕐 FIX TZ: fecha civil Bogotá sin toISOString (que desplaza 5h en UTC)
+//  FIX TZ: fecha civil Bogotá sin toISOString (que desplaza 5h en UTC)
 const row = db.prepare(`SELECT date(datetime('now', '-' || ? || ' days', '-05:00')) as dia`).get(i);
 const dia = row.dia;
 dias.push(dia);
@@ -3768,7 +3768,7 @@ WHERE date(u.creado_en) = ?
 `).get(dia).cnt;
 nuevosPorDia.push(nuevos);
 
-// 🔧 FIX: creado_en está en usuarios, no en proveedores.
+//  FIX: creado_en está en usuarios, no en proveedores.
 // Snapshot de etapa: proveedores cuya última transición fue ese día o antes.
 // Usa fecha_gestion (proveedores) con fallback a creado_en (usuarios vía JOIN).
 etapas.forEach(etapa => {
@@ -3794,12 +3794,12 @@ tendCache.data = payloadTend;
 tendCache.ts = Date.now();
 res.json(payloadTend);
 } catch (err) {
-console.error('❌ Error obteniendo tendencia:', err);
+console.error(' Error obteniendo tendencia:', err);
 res.status(500).json({ error: 'Error al obtener tendencia' });
 }
 });
 // ==========================================
-// 📈 E7: PRODUCTIVIDAD ADMIN (últimos 7 días, desde auditoría)
+//  E7: PRODUCTIVIDAD ADMIN (últimos 7 días, desde auditoría)
 // ==========================================
 app.get('/api/admin/stats/productividad', requiereAdmin, (req, res) => {
 try {
@@ -3842,7 +3842,7 @@ return acc;
 }, { verificados: 0, aprobados: 0, rechazados: 0, notas: 0, recordatorios: 0, gestiones: 0 });
 res.json({ dias, totales, hoy: dias[dias.length - 1], hoyCivil });
 } catch (err) {
-console.error('❌ Error obteniendo productividad:', err);
+console.error(' Error obteniendo productividad:', err);
 res.status(500).json({ error: 'Error al obtener productividad' });
 }
 });
@@ -3871,7 +3871,7 @@ app.get('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
   }
 });
 
-// 🆕 AGENDA #2: admin cambia correo de un proveedor (conserva historial/documentos/contraseña)
+//  AGENDA #2: admin cambia correo de un proveedor (conserva historial/documentos/contraseña)
 app.post('/api/admin/proveedor/:id/email', requiereAdmin, (req, res) => {
     const proveedorId = parseInt(req.params.id);
     const { email } = req.body || {};
@@ -3885,7 +3885,7 @@ app.post('/api/admin/proveedor/:id/email', requiereAdmin, (req, res) => {
     const dup = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE AND id != ?').get(emailNuevo, prov.usuario_id);
     if (dup) return res.status(409).json({ error: 'Ese correo ya está registrado por otra cuenta.' });
 db.prepare('UPDATE usuarios SET email = ? WHERE id = ?').run(emailNuevo, proveedor.usuario_id);
-// 🆕 Cierra las sesiones activas del proveedor: deberá entrar con el nuevo correo
+//  Cierra las sesiones activas del proveedor: deberá entrar con el nuevo correo
 const sesionesCerradas = cerrarSesionesDeUsuario(proveedor.usuario_id);
         registrarHistorial(proveedorId, req.session.usuario, 'email_cambiado', `Admin cambió el correo de ${prov.email_actual} a ${emailNuevo}`, null, null, req);
         registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'email_cambiado_admin', true, `Proveedor ${proveedorId}: ${prov.email_actual} → ${emailNuevo}`, req);
@@ -3900,11 +3900,11 @@ const sesionesCerradas = cerrarSesionesDeUsuario(proveedor.usuario_id);
 app.post('/api/admin/proveedor/:id/gestion', requiereAdmin, (req, res) => {
 const { numero_registro, tipo_gestion, notas_gestion, tipo_proveedor } = req.body;
 const proveedorId = req.params.id;
-// 🛡️ Validar longitud de numero_registro (texto libre)
+//  Validar longitud de numero_registro (texto libre)
 if (numero_registro && String(numero_registro).length > 100) {
 return res.status(400).json({ error: 'La fecha de movimiento no puede exceder 100 caracteres.' });
 }
-// 🆕 AGENDA #4: impedir ciclos duplicados por proveedor
+//  AGENDA #4: impedir ciclos duplicados por proveedor
 if (numero_registro && String(numero_registro).trim()) {
     const dup = db.prepare('SELECT id, estado FROM ciclos_actualizacion WHERE proveedor_id = ? AND numero_registro = ?').get(proveedorId, String(numero_registro).trim());
     if (dup) {
@@ -3914,7 +3914,7 @@ if (numero_registro && String(numero_registro).trim()) {
         });
     }
 }
-// 🆕 El tipo de proveedor ahora es un valor controlado
+//  El tipo de proveedor ahora es un valor controlado
 let tipoProveedorValido = (tipo_proveedor || '').trim();
 if (tipoProveedorValido && !['natural', 'juridica'].includes(tipoProveedorValido)) {
 tipoProveedorValido = null; // texto libre no reconocido → no sobreescribir
@@ -3974,12 +3974,12 @@ proveedorId
 
         asignarCicloADocumentosActivos(proveedorId, numero_registro);
       } else {
-        console.warn(`⚠️ No se proporcionó número de registro para crear ciclo del proveedor ${proveedorId}`);
+        console.warn(` No se proporcionó número de registro para crear ciclo del proveedor ${proveedorId}`);
       }
 
       db.prepare(`UPDATE proveedores SET etapa = 'registrado' WHERE id = ?`).run(proveedorId);
 
-      console.log(`✅ Proveedor ${proveedorId} pasa a etapa REGISTRADO (gestión completada)`);
+      console.log(` Proveedor ${proveedorId} pasa a etapa REGISTRADO (gestión completada)`);
 
 registrarHistorial(
 proveedorId,
@@ -4033,7 +4033,7 @@ return res.status(404).json({ error: 'Evaluación no encontrada' });
     }
 
 res.setHeader('Content-Type', 'application/pdf');
-// 📄 E8: nombre descriptivo también para la Evaluación Inicial
+//  E8: nombre descriptivo también para la Evaluación Inicial
 const nombreEval = nombreDescargaE8({ tipo: 'Evaluacion Inicial', rfc: proveedor.rfc, razon_social: proveedor.razon_social, subido_en: proveedor.evaluacion_fecha }) || 'evaluacion_inicial.pdf';
 const asciiEval = nombreEval.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
 const utf8Eval = encodeURIComponent(nombreEval).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
@@ -4072,7 +4072,7 @@ app.post('/api/admin/proveedor/:id/evaluacion', requiereAdmin, uploadDoc.single(
 
       if (fs.existsSync(rutaAnterior)) {
         fs.unlinkSync(rutaAnterior);
-        console.log(`🗑️ Evaluación anterior eliminada: ${rutaAnterior}`);
+        console.log(` Evaluación anterior eliminada: ${rutaAnterior}`);
       }
     }
 
@@ -4247,10 +4247,10 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
     if (estado === 'rechazado') {
       const esActualizacion = proveedor.tipo_gestion === 'actualizacion';
 
-      console.log(`❌ Evaluación rechazada para proveedor ${proveedorId}. tipo_gestion: ${proveedor.tipo_gestion || 'inscripcion'}`);
+      console.log(` Evaluación rechazada para proveedor ${proveedorId}. tipo_gestion: ${proveedor.tipo_gestion || 'inscripcion'}`);
 
       if (esActualizacion) {
-        console.log(`🔄 Proveedor ${proveedorId} en ACTUALIZACIÓN: volviendo a verificación sin bloquear.`);
+        console.log(` Proveedor ${proveedorId} en ACTUALIZACIÓN: volviendo a verificación sin bloquear.`);
 
              db.prepare(`
        UPDATE documentos
@@ -4302,13 +4302,13 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
         if (usuario) {
           const nombreProveedor = proveedor.razon_social || usuario.nombre_empresa || 'Proveedor';
 
-          // 🛡️ M4 (Fase 3): escapar datos del usuario en HTML inline del correo
+          //  M4 (Fase 3): escapar datos del usuario en HTML inline del correo
           const nombreProveedorEscapado = escapeHtml(nombreProveedor);
           const comentarioEscapado = escapeHtml(comentario || 'La evaluación inicial no cumplió con los requisitos establecidos.');
           const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
-            <h2 style="margin: 0;">🔄 Actualización - Documentos Rechazados</h2>
+            <h2 style="margin: 0;"> Actualización - Documentos Rechazados</h2>
             </div>
             <div style="background: white; padding: 25px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
               <p>Hola <strong>${nombreProveedorEscapado}</strong>,</p>
@@ -4328,12 +4328,12 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
             </div>
           `;
 
-          enviarEmail(usuario.email, '🔄 Actualización - Documentos rechazados (corregir)', html)
+          enviarEmail(usuario.email, ' Actualización - Documentos rechazados (corregir)', html)
             .then(result => {
               if (result.ok) {
-                console.log(`✅ Correo de actualización rechazada enviado a ${usuario.email}`);
+                console.log(` Correo de actualización rechazada enviado a ${usuario.email}`);
               } else {
-                console.error(`❌ Error enviando correo: ${result.error}`);
+                console.error(` Error enviando correo: ${result.error}`);
               }
             })
             .catch(err => console.error('Error al enviar correo:', err));
@@ -4344,7 +4344,7 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
           mensaje: 'Evaluación rechazada. El proveedor vuelve a VERIFICACIÓN para corregir documentos (proceso de actualización).'
         });
       } else {
-        console.log(`❌ Proveedor ${proveedorId} en INSCRIPCIÓN: pasando a RECHAZADO.`);
+        console.log(` Proveedor ${proveedorId} en INSCRIPCIÓN: pasando a RECHAZADO.`);
 
              db.prepare(`
        UPDATE documentos
@@ -4387,12 +4387,12 @@ app.post('/api/admin/proveedor/:id/evaluacion/estado', requiereAdmin, (req, res)
           const nombreProveedor = proveedor.razon_social || usuario.nombre_empresa || 'Proveedor';
           const html = emailEvaluacionRechazada(nombreProveedor, comentario || 'La evaluación inicial no cumplió con los requisitos establecidos.');
 
-          enviarEmail(usuario.email, '❌ Evaluación inicial rechazada - Documentos rechazados', html)
+          enviarEmail(usuario.email, ' Evaluación inicial rechazada - Documentos rechazados', html)
             .then(result => {
               if (result.ok) {
-                console.log(`✅ Correo de rechazo enviado a ${usuario.email}`);
+                console.log(` Correo de rechazo enviado a ${usuario.email}`);
               } else {
-                console.error(`❌ Error enviando correo de rechazo: ${result.error}`);
+                console.error(` Error enviando correo de rechazo: ${result.error}`);
               }
             })
             .catch(err => console.error('Error al enviar correo de rechazo:', err));
@@ -4438,14 +4438,14 @@ const html = esRenovacion
 ? emailProveedorActualizacionAprobada(nombreProveedor)
 : emailProveedorAprobado(nombreProveedor);
 const asuntoCorreo = esRenovacion
-? '✅ Actualización de documentos aprobada - Portal de Proveedores'
-: '🎉 ¡Felicidades! Has sido aprobado como proveedor';
+? ' Actualización de documentos aprobada - Portal de Proveedores'
+: ' ¡Felicidades! Has sido aprobado como proveedor';
 enviarEmail(usuario.email, asuntoCorreo, html)
 .then(result => {
 if (result.ok) {
-console.log(`✅ Correo de ${esRenovacion ? 'actualización aprobada' : 'felicitación'} enviado a ${usuario.email} (evaluación aprobada)`);
+console.log(` Correo de ${esRenovacion ? 'actualización aprobada' : 'felicitación'} enviado a ${usuario.email} (evaluación aprobada)`);
             } else {
-              console.error(`❌ Error enviando correo de felicitación: ${result.error}`);
+              console.error(` Error enviando correo de felicitación: ${result.error}`);
             }
           })
           .catch(err => console.error('Error al enviar correo de felicitación:', err));
@@ -4462,7 +4462,7 @@ console.log(`✅ Correo de ${esRenovacion ? 'actualización aprobada' : 'felicit
 });
 
 // ==========================================
-// 🔍 GET /api/admin/proveedor/:id — Detalle completo del proveedor
+//  GET /api/admin/proveedor/:id — Detalle completo del proveedor
 // ==========================================
 app.get('/api/admin/proveedor/:id', requiereAdmin, (req, res) => {
 const proveedorId = parseInt(req.params.id);
@@ -4486,7 +4486,7 @@ const p = db.prepare(`
 
 if (!p) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-// 🛡️ R2 (D6): revisor = activos e históricos pero SOLO etapa registrado
+//  R2 (D6): revisor = activos e históricos pero SOLO etapa registrado
 if (esSoloLectorReq(res) && p.etapa !== 'registrado') {
   registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
     'acceso_denegado', false,
@@ -4531,7 +4531,7 @@ app.post('/api/admin/documento/:id/estado', requiereAdmin, (req, res) => {
     });
   }
 
-    // 🛡️ R2 (D5): aprobar = solo perfil aprobador; rechazar = verificador Y aprobador.
+    //  R2 (D5): aprobar = solo perfil aprobador; rechazar = verificador Y aprobador.
   // El gate base de la tabla exige docs.rechazar; aquí se afina por estado solicitado.
   if (estado === 'aprobado' && !tienePermisoReq(res, 'docs.aprobar')) {
     registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Aprobar documento ${doc.id} sin permiso docs.aprobar`, req);
@@ -4546,7 +4546,7 @@ if (estado === 'pendiente' && !tienePermisoReq(res, 'docs.verificar')) {
   return res.status(403).json({ error: 'Acceso denegado: tu perfil no puede revertir documentos a pendiente.', requiere_permiso: 'docs.verificar' });
 }
 
-  console.log(`📌 [ESTADO DOCUMENTO] ID ${doc.id} → ${estado} (comentario: ${comentario || 'N/A'}) por ${req.session.usuario.email}`);
+  console.log(` [ESTADO DOCUMENTO] ID ${doc.id} → ${estado} (comentario: ${comentario || 'N/A'}) por ${req.session.usuario.email}`);
 
   if (estado === 'aprobado' && doc.verificado !== 1) {
     return res.status(400).json({
@@ -4562,7 +4562,7 @@ let ciclo = doc.ciclo || null;
 let comentarioFinal = comentario || null;
 
 if (estado === 'rechazado') {
-// 🧹 El motivo se guarda LIMPIO: el portal muestra por separado el aviso
+//  El motivo se guarda LIMPIO: el portal muestra por separado el aviso
 // "elimínalo antes de subir uno nuevo" al pie de la tarjeta (sin duplicar).
 const motivo = (comentario || '').trim();
 comentarioFinal = motivo || 'Documento rechazado.';
@@ -4595,7 +4595,7 @@ req.params.id
       if (prov.etapa !== 'verificacion' && prov.etapa !== 'rechazado') {
         db.prepare(`UPDATE proveedores SET etapa = 'verificacion' WHERE id = ?`).run(doc.proveedor_id);
 
-        console.log(`🔄 Proveedor ${doc.proveedor_id} vuelve a etapa VERIFICACION (documento rechazado)`);
+        console.log(` Proveedor ${doc.proveedor_id} vuelve a etapa VERIFICACION (documento rechazado)`);
 
         registrarHistorial(
           doc.proveedor_id,
@@ -4619,13 +4619,13 @@ req.params.id
           WHERE id = ?
         `).run(doc.proveedor_id);
 
-        console.log(`🧹 Campos de gestión limpiados para proveedor ${doc.proveedor_id}`);
+        console.log(` Campos de gestión limpiados para proveedor ${doc.proveedor_id}`);
       }
 
       if (prov.etapa === 'aprobacion') {
         db.prepare(`UPDATE proveedores SET evaluacion_estado = 'pendiente' WHERE id = ?`).run(doc.proveedor_id);
 
-        console.log(`📋 Evaluación puesta en 'pendiente' para proveedor ${doc.proveedor_id}`);
+        console.log(` Evaluación puesta en 'pendiente' para proveedor ${doc.proveedor_id}`);
       }
     }
   } else if (estado === 'aprobado') {
@@ -4641,7 +4641,7 @@ req.params.id
     if (todosAprobados && prov && prov.evaluacion_estado === 'aprobado') {
       db.prepare(`UPDATE proveedores SET etapa = 'inscripcion' WHERE id = ?`).run(doc.proveedor_id);
 
-      console.log(`✅ Proveedor ${doc.proveedor_id} pasa a etapa INSCRIPCION (todos documentos aprobados y evaluación aprobada)`);
+      console.log(` Proveedor ${doc.proveedor_id} pasa a etapa INSCRIPCION (todos documentos aprobados y evaluación aprobada)`);
 
       registrarHistorial(
         doc.proveedor_id,
@@ -4668,14 +4668,14 @@ const config = configDocumento(doc.tipo, proveedorUsuario.tipo_proveedor);
         const nombreDoc = config ? config.nombre : doc.tipo;
         enviarEmail(
             proveedorUsuario.email,
-            `❌ Documento rechazado: ${nombreDoc}`,
+            ` Documento rechazado: ${nombreDoc}`,
             emailDocumentoRechazado(nombreProveedor, nombreDoc, comentarioFinal)
         ).catch(err => console.error('Error enviando notificación de rechazo:', err));
     }
 }
 
   if (estado === 'aprobado') {
-    console.log(`✅ Documento aprobado individualmente (no se envía email): ${doc.nombre_original}`);
+    console.log(` Documento aprobado individualmente (no se envía email): ${doc.nombre_original}`);
   }
 
 emitirTodos(doc.proveedor_id, 'documento_actualizado', payloadEventoDoc(doc.proveedor_id, doc.tipo, req.session.usuario.email, { documentoId: doc.id, estado: estado }));
@@ -4703,7 +4703,7 @@ app.post('/api/admin/proveedor/:id/recordatorio', requiereAdmin, (req, res) => {
   const prov = db.prepare('SELECT id FROM proveedores WHERE id = ?').get(req.params.id);
   if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-// 🛡️ N2: se guarda CRUDO; el frontend pinta con textContent (seguro).
+//  N2: se guarda CRUDO; el frontend pinta con textContent (seguro).
 const mensajeCrudo = mensaje.trim();
 db.prepare(`
 INSERT INTO recordatorios (proveedor_id, admin_id, admin_nombre, mensaje)
@@ -4723,7 +4723,7 @@ emitirProveedor(prov.id, 'nuevo_recordatorio', { mensaje: mensajeCrudo });
   res.json({ ok: true });
 });
 
-// 🆕 C3: recordatorio masivo a proveedores inactivos (portal + correo)
+//  C3: recordatorio masivo a proveedores inactivos (portal + correo)
 app.post('/api/admin/recordatorio-inactivos', requiereAdmin, (req, res) => {
 try {
 const rows = db.prepare(`
@@ -4735,10 +4735,10 @@ WHERE p.etapa = 'verificacion'
 AND NOT EXISTS (SELECT 1 FROM documentos d WHERE d.proveedor_id = p.id AND d.es_historico = 0)
 AND u.creado_en <= datetime('now', '-7 days', '-05:00')
 `).all();
-const mensaje = '⏰ Aún no has subido ningún documento. Completa tu documentación para continuar con el registro como proveedor.';
+const mensaje = ' Aún no has subido ningún documento. Completa tu documentación para continuar con el registro como proveedor.';
 let enviados = 0, omitidos = 0;
 for (const r of rows) {
-// 🛡️ Anti-spam: máx. 1 recordatorio por proveedor cada 24 h
+//  Anti-spam: máx. 1 recordatorio por proveedor cada 24 h
 if (r.ultimo_recordatorio_envio &&
 db.prepare(`SELECT 1 AS x WHERE ? > datetime('now', '-1 day', '-05:00')`).get(r.ultimo_recordatorio_envio)) {
 omitidos++;
@@ -4751,13 +4751,13 @@ registrarHistorial(r.id, req.session.usuario, 'recordatorio_enviado', `Recordato
 emitirProveedor(r.id, 'nuevo_recordatorio', { mensaje });
 const nombre = r.razon_social || r.nombre_empresa || 'Proveedor';
 const faltantes = requerimientosPara(r.tipo_proveedor).map(x => ({ nombre: x.nombre, estado: 'pendiente' }));
-enviarEmail(r.email, '⏰ Completa tu registro como proveedor', emailRecordatorioDocumentosFaltantes(nombre, faltantes))
+enviarEmail(r.email, ' Completa tu registro como proveedor', emailRecordatorioDocumentosFaltantes(nombre, faltantes))
 .catch(err => console.error('Error enviando recordatorio inactivos:', err.message));
 enviados++;
 }
 res.json({ ok: true, enviados, omitidos });
 } catch (err) {
-console.error('❌ Error recordatorio masivo:', err);
+console.error(' Error recordatorio masivo:', err);
 res.status(500).json({ error: 'Error al enviar recordatorios' });
 }
 });
@@ -4766,7 +4766,7 @@ try {
 limpiarSesionesCorruptas();
 const archivos = fs.readdirSync(sessionsDir);
 let eliminados = 0;
-// 🛡️ OPT (#7): conservar la sesión del admin que ejecuta la limpieza
+//  OPT (#7): conservar la sesión del admin que ejecuta la limpieza
 const sesionActual = req.sessionID;
 archivos.forEach(archivo => {
 if (archivo.endsWith('.json')) {
@@ -4781,7 +4781,7 @@ console.error(`Error eliminando ${archivo}:`, e.message);
 });
 res.json({
 ok: true,
-mensaje: `✅ ${eliminados} sesiones eliminadas (tu sesión activa se conservó)`,
+mensaje: ` ${eliminados} sesiones eliminadas (tu sesión activa se conservó)`,
 sesionesActivas: archivos.length - eliminados
 });
 } catch (err) {
@@ -4794,13 +4794,13 @@ app.post('/api/admin/limpiar-rate-limits', requiereAdmin, (req, res) => {
   limiterGeneral.resetAll();
   limiterUpload.resetAll();
 
-  console.log('🧹 Rate limits limpiados por admin');
+  console.log(' Rate limits limpiados por admin');
 
   res.json({ ok: true, mensaje: 'Rate limits reseteados' });
 });
 
 // ==========================================
-// 💾 GESTIÓN DE BACKUPS (solo admin)
+//  GESTIÓN DE BACKUPS (solo admin)
 // ==========================================
 const BACKUP_REGEX = /^proveedores_\d{4}-\d{2}-\d{2}(_\d{4})?\.db$/;
 function nombreBackupValido(n) { const x = path.basename(String(n || '')); return BACKUP_REGEX.test(x) ? x : null; }
@@ -4814,7 +4814,7 @@ const backups = fs.readdirSync(dir)
 res.json({ backups });
 });
 // ==========================================
-// 💾 FUNCIÓN: Mirror incremental de archivos
+//  FUNCIÓN: Mirror incremental de archivos
 // ==========================================
 // Mueve la definición aquí para que esté disponible cuando el endpoint la llame
 function respaldarArchivosNuevos() {
@@ -4832,9 +4832,9 @@ else if (entry.isFile() && !fs.existsSync(d)) { fs.copyFileSync(o, d); copiados+
 };
 caminar(uploadsDir, path.join(dataDir, 'backups', 'uploads_mirror'));
 caminar(plantillasDir, path.join(dataDir, 'backups', 'plantillas_mirror'));
-if (copiados > 0) console.log(`💾 Mirror: ${copiados} archivo(s) nuevo(s) respaldado(s)`);
+if (copiados > 0) console.log(` Mirror: ${copiados} archivo(s) nuevo(s) respaldado(s)`);
 } catch (e) {
-console.error('❌ Error respaldando archivos:', e.message);
+console.error(' Error respaldando archivos:', e.message);
 }
 }
 
@@ -4850,7 +4850,7 @@ respaldarArchivosNuevos();
 registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'backup_manual', true, path.basename(destino), req);
 res.json({ ok: true, mensaje: 'Backup creado correctamente', nombre: path.basename(destino) });
 } catch (e) {
-console.error('❌ Error creando backup:', e.message);
+console.error(' Error creando backup:', e.message);
 res.status(500).json({ error: 'Error al crear el backup' });
 }
 });
@@ -4899,7 +4899,7 @@ app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
     fs.rmSync(path.join(dataDir, 'proveedores.db-wal'), { force: true });
     fs.rmSync(path.join(dataDir, 'proveedores.db-shm'), { force: true });
     fs.copyFileSync(ruta, path.join(dataDir, 'proveedores.db'));
-    // 2.5) 🩹 Restaurar archivos físicos faltantes desde el mirror + GC post-restauración
+    // 2.5)  Restaurar archivos físicos faltantes desde el mirror + GC post-restauración
     let archivosRestaurados = 0;
     try {
       const Database = require('better-sqlite3');
@@ -4909,7 +4909,7 @@ app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
         ...restored.prepare(`SELECT evaluacion_inicial AS archivo FROM proveedores WHERE evaluacion_inicial IS NOT NULL AND evaluacion_inicial != ''`).all().map(r => r.archivo)
       ];
       const rutasPlant = restored.prepare(`SELECT archivo FROM plantillas WHERE archivo IS NOT NULL`).all().map(r => r.archivo);
-      // 🧹 FIX: las referencias se calculan ANTES de cerrar la BD restaurada
+      //  FIX: las referencias se calculan ANTES de cerrar la BD restaurada
       // (antes se usaba `db.prepare` con la BD ya cerrada → el GC fallaba en silencio)
       const referencias = new Set(rutas.concat(rutasPlant).map(r => String(r || '').replace(/\\/g, '/')));
       restored.close();
@@ -4929,8 +4929,8 @@ app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
       const mPl = path.join(dataDir, 'backups', 'plantillas_mirror');
       rutas.forEach(rel => copiarSiFalta(rel, mUp, uploadsDir));
       rutasPlant.forEach(rel => copiarSiFalta(rel, mPl, plantillasDir));
-      if (archivosRestaurados > 0) console.log(`🩹 Restauración: ${archivosRestaurados} archivo(s) físico(s) recuperado(s) del mirror`);
-      // 🧹 GC post-restauración: elimina de uploads/ los archivos que NINGUNA fila referencia
+      if (archivosRestaurados > 0) console.log(` Restauración: ${archivosRestaurados} archivo(s) físico(s) recuperado(s) del mirror`);
+      //  GC post-restauración: elimina de uploads/ los archivos que NINGUNA fila referencia
       try {
         let borrados = 0;
         const caminar = (dir) => {
@@ -4942,10 +4942,10 @@ app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
           }
         };
         if (fs.existsSync(uploadsDir)) caminar(uploadsDir);
-        if (borrados > 0) console.log(`🧹 GC post-restauración: ${borrados} archivo(s) huérfano(s) eliminado(s) de uploads/`);
-      } catch (e) { console.error('⚠️ Error en GC post-restauración:', e.message); }
+        if (borrados > 0) console.log(` GC post-restauración: ${borrados} archivo(s) huérfano(s) eliminado(s) de uploads/`);
+      } catch (e) { console.error(' Error en GC post-restauración:', e.message); }
     } catch (e) {
-      console.error('⚠️ Error restaurando archivos del mirror:', e.message);
+      console.error(' Error restaurando archivos del mirror:', e.message);
     }
     res.json({ ok: true, mensaje: `Restauración completada${archivosRestaurados ? ` (${archivosRestaurados} archivo(s) recuperado(s))` : ''}. Reiniciando el servicio…` });
     // 3) Railway reinicia solo al salir el proceso
@@ -5147,7 +5147,7 @@ app.get('/api/admin/proveedor/:id/documentos/zip', requiereAdmin, async (req, re
   const proveedorId = parseInt(req.params.id);
 
   if (typeof archiver !== 'function') {
-    console.error('❌ archiver no está disponible en este endpoint');
+    console.error(' archiver no está disponible en este endpoint');
     return res.status(500).json({
       error: 'El servidor no tiene instalada la librería para generar ZIP. Contacta al administrador.'
     });
@@ -5158,7 +5158,7 @@ const proveedor = db.prepare(`SELECT id, razon_social, evaluacion_inicial, etapa
 if (!proveedor) {
    return res.status(404).json({ error: 'Proveedor no encontrado' });
  }
-// 🛡️ R2 (D6): revisor solo descarga ZIP de proveedores registrados
+//  R2 (D6): revisor solo descarga ZIP de proveedores registrados
 if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `ZIP de proveedor ${proveedorId} (etapa ${proveedor.etapa}) bloqueado para perfil revisor`, req);
    return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
@@ -5208,20 +5208,20 @@ if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
           try {
             bufferDescifrado = descifrarArchivo(bufferCifrado, ENCRYPTION_KEY);
           } catch (decryptErr) {
-            console.warn(`⚠️ Error descifrando evaluación: ${decryptErr.message}. Se incluirá tal cual.`);
+            console.warn(` Error descifrando evaluación: ${decryptErr.message}. Se incluirá tal cual.`);
             bufferDescifrado = bufferCifrado;
           }
 
           archive.append(bufferDescifrado, { name: `${nombreProveedorLimpio} - Evaluación Inicial.pdf` });
           documentosAgregados++;
 
-          console.log(`📄 Evaluación inicial agregada al ZIP para proveedor ${proveedorId}`);
+          console.log(` Evaluación inicial agregada al ZIP para proveedor ${proveedorId}`);
         } else {
-          console.warn(`⚠️ Archivo de evaluación no encontrado: ${rutaEvaluacion}`);
+          console.warn(` Archivo de evaluación no encontrado: ${rutaEvaluacion}`);
           errores++;
         }
       } catch (err) {
-        console.error(`❌ Error procesando evaluación: ${err.message}`);
+        console.error(` Error procesando evaluación: ${err.message}`);
         errores++;
       }
     }
@@ -5233,7 +5233,7 @@ if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
         const rutaArchivo = path.join(uploadsDir, doc.archivo);
 
         if (!fs.existsSync(rutaArchivo)) {
-          console.warn(`⚠️ Archivo no encontrado: ${rutaArchivo}`);
+          console.warn(` Archivo no encontrado: ${rutaArchivo}`);
           errores++;
           continue;
         }
@@ -5245,7 +5245,7 @@ if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
         try {
           bufferDescifrado = descifrarArchivo(bufferCifrado, ENCRYPTION_KEY);
         } catch (decryptErr) {
-          console.error(`❌ Error descifrando documento ${doc.id}:`, decryptErr.message);
+          console.error(` Error descifrando documento ${doc.id}:`, decryptErr.message);
           errores++;
           continue;
         }
@@ -5271,20 +5271,20 @@ if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
         archive.append(bufferDescifrado, { name: nombreArchivo });
         documentosAgregados++;
       } catch (err) {
-        console.error(`❌ Error procesando documento ${doc.id}:`, err.message);
+        console.error(` Error procesando documento ${doc.id}:`, err.message);
         errores++;
       }
     }
 
     await archive.finalize();
 
-    console.log(`📦 ZIP generado para proveedor ${proveedorId}: ${documentosAgregados} archivos agregados, ${errores} errores`);
+    console.log(` ZIP generado para proveedor ${proveedorId}: ${documentosAgregados} archivos agregados, ${errores} errores`);
 
     if (documentosAgregados === 0) {
-      console.warn(`⚠️ No se pudo agregar ningún archivo al ZIP para proveedor ${proveedorId}`);
+      console.warn(` No se pudo agregar ningún archivo al ZIP para proveedor ${proveedorId}`);
     }
   } catch (err) {
-    console.error('❌ Error generando ZIP:', err);
+    console.error(' Error generando ZIP:', err);
 
     if (!res.headersSent) {
       return res.status(500).json({ error: 'Error al generar el ZIP: ' + err.message });
@@ -5302,7 +5302,7 @@ app.post('/api/admin/proveedor/:id/nota', requiereAdmin, (req, res) => {
   const prov = db.prepare('SELECT id FROM proveedores WHERE id = ?').get(req.params.id);
   if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-// 🛡️ N2: se guarda CRUDO. El frontend pinta con textContent (seguro ante XSS)
+//  N2: se guarda CRUDO. El frontend pinta con textContent (seguro ante XSS)
 // y así se evita la doble codificación (&amp; visible). registrarHistorial
 // ya escapa internamente el detalle, por eso recibe el texto crudo.
 const tituloCrudo = (titulo || 'Nota').trim();
@@ -5333,7 +5333,7 @@ registrarHistorial(
 
     enviarEmail(
       proveedorUsuario.email,
-      `📝 Nueva nota: ${titulo || 'Sin título'}`,
+      ` Nueva nota: ${titulo || 'Sin título'}`,
       emailNuevaNota(nombreProveedor, titulo || 'Nota del administrador', nota.trim())
     ).catch(err => console.error('Error enviando notificación:', err));
   }
@@ -5485,7 +5485,7 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
   if (prov.todos_subidos && prov.todos_verificados && (prov.etapa === 'verificacion' || prov.etapa === '')) {
     db.prepare(`UPDATE proveedores SET etapa = 'aprobacion' WHERE id = ?`).run(proveedor.id);
 
-    console.log(`✅ Proveedor ${proveedor.id} pasa a etapa APROBACION (todos verificados - desde No aplica)`);
+    console.log(` Proveedor ${proveedor.id} pasa a etapa APROBACION (todos verificados - desde No aplica)`);
 
     registrarHistorial(
       proveedor.id,
@@ -5506,11 +5506,11 @@ const { email, password, nombre_empresa, razon_social, rfc, representante, telef
 if (!email || !nombre_empresa) {
 return res.status(400).json({ error: 'Email y nombre de empresa son obligatorios' });
 }
-// 🛡️ Validar formato de email antes de tocar BD/Brevo
+//  Validar formato de email antes de tocar BD/Brevo
 if (!EMAIL_REGEX.test(String(email).trim())) {
 return res.status(400).json({ error: 'Formato de email inválido' });
 }
-// ⚡ OPT SEGURIDAD: si no se proporciona contraseña, se genera una aleatoria
+//  OPT SEGURIDAD: si no se proporciona contraseña, se genera una aleatoria
 // y se envía un enlace de activación de un solo uso (nunca se envía la contraseña por email)
 let passwordFinal = password;
 let usarActivacion = false;
@@ -5531,17 +5531,17 @@ const hash = bcrypt.hashSync(passwordFinal, 12);
       VALUES (?, ?, 'proveedor', ?, 1)
     `).run(email, hash, nombre_empresa);
 
-// 📞 G11: en creación el teléfono (si viene) debe ser válido desde ya
+//  G11: en creación el teléfono (si viene) debe ser válido desde ya
 const tel = normalizarTelefonoCO(telefono || '');
 if (!tel.ok) return res.status(400).json({ error: tel.mensaje });
-// 🪪 G7: tipo de documento + validación + unicidad por par (tipo, número)
+//  G7: tipo de documento + validación + unicidad por par (tipo, número)
 const tipoDocumento = String(tipo_documento || 'nit').toLowerCase();
 let numeroDoc = '';
 if (rfc && String(rfc).trim()) {
 const docVal = validarDocumentoCO(tipoDocumento, rfc);
 if (!docVal.valido) return res.status(400).json({ error: docVal.mensaje });
 numeroDoc = docVal.numero;
-// 🪪 G7-b: natural → cc/nit equivalen (misma persona, mismo número)
+//  G7-b: natural → cc/nit equivalen (misma persona, mismo número)
 const tipoProvBody = String(tipo_proveedor || '').toLowerCase();
 const grupoDocs = (tipoProvBody === 'natural' && (tipoDocumento === 'cc' || tipoDocumento === 'nit'))
 ? `IN ('cc','nit')` : `= '${tipoDocumento}'`;
@@ -5573,7 +5573,7 @@ direccion || '',
     );
 
 registrarLogSeguridad(result.lastInsertRowid, email, 'proveedor_creado_admin', true, nombre_empresa, req);
-// ⚡ OPT SEGURIDAD: si no se escribió contraseña, generamos un token de activación
+//  OPT SEGURIDAD: si no se escribió contraseña, generamos un token de activación
 // de un solo uso (7 días) y enviamos el enlace a restablecer-password.html.
 // Si el admin escribió contraseña, se mantiene el correo clásico de credenciales.
 let enlaceActivacion = null;
@@ -5592,13 +5592,13 @@ try {
 if (usarActivacion) {
 await enviarEmail(
 email,
-`🏢 Bienvenido - Activa tu cuenta en el Portal de Proveedores`,
+` Bienvenido - Activa tu cuenta en el Portal de Proveedores`,
 emailBienvenidaConActivacion(email, nombre_empresa, enlaceActivacion)
 );
 } else {
 await enviarEmail(
 email,
-`🏢 Bienvenido - Credenciales de acceso al Portal de Proveedores`,
+` Bienvenido - Credenciales de acceso al Portal de Proveedores`,
 emailBienvenidaProveedor(email, passwordFinal, nombre_empresa)
 );
 }
@@ -5745,9 +5745,9 @@ csvEscapar(r.creado_en)
 
     res.send(contenidoFinal);
 
-    console.log(`✅ Exportación de Habeas Data: ${registros.length} registros`);
+    console.log(` Exportación de Habeas Data: ${registros.length} registros`);
   } catch (err) {
-    console.error('❌ Error exportando habeas data:', err.message);
+    console.error(' Error exportando habeas data:', err.message);
     res.status(500).json({
       error: 'Error al exportar: ' + err.message
     });
@@ -5881,14 +5881,14 @@ app.get('/api/admin/documento/:id/verificar-integridad', requiereAdmin, (req, re
     integro: esIntegro,
     hashEsperado: doc.hash_archivo,
     hashActual: calcularHash(buffer),
-    mensaje: esIntegro ? '✅ Documento íntegro' : '⚠️ Documento modificado'
+    mensaje: esIntegro ? ' Documento íntegro' : ' Documento modificado'
   });
 });
 
 app.post('/api/admin/documento/:id/verificar', requiereAdmin, (req, res) => {
   const { verificado } = req.body;
 
-  console.log(`🔍 [VERIFICAR] Recibida petición para documento ID ${req.params.id}, verificado=${verificado}`);
+  console.log(` [VERIFICAR] Recibida petición para documento ID ${req.params.id}, verificado=${verificado}`);
 
   if (typeof verificado !== 'boolean') {
     return res.status(400).json({ error: 'El campo "verificado" debe ser booleano' });
@@ -5898,7 +5898,7 @@ app.post('/api/admin/documento/:id/verificar', requiereAdmin, (req, res) => {
 
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
 
-  console.log(`🔍 [VERIFICAR] Documento encontrado: ID ${doc.id}, tipo ${doc.tipo}, estado ${doc.estado}, verificado actual ${doc.verificado}, no_aplica ${doc.no_aplica}`);
+  console.log(` [VERIFICAR] Documento encontrado: ID ${doc.id}, tipo ${doc.tipo}, estado ${doc.estado}, verificado actual ${doc.verificado}, no_aplica ${doc.no_aplica}`);
 
   if (doc.estado === 'aprobado') {
     return res.status(400).json({ error: 'No se puede modificar un documento aprobado' });
@@ -5914,7 +5914,7 @@ app.post('/api/admin/documento/:id/verificar', requiereAdmin, (req, res) => {
     });
   }
 
-  console.log(`🔍 [VERIFICACIÓN] Documento ID ${doc.id} (tipo: ${doc.tipo}, proveedor: ${doc.proveedor_id}) ${verificado ? '✅ VERIFICADO' : '❌ DESMARCADO'} por ${req.session.usuario.email}`);
+  console.log(` [VERIFICACIÓN] Documento ID ${doc.id} (tipo: ${doc.tipo}, proveedor: ${doc.proveedor_id}) ${verificado ? ' VERIFICADO' : ' DESMARCADO'} por ${req.session.usuario.email}`);
 
   db.prepare('UPDATE documentos SET verificado = ? WHERE id = ?').run(verificado ? 1 : 0, doc.id);
 
@@ -5925,7 +5925,7 @@ app.post('/api/admin/documento/:id/verificar', requiereAdmin, (req, res) => {
   if (prov.todos_subidos && prov.todos_verificados && prov.etapa === 'verificacion') {
     db.prepare(`UPDATE proveedores SET etapa = 'aprobacion' WHERE id = ?`).run(doc.proveedor_id);
 
-    console.log(`✅ Proveedor ${doc.proveedor_id} pasa a etapa APROBACION (todos verificados)`);
+    console.log(` Proveedor ${doc.proveedor_id} pasa a etapa APROBACION (todos verificados)`);
 
     registrarHistorial(
       doc.proveedor_id,
@@ -5953,7 +5953,7 @@ emitirTodos(doc.proveedor_id, 'documento_verificado', payloadEventoDoc(doc.prove
   return res.json({ ok: true, verificado });
 });
 
-// 🆕 Definir tipo de persona desde el módulo Verificación (admin)
+//  Definir tipo de persona desde el módulo Verificación (admin)
 app.post('/api/admin/proveedor/:id/tipo-persona', requiereAdmin, (req, res) => {
 const proveedorId = parseInt(req.params.id);
 const { tipo_proveedor, forzar } = req.body;
@@ -5986,7 +5986,7 @@ req.session.usuario,
 `Tipo de persona definido como ${tipo_proveedor === 'natural' ? 'Persona Natural' : 'Persona Jurídica'} por el administrador`,
 null, null, req
 );
-console.log(`🧾 Tipo de persona definido para proveedor ${proveedorId}: ${tipo_proveedor}`);
+console.log(` Tipo de persona definido para proveedor ${proveedorId}: ${tipo_proveedor}`);
 emitirProveedor(proveedorId, 'tipo_persona_actualizado', { tipo_proveedor });
 emitirAdmin('proveedores_actualizados');
 res.json({ ok: true, tipo_proveedor });
@@ -5996,7 +5996,7 @@ res.json({ ok: true, tipo_proveedor });
 // 9. SERVICIO DE ARCHIVOS
 // ==========================================
 app.get('/uploads/:path(*)', requiereLogin, (req, res) => {
-// 🛡️ A2: prevenir path traversal. Resolver la ruta y exigir que quede DENTRO de uploadsDir.
+//  A2: prevenir path traversal. Resolver la ruta y exigir que quede DENTRO de uploadsDir.
 const rutaArchivo = path.resolve(uploadsDir, req.params.path);
 const uploadsRoot = path.resolve(uploadsDir) + path.sep;
 if (!rutaArchivo.startsWith(uploadsRoot)) {
@@ -6017,8 +6017,8 @@ const usuario = req.session.usuario;
 
 if (usuario.rol === 'admin') {
 tieneAcceso = true;
-// 📄 E8: se traen NIT, razón social y fecha de subida para el nombre descriptivo
-// 🛡️ R2 (D6): + etapa del proveedor para aplicar el filtro revisor
+//  E8: se traen NIT, razón social y fecha de subida para el nombre descriptivo
+//  R2 (D6): + etapa del proveedor para aplicar el filtro revisor
 documentoInfo = db.prepare(`SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social, p.etapa FROM documentos d JOIN proveedores p ON d.proveedor_id = p.id WHERE d.archivo = ?`).get(req.params.path);
 if (esSoloLectorReq(res) && documentoInfo && documentoInfo.etapa !== 'registrado') {
   tieneAcceso = false;
@@ -6066,11 +6066,11 @@ documentoInfo = doc;
     res.setHeader('Content-Type', 'application/pdf');
 
     if (esDescarga) {
-      // 🩹 FIX DESCARGA: los nombres de formato (nombreFormatoServer) NO traen
+      //  FIX DESCARGA: los nombres de formato (nombreFormatoServer) NO traen
       // extensión, así que el SO guardaba el archivo como "tipo archivo" genérico
       // y no lo abría como PDF. Todos los docs del sistema son PDF (multer solo
       // acepta .pdf), por lo que garantizamos la extensión .pdf si falta.
-      // 📄 E8: nombre descriptivo TIPO_NIT_RazonSocial_FAAA-MM-DD.pdf.
+      //  E8: nombre descriptivo TIPO_NIT_RazonSocial_FAAA-MM-DD.pdf.
       // El header Content-Disposition manda sobre el atributo download del <a>,
       // así que visor y botones de descarga lo heredan sin tocar el front.
       let nombreArchivo = nombreDescargaE8(documentoInfo) || nombreFormatoServer(documentoInfo?.tipo) || documentoInfo?.nombre_original || path.basename(req.params.path);
@@ -6093,7 +6093,7 @@ documentoInfo = doc;
 });
 
 // ==========================================
-// 📜 AUDITORÍA — LOG DE ACCIONES DEL SISTEMA
+//  AUDITORÍA — LOG DE ACCIONES DEL SISTEMA
 // ==========================================
 app.get('/api/admin/audit-log', requiereAdmin, (req, res) => {
     try {
@@ -6171,12 +6171,12 @@ app.get('/api/admin/audit-log', requiereAdmin, (req, res) => {
             totalPages
         });
     } catch (err) {
-        console.error('❌ Error cargando auditoría:', err.message);
+        console.error(' Error cargando auditoría:', err.message);
         res.status(500).json({ error: 'Error al cargar el log de auditoría: ' + err.message });
     }
 });
 
-// 📜 Exportar auditoría a CSV
+//  Exportar auditoría a CSV
 app.get('/api/admin/audit-log/export', requiereAdmin, (req, res) => {
     try {
      const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
@@ -6248,13 +6248,13 @@ app.get('/api/admin/audit-log/export', requiereAdmin, (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename=auditoria_${fechaArchivo()}.csv`);
         res.send(csv);
     } catch (err) {
-        console.error('❌ Error exportando auditoría:', err.message);
+        console.error(' Error exportando auditoría:', err.message);
         res.status(500).json({ error: 'Error al exportar: ' + err.message });
     }
 });
 
 // ==========================================
-// 📊 R1: AUDITORÍA — ACTIVIDAD AGREGADA + LOGS DE SEGURIDAD
+//  R1: AUDITORÍA — ACTIVIDAD AGREGADA + LOGS DE SEGURIDAD
 // ==========================================
 
 /**
@@ -6304,7 +6304,7 @@ try {
     const totalGlobal = resumen.reduce((acc, u) => acc + u.total_acciones, 0);
     res.json({ data: resumen, total_global: totalGlobal });
 } catch (err) {
-    console.error('❌ Error obteniendo actividad agregada:', err.message);
+    console.error(' Error obteniendo actividad agregada:', err.message);
     res.status(500).json({ error: 'Error al obtener actividad: ' + err.message });
 }
 });
@@ -6364,7 +6364,7 @@ try {
     const totalPages = Math.ceil(total / limit);
     res.json({ data: registros, total, page, limit, totalPages });
 } catch (err) {
-    console.error('❌ Error cargando logs de seguridad:', err.message);
+    console.error(' Error cargando logs de seguridad:', err.message);
     res.status(500).json({ error: 'Error al cargar logs: ' + err.message });
 }
 });
@@ -6413,18 +6413,18 @@ try {
     res.setHeader('Content-Disposition', `attachment; filename=logs_seguridad_${fechaArchivo()}.csv`);
     res.send(csv);
 } catch (err) {
-    console.error('❌ Error exportando logs de seguridad:', err.message);
+    console.error(' Error exportando logs de seguridad:', err.message);
     res.status(500).json({ error: 'Error al exportar: ' + err.message });
 }
 });
 
 // ==========================================
-// 👥 R3: STAFF ENDPOINTS — Gestión de usuarios admin
+//  R3: STAFF ENDPOINTS — Gestión de usuarios admin
 // ==========================================
 
 // ---- GET /api/admin/usuarios — Listar staff (solo superadmin) ----
 app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
-  // 🛡️ Solo superadmin puede gestionar el equipo
+  //  Solo superadmin puede gestionar el equipo
   if (!res.locals.esSuper) {
     return res.status(403).json({ error: 'Acceso denegado: solo el superadmin gestiona el equipo.' });
   }
@@ -6454,7 +6454,7 @@ app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
 
     res.json({ data });
   } catch (err) {
-    console.error('❌ Error listando staff:', err.message);
+    console.error(' Error listando staff:', err.message);
     res.status(500).json({ error: 'Error al listar el equipo' });
   }
 });
@@ -6545,7 +6545,7 @@ app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
       `;
       await enviarEmail(emailNuevo, 'Invitación — Portal de Proveedores UNAB', htmlInvitacion);
     } catch (emailErr) {
-      console.error('❌ Error enviando invitación:', emailErr.message);
+      console.error(' Error enviando invitación:', emailErr.message);
     }
 
     registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
@@ -6557,7 +6557,7 @@ app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
       usuarioId: nuevoId
     });
   } catch (err) {
-    console.error('❌ Error invitando usuario:', err.message);
+    console.error(' Error invitando usuario:', err.message);
     res.status(500).json({ error: 'Error al invitar al usuario' });
   }
 });
@@ -6582,7 +6582,7 @@ app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
     const target = db.prepare('SELECT id, email, es_superadmin FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
     if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
 
-    // 🛡️ D8: nadie se degrada a sí mismo
+    //  D8: nadie se degrada a sí mismo
     if (targetId === req.session.usuario.id) {
       return res.status(409).json({
         error: 'No puedes modificar tus propios permisos. Pide a otro superadmin que lo haga.'
@@ -6592,7 +6592,7 @@ app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
     db.prepare('UPDATE usuarios SET permisos = ? WHERE id = ?')
       .run(JSON.stringify(permisosLimpios), targetId);
 
-    // 🔒 Destruir sesiones activas del usuario modificado
+    //  Destruir sesiones activas del usuario modificado
     const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
 
     registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
@@ -6605,7 +6605,7 @@ app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
       sesiones_cerradas: sesionesCerradas
     });
   } catch (err) {
-    console.error('❌ Error cambiando permisos:', err.message);
+    console.error(' Error cambiando permisos:', err.message);
     res.status(500).json({ error: 'Error al cambiar permisos' });
   }
 });
@@ -6624,14 +6624,14 @@ app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
     const target = db.prepare('SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
     if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
 
-    // 🛡️ D8: nadie se desactiva a sí mismo
+    //  D8: nadie se desactiva a sí mismo
     if (targetId === req.session.usuario.id) {
       return res.status(409).json({
         error: 'No puedes desactivar tu propia cuenta.'
       });
     }
 
-    // 🛡️ D8: último superadmin activo es intocable
+    //  D8: último superadmin activo es intocable
     if (target.es_superadmin === 1 && nuevoEstado === 0) {
       const superadminsActivos = db.prepare(
         'SELECT COUNT(*) as count FROM usuarios WHERE es_superadmin = 1 AND activo = 1'
@@ -6645,7 +6645,7 @@ app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
 
     db.prepare('UPDATE usuarios SET activo = ? WHERE id = ?').run(nuevoEstado, targetId);
 
-    // 🔒 Destruir sesiones si se desactiva
+    //  Destruir sesiones si se desactiva
     let sesionesCerradas = 0;
     if (nuevoEstado === 0) {
       sesionesCerradas = cerrarSesionesDeUsuario(targetId);
@@ -6661,7 +6661,7 @@ app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
       sesiones_cerradas: sesionesCerradas
     });
   } catch (err) {
-    console.error('❌ Error activando/desactivando:', err.message);
+    console.error(' Error activando/desactivando:', err.message);
     res.status(500).json({ error: 'Error al cambiar estado' });
   }
 });
@@ -6686,7 +6686,7 @@ app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
       });
     }
 
-    // 🛡️ D8: no quitar superadmin al último activo
+    //  D8: no quitar superadmin al último activo
     if (target.es_superadmin === 1 && nuevoValor === 0) {
       const superadminsActivos = db.prepare(
         'SELECT COUNT(*) as count FROM usuarios WHERE es_superadmin = 1 AND activo = 1'
@@ -6712,13 +6712,13 @@ app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
       sesiones_cerradas: sesionesCerradas
     });
   } catch (err) {
-    console.error('❌ Error cambiando superadmin:', err.message);
+    console.error(' Error cambiando superadmin:', err.message);
     res.status(500).json({ error: 'Error al cambiar rol' });
   }
 });
 
 // ==========================================
-// 👥 R3: STAFF ENDPOINTS (invitar, listar, permisos, activar/desactivar)
+//  R3: STAFF ENDPOINTS (invitar, listar, permisos, activar/desactivar)
 // Alcance: solo superadmin (clave reservada 'usuarios.gestionar' + doble
 // chequeo res.locals.esSuper). Candados D8: nadie se auto-modifica; el
 // último superadmin activo es intocable (409). Toda mutación destruye las
@@ -6754,7 +6754,7 @@ app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
     // El catálogo viaja con la respuesta: R4 pintará la matriz desde una sola fuente
     res.json({ data, catalogo: PERMISOS_CONMUTABLES });
   } catch (err) {
-    console.error('❌ Error listando staff:', err.message);
+    console.error(' Error listando staff:', err.message);
     res.status(500).json({ error: 'Error al cargar el equipo' });
   }
 });
@@ -6794,15 +6794,15 @@ app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
     // Correo fire-and-forget: no bloquea la respuesta HTTP
     enviarEmail(
       emailNuevo,
-      '👥 Invitación al Portal de Proveedores UNAB',
+      ' Invitación al Portal de Proveedores UNAB',
       emailInvitacionStaff(emailNuevo, req.session.usuario.email, enlaceActivacion)
     ).then(r => {
-      if (r.ok) console.log(`✅ Invitación de staff enviada a ${emailNuevo}`);
-      else console.error(`❌ Error enviando invitación a ${emailNuevo}: ${r.error}`);
-    }).catch(e => console.error('❌ Error enviando invitación:', e.message));
+      if (r.ok) console.log(` Invitación de staff enviada a ${emailNuevo}`);
+      else console.error(` Error enviando invitación a ${emailNuevo}: ${r.error}`);
+    }).catch(e => console.error(' Error enviando invitación:', e.message));
     res.json({ ok: true, mensaje: `Invitación enviada a ${emailNuevo}. El enlace expira en 7 días.`, usuarioId: nuevoId });
   } catch (err) {
-    console.error('❌ Error invitando staff:', err.message);
+    console.error(' Error invitando staff:', err.message);
     res.status(500).json({ error: 'Error al crear la invitación' });
   }
 });
@@ -6817,18 +6817,18 @@ app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
   try {
     const target = db.prepare(`SELECT id, email FROM usuarios WHERE id = ? AND rol = 'admin'`).get(targetId);
     if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
-    // 🛡️ D8: nadie modifica sus propios permisos
+    //  D8: nadie modifica sus propios permisos
     if (targetId === req.session.usuario.id) {
       return res.status(409).json({ error: 'No puedes modificar tus propios permisos. Pide a otro superadmin que lo haga.' });
     }
     db.prepare(`UPDATE usuarios SET permisos = ? WHERE id = ?`).run(JSON.stringify(permisosLimpios), targetId);
-    // 🔒 Cambiar permisos invalida sesiones activas del afectado (regla §8)
+    //  Cambiar permisos invalida sesiones activas del afectado (regla §8)
     const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
     registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'staff_permisos_cambiados', true,
       `${target.email} → [${permisosLimpios.join(', ')}] · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
     res.json({ ok: true, mensaje: `Permisos actualizados para ${target.email}.`, sesiones_cerradas: sesionesCerradas });
   } catch (err) {
-    console.error('❌ Error cambiando permisos:', err.message);
+    console.error(' Error cambiando permisos:', err.message);
     res.status(500).json({ error: 'Error al cambiar permisos' });
   }
 });
@@ -6842,11 +6842,11 @@ app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
   try {
     const target = db.prepare(`SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = 'admin'`).get(targetId);
     if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
-    // 🛡️ D8: nadie se desactiva a sí mismo
+    //  D8: nadie se desactiva a sí mismo
     if (targetId === req.session.usuario.id) {
       return res.status(409).json({ error: 'No puedes desactivar tu propia cuenta.' });
     }
-    // 🛡️ D8: el último superadmin activo es intocable
+    //  D8: el último superadmin activo es intocable
     if (nuevoEstado === 0 && target.es_superadmin === 1) {
       const superActivos = db.prepare(`SELECT COUNT(*) AS c FROM usuarios WHERE rol = 'admin' AND es_superadmin = 1 AND activo = 1`).get().c;
       if (superActivos <= 1) {
@@ -6865,12 +6865,12 @@ app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
       sesiones_cerradas: sesionesCerradas
     });
   } catch (err) {
-    console.error('❌ Error cambiando estado:', err.message);
+    console.error(' Error cambiando estado:', err.message);
     res.status(500).json({ error: 'Error al cambiar el estado' });
   }
 });
 
-// ---- 🆕 DELETE /api/admin/usuarios/:id — eliminar miembro del equipo (D8) ----
+// ----  DELETE /api/admin/usuarios/:id — eliminar miembro del equipo (D8) ----
 // Baja definitiva de una cuenta admin: cierra sus sesiones activas y elimina
 // sus tokens de recuperación (FK ON DELETE CASCADE en password_resets).
 // Candados: nadie se elimina a sí mismo · el último superadmin activo es intocable.
@@ -6888,30 +6888,30 @@ app.delete('/api/admin/usuarios/:id', requiereAdmin, (req, res) => {
     if (!target || target.rol !== 'admin') {
       return res.status(404).json({ error: 'Usuario admin no encontrado' });
     }
-    // 🛡️ D8: nadie se elimina a sí mismo
+    //  D8: nadie se elimina a sí mismo
     if (targetId === req.session.usuario.id) {
       return res.status(409).json({ error: 'No puedes eliminar tu propia cuenta.' });
     }
-    // 🛡️ D8: el último superadmin activo es intocable
+    //  D8: el último superadmin activo es intocable
     if (target.es_superadmin === 1) {
       const superActivos = db.prepare(`SELECT COUNT(*) AS c FROM usuarios WHERE rol = 'admin' AND es_superadmin = 1 AND activo = 1`).get().c;
       if (superActivos <= 1) {
         return res.status(409).json({ error: 'No puedes eliminar al último superadmin activo del sistema.' });
       }
     }
-    // 🔒 Sesiones fuera antes del DELETE (evita sesiones huérfanas con cookie viva)
+    //  Sesiones fuera antes del DELETE (evita sesiones huérfanas con cookie viva)
     const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
     db.prepare(`DELETE FROM usuarios WHERE id = ?`).run(targetId);
     registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'staff_eliminado', true,
       `Miembro eliminado: ${target.email} · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
     res.json({ ok: true, mensaje: `Miembro ${target.email} eliminado permanentemente.`, sesiones_cerradas: sesionesCerradas });
   } catch (err) {
-    console.error('❌ Error eliminando miembro:', err.message);
+    console.error(' Error eliminando miembro:', err.message);
     res.status(500).json({ error: 'Error al eliminar el miembro' });
   }
 });
 
-// ---- 🆕 R4.1: cambiar email de un miembro del equipo ----
+// ----  R4.1: cambiar email de un miembro del equipo ----
 // Conserva flag superadmin, permisos e historial. Cierra sesiones del afectado
 // (salvo si eres tú mismo: tu sesión continúa con el correo nuevo).
 app.put('/api/admin/usuarios/:id/email', requiereAdmin, (req, res) => {
@@ -6938,12 +6938,12 @@ app.put('/api/admin/usuarios/:id/email', requiereAdmin, (req, res) => {
       `Miembro ${target.email} → ${emailNuevo}${sesionesCerradas ? ` · ${sesionesCerradas} sesión(es) cerrada(s)` : ' · sesión propia conservada'}`, req);
     res.json({ ok: true, mensaje: `Correo actualizado a ${emailNuevo}.`, sesiones_cerradas: sesionesCerradas });
   } catch (err) {
-    console.error('❌ Error cambiando email del miembro:', err.message);
+    console.error(' Error cambiando email del miembro:', err.message);
     res.status(500).json({ error: 'Error al cambiar el email' });
   }
 });
 
-// ---- 🆕 R4.1: promover/degradar superadmin (D8) ----
+// ----  R4.1: promover/degradar superadmin (D8) ----
 // Candados: nadie cambia su propio superadmin · el último superadmin activo
 // no se degrada · promover exige miembro ACTIVO. Siempre cierra sesiones del destino.
 app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
@@ -6971,7 +6971,7 @@ app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
       `${target.email} → ${nuevo === 1 ? 'SUPERADMIN' : 'admin regular'} · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
     res.json({ ok: true, mensaje: `${target.email} ahora es ${nuevo === 1 ? 'superadmin' : 'admin regular'}.`, sesiones_cerradas: sesionesCerradas });
   } catch (err) {
-    console.error('❌ Error cambiando superadmin:', err.message);
+    console.error(' Error cambiando superadmin:', err.message);
     res.status(500).json({ error: 'Error al cambiar el rol' });
   }
 });
@@ -6979,46 +6979,46 @@ app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
 // ==========================================
 // 10. ERROR HANDLER Y SERVIDOR
 // ==========================================
-// 🛡️ TEST-SAFE: los cron jobs solo se programan fuera del ambiente de test.
+//  TEST-SAFE: los cron jobs solo se programan fuera del ambiente de test.
 // En Jest mantenían timers abiertos (35 open handles) y causaban timeouts.
 if (process.env.NODE_ENV !== 'test') {
 cron.schedule('0 8 * * *', async () => {
-  console.log(`\n🕐 Ejecutando recordatorios automáticos - ${new Date().toLocaleString()}`);
+  console.log(`\n Ejecutando recordatorios automáticos - ${new Date().toLocaleString()}`);
   await enviarRecordatoriosFaltantes();
 }, {
   timezone: "America/Bogota"
 });
 
-console.log('⏰ Cron job de recordatorios configurado para las 8:00 AM (Colombia)');
+console.log(' Cron job de recordatorios configurado para las 8:00 AM (Colombia)');
 
 cron.schedule('0 0 * * *', () => {
-console.log(`🕐 Programando procesamiento de vencimientos - ${new Date().toLocaleString()}`);
+console.log(` Programando procesamiento de vencimientos - ${new Date().toLocaleString()}`);
 arrancarVencimientos({ forzar: false });
 }, {
 timezone: "America/Bogota"
 });
 
-// 🆕 A1: Pre-aviso de vencimiento a 30 y 15 días (7:00 AM Colombia)
+//  A1: Pre-aviso de vencimiento a 30 y 15 días (7:00 AM Colombia)
 cron.schedule('0 7 * * *', async () => {
-  console.log(`\n🕐 Ejecutando pre-aviso de vencimientos - ${new Date().toLocaleString()}`);
+  console.log(`\n Ejecutando pre-aviso de vencimientos - ${new Date().toLocaleString()}`);
   await procesarPreAvisoVencimientos();
 }, {
   timezone: "America/Bogota"
 });
-console.log('🔔 Cron de pre-aviso de vencimientos configurado (7:00 AM Colombia, umbrales 30/15 días)');
+console.log(' Cron de pre-aviso de vencimientos configurado (7:00 AM Colombia, umbrales 30/15 días)');
 
-// 🧹 N1: limpieza de logs_seguridad (retención 90 días). Antes nunca se ejecutaba.
+//  N1: limpieza de logs_seguridad (retención 90 días). Antes nunca se ejecutaba.
 cron.schedule('30 3 * * *', () => {
 limpiarLogsAntiguos();
 }, {
 timezone: "America/Bogota"
 });
-console.log('🧹 Cron de limpieza de logs configurado (3:30 AM Colombia, retención 90 días)');
+console.log(' Cron de limpieza de logs configurado (3:30 AM Colombia, retención 90 días)');
 
-console.log('⏰ Cron job de vencimientos configurado para las 12:00 AM (Colombia)');
+console.log(' Cron job de vencimientos configurado para las 12:00 AM (Colombia)');
 
 
-// 💾 Backup automático cada 12 h: BD consistente + mirror de archivos.
+//  Backup automático cada 12 h: BD consistente + mirror de archivos.
 cron.schedule('0 2,14 * * *', async () => {
 const backupsDir = path.join(dataDir, 'backups');
 if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
@@ -7027,17 +7027,17 @@ const stamp = d.toISOString().slice(0, 10) + '_' + d.toISOString().slice(11, 16)
 const destino = path.join(backupsDir, `proveedores_${stamp}.db`);
 try {
 await db.backup(destino);
-console.log(`💾 Backup generado: ${destino}`);
+console.log(` Backup generado: ${destino}`);
 respaldarArchivosNuevos();
 // Retención: 14 backups automáticos (7 días × 2 por día)
 const archivos = fs.readdirSync(backupsDir).filter(f => /^proveedores_\d{4}-\d{2}-\d{2}(_\d{4})?\.db$/.test(f)).sort();
 while (archivos.length > 14) fs.unlinkSync(path.join(backupsDir, archivos.shift()));
 } catch (e) {
-console.error('❌ Error generando backup:', e.message);
+console.error(' Error generando backup:', e.message);
 }
 }, { timezone: 'America/Bogota' });
-console.log('💾 Cron de backup configurado (2 AM y 2 PM Colombia, 14 copias + mirror de archivos)');
-} // 🛡️ fin NODE_ENV !== 'test' (cron jobs)
+console.log(' Cron de backup configurado (2 AM y 2 PM Colombia, 14 copias + mirror de archivos)');
+} //  fin NODE_ENV !== 'test' (cron jobs)
 
 app.post('/api/admin/proveedor/:id/reiniciar-proceso', requiereAdmin, (req, res) => {
   const proveedorId = parseInt(req.params.id);
@@ -7121,18 +7121,18 @@ app.post('/api/admin/proveedor/:id/solicitar-actualizacion', requiereAdmin, asyn
     
 const añoActual = new Date().getFullYear();
 // 1. Archivar TODOS los documentos activos (incluidos los "No aplica")
-// 🩹 FIX: usa moverDocumentoAHistorico para crear la subcarpeta del ciclo
+//  FIX: usa moverDocumentoAHistorico para crear la subcarpeta del ciclo
 // (uploads/<id>/<ciclo>/) y mover allí los .enc, igual que los vencimientos.
 const cicloCerrado = proveedor.numero_registro || null;
 const docsActivos = db.prepare(`
 SELECT * FROM documentos
 WHERE proveedor_id = ? AND es_historico = 0
 `).all(proveedorId);
-console.log(`📦 Archivando ${docsActivos.length} documentos activos del proveedor ${proveedorId}`);
+console.log(` Archivando ${docsActivos.length} documentos activos del proveedor ${proveedorId}`);
 for (const doc of docsActivos) {
 moverDocumentoAHistorico(doc, 'Archivado por solicitud de actualización anual');
 }
-// 1b. 🩹 FIX EVALUACIÓN: mover el .enc de la evaluación inicial a la subcarpeta
+// 1b.  FIX EVALUACIÓN: mover el .enc de la evaluación inicial a la subcarpeta
 // del ciclo ANTES de que el paso 2 ponga evaluacion_inicial = NULL.
 if (proveedor.evaluacion_inicial) {
 const okEval = moverDocumentoAHistorico({
@@ -7142,8 +7142,8 @@ archivo: proveedor.evaluacion_inicial,
 ciclo: cicloCerrado
 }, 'Evaluación archivada por solicitud de actualización anual');
 console.log(okEval
-? `📄 Evaluación inicial del proveedor ${proveedorId} movida al ciclo ${cicloCerrado || 'sin_ciclo'}.`
-: `⚠️ No se pudo mover la evaluación inicial del proveedor ${proveedorId}.`);
+? ` Evaluación inicial del proveedor ${proveedorId} movida al ciclo ${cicloCerrado || 'sin_ciclo'}.`
+: ` No se pudo mover la evaluación inicial del proveedor ${proveedorId}.`);
 }
     
     // 2. Mover proveedor a verificación (tipo_proveedor = NULL para que elija)
@@ -7186,27 +7186,27 @@ const usuarioCorreo = db.prepare(`
 try {
 await enviarEmail(
 usuarioCorreo?.email,
-`🔄 Solicitud de actualización de documentos - ${nombreProveedor}`,
+` Solicitud de actualización de documentos - ${nombreProveedor}`,
 emailSolicitudActualizacion(nombreProveedor, mensaje || null, añoActual)
 );
-console.log(`📧 Correo de actualización enviado a ${usuarioCorreo?.email}`);
+console.log(` Correo de actualización enviado a ${usuarioCorreo?.email}`);
     } catch (emailErr) {
-      console.error('❌ Error enviando correo de actualización:', emailErr);
+      console.error(' Error enviando correo de actualización:', emailErr);
     }
     
     // 5. Emitir eventos Socket.IO
     emitirProveedor(proveedorId, 'solicitud_actualizacion', { año: añoActual });
     emitirAdmin('proveedores_actualizados');
     
-    console.log(`✅ Solicitud de actualización enviada al proveedor ${proveedorId} (${nombreProveedor})`);
+    console.log(` Solicitud de actualización enviada al proveedor ${proveedorId} (${nombreProveedor})`);
     
     res.json({
       ok: true,
-      mensaje: `✅ Solicitud de actualización enviada a ${nombreProveedor}. El proveedor ha sido movido a verificación y debe subir sus documentos actualizados.`
+      mensaje: ` Solicitud de actualización enviada a ${nombreProveedor}. El proveedor ha sido movido a verificación y debe subir sus documentos actualizados.`
     });
     
   } catch (err) {
-    console.error('❌ Error solicitando actualización:', err);
+    console.error(' Error solicitando actualización:', err);
     res.status(500).json({ error: 'Error interno al solicitar la actualización' });
   }
 });
@@ -7262,7 +7262,7 @@ if (mapTipos[tipo]) {
 tipo = mapTipos[tipo];
 }
 if (tipo === 'evaluacion') continue;
-// 🛡️ ANTI-DUPLICADOS: si el proveedor YA tiene un registro ACTIVO de este tipo
+//  ANTI-DUPLICADOS: si el proveedor YA tiene un registro ACTIVO de este tipo
 // y el tipo no permite múltiples archivos, NO insertamos un registro duplicado:
 // el archivo huérfano se pone en cuarentena (fuera de futuros escaneos) y se reporta.
 const tipoProv = db.prepare('SELECT tipo_proveedor FROM proveedores WHERE id = ?').get(proveedorId)?.tipo_proveedor;
@@ -7274,7 +7274,7 @@ if (activosDelTipo > 0) {
 const cuarentena = path.join(rutaCarpeta, '_recuperados');
 if (!fs.existsSync(cuarentena)) fs.mkdirSync(cuarentena, { recursive: true });
 fs.renameSync(path.join(rutaCarpeta, archivo), path.join(cuarentena, archivo));
-console.log(`🧫 Huérfano en cuarentena (ya hay un activo del tipo ${tipo}): ${archivo}`);
+console.log(` Huérfano en cuarentena (ya hay un activo del tipo ${tipo}): ${archivo}`);
 continue;
 }
 }
@@ -7285,7 +7285,7 @@ const nombreOriginal = archivo.replace('.enc', '.pdf');
             VALUES (?, ?, ?, ?, 'pendiente', 0, 0, datetime('now', '-05:00'))
           `).run(proveedorId, tipo, relativa, nombreOriginal);
 
-          console.log(`🔁 Recuperado automáticamente: ${archivo} para proveedor ${proveedorId}`);
+          console.log(` Recuperado automáticamente: ${archivo} para proveedor ${proveedorId}`);
           totalRecuperados++;
         }
       }
@@ -7296,18 +7296,18 @@ const nombreOriginal = archivo.replace('.enc', '.pdf');
     }
 
     if (totalRecuperados > 0) {
-      console.log(`✅ ${totalRecuperados} documentos huérfanos recuperados automáticamente.`);
+      console.log(` ${totalRecuperados} documentos huérfanos recuperados automáticamente.`);
     }
   } catch (err) {
-    console.error('❌ Error en recuperación de documentos huérfanos:', err.message);
+    console.error(' Error en recuperación de documentos huérfanos:', err.message);
   }
 }
 
-// 🛡️ TEST-SAFE: el escaneo de huérfanos no se ejecuta en tests (ahorra I/O y bloqueos)
+//  TEST-SAFE: el escaneo de huérfanos no se ejecuta en tests (ahorra I/O y bloqueos)
 if (process.env.NODE_ENV !== 'test') recuperarDocumentosHuérfanos();
-// 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
+//  Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
 // evaluaciones iniciales huérfanas asignándolas a su ciclo por fecha. Idempotente.
-// 🩹 Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
+//  Reorganiza históricos cuyos .enc quedaron sueltos en uploads/<id>/ y recupera
 // evaluaciones iniciales huérfanas asignándolas a su ciclo por fecha. Idempotente.
 function reorganizarHistoricosPorCiclo() {
     try {
@@ -7331,11 +7331,11 @@ let rutaNueva = path.join(dirDestino, nombre);
 const r = moverArchivoConDedup(rutaActual, rutaNueva);
 rutaNueva = r.rutaFinal;
 nombre = path.basename(r.rutaFinal);
-if (r.reutilizado) console.log(`♻️ Doc ${doc.id}: duplicado eliminado al reorganizar (contenido idéntico ya en ciclo)`);
+if (r.reutilizado) console.log(` Doc ${doc.id}: duplicado eliminado al reorganizar (contenido idéntico ya en ciclo)`);
 db.prepare(`UPDATE documentos SET archivo = ? WHERE id = ?`).run(`${doc.proveedor_id}/${doc.ciclo}/${nombre}`, doc.id);
 movidos++;
         }
-        if (movidos > 0) console.log(`🗂️ ${movidos} histórico(s) reorganizados en subcarpetas de ciclo`);
+        if (movidos > 0) console.log(` ${movidos} histórico(s) reorganizados en subcarpetas de ciclo`);
 
         // 2) Evaluaciones huérfanas sueltas en uploads/<id>/ → al ciclo por fecha
         const provs = db.prepare(`SELECT DISTINCT proveedor_id FROM ciclos_actualizacion`).all();
@@ -7350,16 +7350,16 @@ movidos++;
                 FROM ciclos_actualizacion WHERE proveedor_id = ?
             `).all(proveedor_id);
             for (const f of sueltas) {
-                // 🛡️ FIX: no mover evaluaciones que siguen referenciadas como ACTIVAS (evaluacion_inicial)
+                //  FIX: no mover evaluaciones que siguen referenciadas como ACTIVAS (evaluacion_inicial)
                 const refActiva = db.prepare(`SELECT id FROM proveedores WHERE id = ? AND evaluacion_inicial = ?`).get(proveedor_id, `${proveedor_id}/${f}`);
                 if (refActiva) continue;
                 const mtime = fs.statSync(path.join(dirProv, f)).mtime;
                 const parse = s => new Date(String(s).replace(' ', 'T') + '-05:00');
-                // 🛡️ Solo ciclos CERRADOS con ventana que contenga la fecha del archivo.
+                //  Solo ciclos CERRADOS con ventana que contenga la fecha del archivo.
                 // Sin adivinanza: si no encaja, se deja intacta y se reporta.
                 const ciclo = ciclos.find(c => c.fecha_fin && mtime >= parse(c.fecha_inicio) && mtime <= parse(c.fecha_fin));
                 if (!ciclo) {
-                console.log(`⚠️ Evaluación huérfana sin ciclo cerrado coincidente: ${proveedor_id}/${f} → se deja intacta`);
+                console.log(` Evaluación huérfana sin ciclo cerrado coincidente: ${proveedor_id}/${f} → se deja intacta`);
                 continue;
                 }
                 const dirDestino = path.join(dirProv, String(ciclo.numero_registro));
@@ -7369,16 +7369,16 @@ movidos++;
                 evalsMovidas++;
             }
         }
-        if (evalsMovidas > 0) console.log(`🗂️ ${evalsMovidas} evaluación(es) huérfana(s) asignadas a su ciclo`);
+        if (evalsMovidas > 0) console.log(` ${evalsMovidas} evaluación(es) huérfana(s) asignadas a su ciclo`);
     } catch (err) {
-        console.error('❌ Error reorganizando históricos:', err.message);
+        console.error(' Error reorganizando históricos:', err.message);
     }
 }
-// 🛡️ TEST-SAFE: la reorganización de históricos no se ejecuta en tests
+//  TEST-SAFE: la reorganización de históricos no se ejecuta en tests
 if (process.env.NODE_ENV !== 'test') reorganizarHistoricosPorCiclo();
 
 function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOriginal, accion) {
-  console.log(`🔔 [notificarAdminDocumento] Ejecutando para proveedor ${proveedorId}, accion: ${accion}`);
+  console.log(` [notificarAdminDocumento] Ejecutando para proveedor ${proveedorId}, accion: ${accion}`);
 
   try {
     const proveedorInfo = db.prepare(`
@@ -7408,7 +7408,7 @@ FROM proveedores p
       const noAplica = docsTipo.some(d => d.no_aplica === 1);
 
       if (req.opcional && noAplica) {
-        console.log(`   📌 ${req.tipo} (${req.nombre}) → NO APLICA, saltando`);
+        console.log(`    ${req.tipo} (${req.nombre}) → NO APLICA, saltando`);
         continue;
       }
 
@@ -7417,19 +7417,19 @@ FROM proveedores p
 
       if (rechazados > 0) {
         tieneRechazados = true;
-        console.log(`   ⚠️ ${req.tipo} (${req.nombre}) tiene ${rechazados} documento(s) rechazado(s)`);
+        console.log(`    ${req.tipo} (${req.nombre}) tiene ${rechazados} documento(s) rechazado(s)`);
       }
 
       if (subidosValidos < req.cantidadMin) {
         todosSubidos = false;
-        console.log(`   ⚠️ ${req.tipo} (${req.nombre}) → Faltan documentos (${subidosValidos}/${req.cantidadMin})`);
+        console.log(`    ${req.tipo} (${req.nombre}) → Faltan documentos (${subidosValidos}/${req.cantidadMin})`);
       }
 
       totalDocumentosSubidos += subidosValidos;
     }
 
     if (todosSubidos && !tieneRechazados && totalDocumentosSubidos > 0) {
-      console.log(`\n📋 Proveedor ${nombreProveedor} completó todos los documentos (${totalDocumentosSubidos} docs válidos)`);
+      console.log(`\n Proveedor ${nombreProveedor} completó todos los documentos (${totalDocumentosSubidos} docs válidos)`);
 
       const yaNotificado = db.prepare(`
         SELECT id
@@ -7448,11 +7448,11 @@ FROM proveedores p
 
         enviarEmail(
           process.env.ADMIN_EMAIL,
-          `📋 Proveedor completó documentación: ${nombreProveedor}`,
+          ` Proveedor completó documentación: ${nombreProveedor}`,
           htmlEmail
         ).then(result => {
           if (result.ok) {
-            console.log(`✅ Email enviado al admin sobre proveedor: ${nombreProveedor}`);
+            console.log(` Email enviado al admin sobre proveedor: ${nombreProveedor}`);
 
             registrarHistorial(
               proveedorId,
@@ -7464,30 +7464,30 @@ FROM proveedores p
               null
             );
           } else {
-            console.error(`❌ Error enviando email: ${result.error}`);
+            console.error(` Error enviando email: ${result.error}`);
           }
         }).catch(err => {
-          console.error('❌ Error enviando notificación al admin:', err);
+          console.error(' Error enviando notificación al admin:', err);
         });
       } else {
-        console.log(`⏳ Proveedor ${nombreProveedor} ya fue notificado en las últimas 24h, saltando.`);
+        console.log(` Proveedor ${nombreProveedor} ya fue notificado en las últimas 24h, saltando.`);
       }
     } else {
-      console.log(`⏳ Proveedor ${nombreProveedor} aún no completa todos los documentos:`);
+      console.log(` Proveedor ${nombreProveedor} aún no completa todos los documentos:`);
       if (!todosSubidos) console.log('   - Faltan documentos por subir');
       if (tieneRechazados) console.log('   - Hay documentos rechazados');
       if (totalDocumentosSubidos === 0) console.log('   - No hay documentos válidos subidos');
     }
   } catch (err) {
-    console.error('❌ Error en notificarAdminDocumento:', err.message);
+    console.error(' Error en notificarAdminDocumento:', err.message);
   }
 }
 
 function actualizarEstadoProveedor(proveedorId) {
 console.log(`
-🔍 [actualizarEstadoProveedor] Recalculando estado y flags para proveedor ID ${proveedorId}`);
+ [actualizarEstadoProveedor] Recalculando estado y flags para proveedor ID ${proveedorId}`);
 const prov = db.prepare('SELECT etapa, tipo_proveedor FROM proveedores WHERE id = ?').get(proveedorId);
-const REQS = requerimientosPara(prov?.tipo_proveedor); // 🆕
+const REQS = requerimientosPara(prov?.tipo_proveedor); // 
 
 if (prov && prov.etapa === 'rechazado') {
   const activos = db.prepare(`
@@ -7500,7 +7500,7 @@ if (prov && prov.etapa === 'rechazado') {
   const rechazadosActivos = activos.filter(d => d.estado === 'rechazado' && d.no_aplica === 0);
 
   if (activos.length === 0) {
-    console.log(`ℹ️ Proveedor ${proveedorId} en etapa 'rechazado' sin documentos activos. Habilitando verificación para nueva carga.`);
+    console.log(` Proveedor ${proveedorId} en etapa 'rechazado' sin documentos activos. Habilitando verificación para nueva carga.`);
 
     db.prepare(`
     UPDATE proveedores
@@ -7541,7 +7541,7 @@ if (prov && prov.etapa === 'rechazado') {
         AND no_aplica = 0
     `).run(proveedorId);
   } else {
-    console.log(`ℹ️ Proveedor ${proveedorId} en etapa 'rechazado' con documentos activos pero sin rechazados activos. Normalizando etapa.`);
+    console.log(` Proveedor ${proveedorId} en etapa 'rechazado' con documentos activos pero sin rechazados activos. Normalizando etapa.`);
 
     db.prepare(`
       UPDATE proveedores
@@ -7626,9 +7626,9 @@ if (prov && prov.etapa === 'rechazado') {
   nuevoEstado = 'aprobado';
   }
 
-  console.log(`🏷️ Estado calculado: ${nuevoEstado}`);
-  console.log(`📋 todos_subidos: ${todosSubidos}`);
-  console.log(`📋 todos_verificados: ${todosVerificados}`);
+  console.log(` Estado calculado: ${nuevoEstado}`);
+  console.log(` todos_subidos: ${todosSubidos}`);
+  console.log(` todos_verificados: ${todosVerificados}`);
 
   if (nuevoEstado === 'aprobado') {
     db.prepare(`
@@ -7671,16 +7671,16 @@ if (prov && prov.etapa === 'rechazado') {
 if (require.main === module) {
 server.listen(PORT, () => {
 console.log(`
-🚀 Servidor: http://localhost:${PORT}`);
-console.log(`📦 Versión: ${require('./package.json').version}`);
-console.log(`🔐 Seguridad: AES-256-GCM + Rate Limiting + Helmet`);
-console.log(`👤 Admin: ${process.env.ADMIN_EMAIL || 'admin@empresa.com'}
+ Servidor: http://localhost:${PORT}`);
+console.log(` Versión: ${require('./package.json').version}`);
+console.log(` Seguridad: AES-256-GCM + Rate Limiting + Helmet`);
+console.log(` Admin: ${process.env.ADMIN_EMAIL || 'admin@empresa.com'}
 `);
 }).on('error', (err) => {
-console.error('❌ Error al iniciar el servidor:', err);
+console.error(' Error al iniciar el servidor:', err);
 });
 } else {
-  console.log('⚠️ El servidor se está ejecutando como módulo, no se inicia automáticamente.');
+  console.log(' El servidor se está ejecutando como módulo, no se inicia automáticamente.');
 }
 
 module.exports = {

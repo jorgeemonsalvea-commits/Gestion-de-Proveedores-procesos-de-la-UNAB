@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%238600dd'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='38' font-weight='bold' text-anchor='middle' fill='%23e9a427'>U</text></svg>">
 <link rel="stylesheet" href="style.css">
 <style>
-/* 🧩 Menú de accesos (estilo portal UNAB) — solo admin.html */
+/* Menú de accesos (estilo portal UNAB) — solo admin.html */
 .navbar { position: relative; z-index: 1000; }
 .apps-menu-wrap { position: relative; display: inline-block; vertical-align: middle; z-index: 1200; }
 .apps-menu-trigger {
@@ -51,11 +51,11 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 @media (prefers-reduced-motion: reduce) {
 .apps-menu-panel, .apps-menu-trigger, .apps-tile { transition: none !important; }
 }
-/* 🆕 C1-fix: SweetAlert2 SIEMPRE por encima de overlays de alto z-index
+/* C1-fix: SweetAlert2 SIEMPRE por encima de overlays de alto z-index
    (Revisión Enfocada = 9600, visor = 9000). Sin esto, el promptSwal de
    rechazo queda pintado DETRÁS del overlay y parece que no abre. */
 .swal2-container { z-index: 99999 !important; }
-/* 🔍 C6: paleta Ctrl+K sobre SweetAlert2 */
+/* C6: paleta Ctrl+K sobre SweetAlert2 */
 .ctrlk-popup { width: 640px; max-width: 95%; }
 .ctrlk-popup .swal2-title { font-size: 1.05rem; text-align: left; margin: 0 0 0.6rem 0; }
 .ctrlk-popup .swal2-html-container { margin: 0; text-align: left; }
@@ -99,14 +99,14 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </aside>
 <div class="ad-main">
 <div class="ad-topbar">
-<div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b> <span class="badge-count" style="cursor:pointer;margin-left:0.5rem;" onclick="abrirCtrlK()" title="Búsqueda global (Ctrl+K)">🔍 Ctrl+K</span></div>
+<div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b> <span class="badge-count" style="cursor:pointer;margin-left:0.5rem;" onclick="abrirCtrlK()" title="Búsqueda global (Ctrl+K)"> Ctrl+K</span></div>
 <div style="display:flex;align-items:center;gap:.6rem;">
 <div class="feed-wrap">
-<button id="btnCampanaD4" class="btn-sonido btn-campana" onclick="togglePanelEventosD4()" title="Eventos en tiempo real">🔔<span id="campanaBadgeD4" class="campana-badge" style="display:none;">0</span></button>
+<button id="btnCampanaD4" class="btn-sonido btn-campana" onclick="togglePanelEventosD4()" title="Eventos en tiempo real"><span id="campanaBadgeD4" class="campana-badge" style="display:none;">0</span></button>
 <div id="panelEventosD4" class="feed-panel"></div>
 </div>
-<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema">🌙</button>
-<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real">🔊</button>
+<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema"></button>
+<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real"></button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
@@ -127,7 +127,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div><div class="kpi-spark" id="spark-inscripcion"></div></div></div>
 <div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div><div class="kpi-spark" id="spark-rechazados"></div></div></div>
 </div>
-<!-- 📊 E7→Métricas: la card del dashboard se movió al módulo "Métricas" del sidebar -->
+<!--  E7→Métricas: la card del dashboard se movió al módulo "Métricas" del sidebar -->
 <div class="ad-grid">
   <div class="ad-col-main">
     <!-- CONTENEDOR DINÁMICO -->
@@ -147,37 +147,37 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="modal" style="max-width:950px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
 <h3 id="modalTitulo" style="margin:0;">Proveedor</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">✕ Cerrar</button>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModal()"> Cerrar</button>
 </div>
 <div id="modalContenidoDinamico"></div>
 
 <!-- Sub-pestañas internas -->
 <div id="subTabsContainer" style="display:none;">
 <div class="tabs" style="margin-bottom:1rem;">
-<button class="tab active" data-stab="docs">📄 Documentos</button>
-<button class="tab" data-stab="historicos">📦 Históricos <span id="countHistoricos" class="badge-count" style="display:none;">0</span></button>
-<button class="tab" data-stab="notas">📝 Notas</button>
-<button class="tab" data-stab="hist">📜 Historial</button>
-<button class="tab" data-stab="rec">📨 Recordatorio</button>
+<button class="tab active" data-stab="docs"> Documentos</button>
+<button class="tab" data-stab="historicos"> Históricos <span id="countHistoricos" class="badge-count" style="display:none;">0</span></button>
+<button class="tab" data-stab="notas"> Notas</button>
+<button class="tab" data-stab="hist"> Historial</button>
+<button class="tab" data-stab="rec"> Recordatorio</button>
 <button class="tab" data-stab="eliminar" style="color:#dc2626;">Eliminar</button>
 </div>
 <div id="subTabDocs"><div id="modalContenidoDocs"></div></div>
 <div id="subTabHistoricos" class="hidden"></div>
 <div id="subTabNotas" class="hidden">
 <div class="card" style="background:#fffbeb;padding:1.5rem;margin-bottom:1rem;">
-<h4 style="margin-bottom:0.5rem;">📝 Agregar nota para el proveedor</h4>
+<h4 style="margin-bottom:0.5rem;"> Agregar nota para el proveedor</h4>
 <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">El proveedor verá esta nota en su panel.</p>
 <div class="form-group"><label>Título</label><input type="text" id="tituloNota" placeholder="Ej: Corregir NIT..."></div>
 <div class="form-group"><label>Detalle</label><textarea id="detalleNota" rows="4" placeholder="Describe qué debe modificar..."></textarea></div>
 <button class="btn" onclick="guardarNota()"><svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar nota</button>
 </div>
-<h4 style="margin-bottom:0.8rem;">📋 Notas anteriores</h4>
+<h4 style="margin-bottom:0.8rem;"> Notas anteriores</h4>
 <div id="listaNotas"></div>
 </div>
 <div id="subTabHist" class="hidden"><div id="modalHistorial"></div></div>
 <div id="subTabRec" class="hidden">
 <div class="card" style="background:#fffbeb;padding:1.5rem;">
-<h4 style="margin-bottom:0.5rem;">📨 Enviar recordatorio</h4>
+<h4 style="margin-bottom:0.5rem;"> Enviar recordatorio</h4>
 <div class="form-group"><label>Mensaje</label><textarea id="mensajeRecordatorio" rows="4" placeholder="Ej: Sube los documentos faltantes..."></textarea></div>
 <button class="btn" onclick="enviarRecordatorio()">Enviar</button>
 <h4 style="margin-top:1.5rem;margin-bottom:0.5rem;">Historial de recordatorios</h4>
@@ -186,14 +186,14 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </div>
 <div id="subTabEliminar" class="hidden">
 <div class="card" style="background:#fee2e2;border:2px solid #dc2626;padding:1.5rem;">
-<h4 style="margin-bottom:0.5rem;color:#991b1b;">⚠️ Zona peligrosa</h4>
+<h4 style="margin-bottom:0.5rem;color:#991b1b;"> Zona peligrosa</h4>
 <p style="color:#7f1d1d;margin-bottom:1rem;">Esta acción eliminará <strong>permanentemente</strong> toda la información del proveedor.</p>
 <ul style="color:#7f1d1d;margin-left:1.5rem;margin-bottom:1rem;">
 <li>Todos los documentos subidos (activos e históricos)</li><li>Historial completo</li>
 <li>Notas y recordatorios</li><li>Cuenta de usuario</li>
 </ul>
 <p style="color:#991b1b;font-weight:600;margin-bottom:1rem;">Esta acción NO se puede deshacer.</p>
-<button class="btn btn-danger btn-full" onclick="mostrarConfirmacionEliminar()">🗑️ Eliminar proveedor completamente</button>
+<button class="btn btn-danger btn-full" onclick="mostrarConfirmacionEliminar()"> Eliminar proveedor completamente</button>
 </div>
 </div>
 </div>
@@ -203,7 +203,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <!-- Modal Confirmación Eliminar -->
 <div class="modal-overlay" id="modalConfirmarEliminar">
 <div class="modal" style="max-width:500px;">
-<h3 style="color:#991b1b;">⚠️ Confirmar eliminación</h3>
+<h3 style="color:#991b1b;"> Confirmar eliminación</h3>
 <div id="alertaEliminar"></div>
 <p style="margin-bottom:1rem;">Estás a punto de eliminar permanentemente al proveedor:</p>
 <p style="background:#fee2e2;padding:1rem;border-radius:6px;margin-bottom:1rem;font-weight:600;color:#991b1b;">
@@ -219,7 +219,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
 <button class="btn btn-secondary" onclick="cerrarConfirmacionEliminar()" style="flex:1;">Cancelar</button>
-<button class="btn btn-danger" onclick="ejecutarEliminacion()" style="flex:1;">🗑️ Eliminar definitivamente</button>
+<button class="btn btn-danger" onclick="ejecutarEliminacion()" style="flex:1;"> Eliminar definitivamente</button>
 </div>
 </div>
 </div>
@@ -232,13 +232,13 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
 <button type="button" class="btn-visor" onclick="toggleVisorPantallaCompleta()" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)">⛶</button>
 <a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
-<a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary">🔗 Abrir en pestaña</a>
-<button class="btn btn-sm btn-danger" onclick="cerrarVisor()">✕ Cerrar</button>
+<a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary"> Abrir en pestaña</a>
+<button class="btn btn-sm btn-danger" onclick="cerrarVisor()"> Cerrar</button>
 </div>
 </div>
 <div id="visorMarco" style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">
 <div id="visorCargando" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:white;">
-<div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div><p>Cargando documento...</p>
+<div style="font-size:2rem;margin-bottom:0.5rem;"></div><p>Cargando documento...</p>
 </div>
 <iframe id="visorIframe" style="width:100%;height:100%;border:none;display:none;"></iframe>
 </div>
@@ -249,12 +249,12 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="modal-overlay" id="modalCrearProveedor">
 <div class="modal" style="max-width:600px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-<h3 style="margin:0;">➕ Crear Nuevo Proveedor</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModalCrearProveedor()">✕ Cerrar</button>
+<h3 style="margin:0;"> Crear Nuevo Proveedor</h3>
+<button class="btn btn-sm btn-secondary" onclick="cerrarModalCrearProveedor()"> Cerrar</button>
 </div>
 <div id="alertaCrearProveedor"></div>
 <form id="formCrearProveedor">
-<h4 style="margin-bottom:0.8rem;color:#1e40af;">📋 Datos de acceso</h4>
+<h4 style="margin-bottom:0.8rem;color:#1e40af;"> Datos de acceso</h4>
 <div class="grid-2">
 <div class="form-group">
 <label>Email *</label>
@@ -274,21 +274,21 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <label>Tipo de persona</label>
 <select name="tipo_proveedor" onchange="sincronizarTipoDocCrear(this.value)">
 <option value="">— El proveedor lo elegirá después —</option>
-<option value="juridica">🏢 Persona Jurídica</option>
-<option value="natural">🧍 Persona Natural</option>
+<option value="juridica"> Persona Jurídica</option>
+<option value="natural"> Persona Natural</option>
 </select>
 </div>
-<h4 style="margin:1.5rem 0 0.8rem 0;color:#1e40af;">🏢 Datos de la empresa (Obligatorios)</h4>
+<h4 style="margin:1.5rem 0 0.8rem 0;color:#1e40af;"> Datos de la empresa (Obligatorios)</h4>
 <div class="grid-2">
 <div class="form-group"><label>Razón social</label><input type="text" name="razon_social" placeholder="Razón social"></div>
 <div class="form-group">
 <label>Tipo y número de documento</label>
 <div style="display:flex;gap:0.5rem;">
 <select name="tipo_documento" style="width:38%;padding:0.65rem 0.8rem;border:1px solid var(--color-borde-input);border-radius:6px;">
-<option value="nit">🏢 NIT</option>
-<option value="cc">🧍 C.C.</option>
-<option value="ce">🛂 C.E.</option>
-<option value="pas">🛂 Pasaporte</option>
+<option value="nit"> NIT</option>
+<option value="cc"> C.C.</option>
+<option value="ce"> C.E.</option>
+<option value="pas"> Pasaporte</option>
 </select>
 <input type="text" name="rfc" placeholder="Número sin puntos ni guion">
 </div>
@@ -303,7 +303,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
 <button type="button" class="btn btn-secondary" onclick="cerrarModalCrearProveedor()" style="flex:1;">Cancelar</button>
-<button type="submit" class="btn" style="flex:1;background:#059669;">✅ Crear y enviar credenciales</button>
+<button type="submit" class="btn" style="flex:1;background:#059669;"> Crear y enviar credenciales</button>
 </div>
 </form>
 </div>

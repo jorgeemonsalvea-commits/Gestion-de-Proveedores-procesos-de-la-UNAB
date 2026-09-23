@@ -29,7 +29,7 @@ function fetchAPI(url, options = {}) {
         if (!target) return;
         const esPassword = target.type === 'password';
         target.type = esPassword ? 'text' : 'password';
-        btn.textContent = esPassword ? '' : '';
+             btn.innerHTML = esPassword ? ico('eye-off') : ico('eye');
       });
     });
 

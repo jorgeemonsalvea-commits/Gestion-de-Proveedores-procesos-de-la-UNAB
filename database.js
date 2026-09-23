@@ -9,7 +9,7 @@ const { generarPasswordAleatoria } = require('./security');
 // Usar volumen persistente en Railway, o local en desarrollo
 const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
 const dbPath = path.join(dataDir, 'proveedores.db');
-// 🩹 SELF-HEALING (Railway): si la BD principal está corrupta y hay backups en el
+//  SELF-HEALING (Railway): si la BD principal está corrupta y hay backups en el
 // volumen, restaura automáticamente el más reciente ANTES de abrir el servicio.
 // El archivo dañado se conserva cuarentenado como proveedores.db.corrupt_<ts>.
 function asegurarIntegridadInicial() {
@@ -22,37 +22,37 @@ function asegurarIntegridadInicial() {
         const check = temp.pragma('integrity_check', { simple: true });
         temp.close();
         if (check === 'ok') return; // BD sana: no hacer nada
-        console.error(`⚠️ integrity_check de la BD principal falló: ${check}`);
+        console.error(` integrity_check de la BD principal falló: ${check}`);
         } catch (e) {
         try { if (temp) temp.close(); } catch (_) {}
-        // 🛡️ SELF-HEALING SEGURO: si el fallo es del módulo better-sqlite3
+        //  SELF-HEALING SEGURO: si el fallo es del módulo better-sqlite3
         // (versión de Node / prebuilds / módulo faltante), NO restaurar ni
         // cuarentenar: relanzar el error. Solo se restaura si integrity_check
         // llegó a ejecutarse y falló realmente.
         if (/NODE_MODULE_VERSION|ERR_DLOPEN_FAILED|Cannot find module|\.node/i.test(e.message)) throw e;
-        console.error('⚠️ No se pudo abrir la BD principal para verificación:', e.message);
+        console.error(' No se pudo abrir la BD principal para verificación:', e.message);
         }
     }
     if (!fs.existsSync(backupsDir)) return;
     const candidatos = fs.readdirSync(backupsDir)
       .filter(f => /^proveedores_\d{4}-\d{2}-\d{2}(_\d{4})?\.db$/.test(f))
       .sort();
-    if (!candidatos.length) { console.warn('⚠️ SELF-HEALING: no hay backups disponibles en el volumen'); return; }
+    if (!candidatos.length) { console.warn(' SELF-HEALING: no hay backups disponibles en el volumen'); return; }
     const ultimo = path.join(backupsDir, candidatos[candidatos.length - 1]);
     if (fs.existsSync(dbPath)) fs.renameSync(dbPath, `${dbPath}.corrupt_${Date.now()}`);
     fs.rmSync(`${dbPath}-wal`, { force: true });
     fs.rmSync(`${dbPath}-shm`, { force: true });
     fs.copyFileSync(ultimo, dbPath);
-    console.log(`🩹 SELF-HEALING: BD restaurada automáticamente desde ${path.basename(ultimo)}`);
+    console.log(` SELF-HEALING: BD restaurada automáticamente desde ${path.basename(ultimo)}`);
   } catch (e) {
-    console.error('❌ Error en self-healing:', e.message);
+    console.error(' Error en self-healing:', e.message);
   }
 }
 asegurarIntegridadInicial();
 const db = new Database(dbPath);
 
-console.log('📂 Ruta de la base de datos:', dbPath);
-console.log('📂 dataDir:', dataDir);
+console.log(' Ruta de la base de datos:', dbPath);
+console.log(' dataDir:', dataDir);
 
 // Optimizaciones de SQLite
 db.pragma('journal_mode = WAL');
@@ -62,12 +62,12 @@ db.pragma('cache_size = -64000');
 db.pragma('busy_timeout = 5000');
 db.pragma('mmap_size = 268435456'); // 256 MB mapeados en memoria (lecturas más rápidas)
 
-console.log('🗄️  Base de datos inicializada');
+console.log('  Base de datos inicializada');
 
 // ==========================================
 // 2. CREACIÓN DE TABLAS BASE
 // ==========================================
-console.log('📋 Verificando estructura de tablas...');
+console.log(' Verificando estructura de tablas...');
 
 db.exec(`
   -- Tabla de usuarios (admin y proveedores)
@@ -248,12 +248,12 @@ db.exec(`
   );
 `);
 
-console.log('✅ Estructura de tablas verificada');
+console.log(' Estructura de tablas verificada');
 
 // ==========================================
 // 3. SISTEMA DE MIGRACIONES AUTOMÁTICAS
 // ==========================================
-console.log('🔄 Verificando migraciones...');
+console.log(' Verificando migraciones...');
 
 const migraciones = [
   // Usuarios
@@ -294,10 +294,10 @@ const migraciones = [
 
   // Recordatorios
   { tabla: 'recordatorios', campo: 'cerrada', tipo: 'INTEGER DEFAULT 0' },
-// 🪪 G7: tipo de documento del proveedor (nit | cc | ce | pas).
+//  G7: tipo de documento del proveedor (nit | cc | ce | pas).
 // El DEFAULT 'nit' hace backfill automático de todos los registros existentes.
 { tabla: 'proveedores', campo: 'tipo_documento', tipo: "TEXT DEFAULT 'nit'" },
-// 🛡️ R2 (Sprint 8): RBAC composable — migración ADITIVA, sin drops.
+//  R2 (Sprint 8): RBAC composable — migración ADITIVA, sin drops.
 // permisos = JSON array de claves conmutables (catálogo §8 del CONTEXTO).
 // es_superadmin = bypass total (D1). activo = candado de desactivación (D8).
 { tabla: 'usuarios', campo: 'permisos', tipo: "TEXT DEFAULT '[]'" },
@@ -314,29 +314,29 @@ migraciones.forEach(m => {
 
     if (!columnas.some(c => c.name === m.campo)) {
       db.exec(`ALTER TABLE ${m.tabla} ADD COLUMN ${m.campo} ${m.tipo}`);
-      console.log(`✅ ${m.tabla}.${m.campo}`);
+      console.log(` ${m.tabla}.${m.campo}`);
       migracionesAplicadas++;
     }
   } catch (e) {
-    console.log(`⚠️ ${m.tabla}.${m.campo}: ${e.message}`);
+    console.log(` ${m.tabla}.${m.campo}: ${e.message}`);
     migracionesFallidas++;
   }
 });
 
 if (migracionesAplicadas > 0) {
-  console.log(`✅ ${migracionesAplicadas} migración(es) aplicada(s)`);
+  console.log(` ${migracionesAplicadas} migración(es) aplicada(s)`);
 } else {
-  console.log('✅ No se requieren migraciones');
+  console.log(' No se requieren migraciones');
 }
 
 if (migracionesFallidas > 0) {
-  console.log(`⚠️ ${migracionesFallidas} migración(es) fallida(s)`);
+  console.log(` ${migracionesFallidas} migración(es) fallida(s)`);
 }
 
 // ==========================================
 // 3.5 NORMALIZACIÓN DE DATOS EXISTENTES
 // ==========================================
-console.log('🧹 Normalizando datos existentes...');
+console.log(' Normalizando datos existentes...');
 
 try {
   db.prepare(`UPDATE documentos SET es_historico = 0 WHERE es_historico IS NULL`).run();
@@ -367,7 +367,7 @@ try {
       AND estado != 'rechazado'
   `).run();
 
-  // 🧹 Eliminar marcadores "No aplica" que quedaron desmarcados y sin archivo real
+  //  Eliminar marcadores "No aplica" que quedaron desmarcados y sin archivo real
 const marcadoresNoAplicaInvalidos = db.prepare(`
   DELETE FROM documentos
   WHERE no_aplica = 0
@@ -376,11 +376,11 @@ const marcadoresNoAplicaInvalidos = db.prepare(`
 `).run();
 
 if (marcadoresNoAplicaInvalidos.changes > 0) {
-  console.log(`🧹 ${marcadoresNoAplicaInvalidos.changes} marcador(es) No aplica inválido(s) eliminado(s)`);
+  console.log(` ${marcadoresNoAplicaInvalidos.changes} marcador(es) No aplica inválido(s) eliminado(s)`);
 }
 
 
-  // 🆕 Normalizar tipo_proveedor: los existentes quedan como 'juridica'
+  //  Normalizar tipo_proveedor: los existentes quedan como 'juridica'
 //    (equivalente al comportamiento actual). Solo se preserva quien ya
 //    tenga la palabra "natural" en el texto libre que haya puesto el admin.
 db.prepare(`
@@ -397,17 +397,17 @@ db.prepare(`
      OR tipo_proveedor = ''
      OR tipo_proveedor != 'natural'
 `).run();
-console.log('✅ tipo_proveedor normalizado (natural/juridica)');
+console.log(' tipo_proveedor normalizado (natural/juridica)');
 
-  console.log('✅ Normalización básica completada');
+  console.log(' Normalización básica completada');
 } catch (err) {
-  console.error('⚠️ Error normalizando datos existentes:', err.message);
+  console.error(' Error normalizando datos existentes:', err.message);
 }
 
 // ==========================================
 // 4. CREACIÓN DE ÍNDICES PARA OPTIMIZACIÓN
 // ==========================================
-console.log('📊 Verificando índices...');
+console.log(' Verificando índices...');
 
 const indices = [
   // Historial
@@ -461,16 +461,16 @@ indices.forEach(idx => {
     db.exec(`CREATE INDEX IF NOT EXISTS ${idx.nombre} ON ${idx.tabla}(${idx.columnas})`);
     indicesCreados++;
   } catch (e) {
-    console.log(`⚠️ Índice ${idx.nombre}: ${e.message}`);
+    console.log(` Índice ${idx.nombre}: ${e.message}`);
   }
 });
 
-console.log(`✅ ${indicesCreados} índices verificados`);
+console.log(` ${indicesCreados} índices verificados`);
 
 // ==========================================
 // 4.5 CONFIGURACIÓN INICIAL
 // ==========================================
-console.log('⚙️  Verificando configuración inicial...');
+console.log('  Verificando configuración inicial...');
 
 const anioActual = new Date().getFullYear();
 const fechaVencimientoDefault = `${anioActual}-12-31 23:59:59`;
@@ -497,9 +497,9 @@ configuracionesIniciales.forEach(cfg => {
       VALUES (?, ?, ?)
     `).run(cfg.clave, cfg.valor, cfg.descripcion);
 
-    console.log(`✅ Configuración inicial insertada: ${cfg.clave} = ${cfg.valor}`);
+    console.log(` Configuración inicial insertada: ${cfg.clave} = ${cfg.valor}`);
   } else {
-    console.log(`✅ Configuración existente: ${cfg.clave} = ${existente.valor || ''}`);
+    console.log(` Configuración existente: ${cfg.clave} = ${existente.valor || ''}`);
   }
 });
 
@@ -510,7 +510,7 @@ const adminEmail = process.env.ADMIN_EMAIL || 'admin@empresa.com';
 const adminExistente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(adminEmail);
 if (!adminExistente) {
 try {
-// 🛡️ M5: si ADMIN_PASSWORD_INICIAL existe se usa; si no, se genera una fuerte
+//  M5: si ADMIN_PASSWORD_INICIAL existe se usa; si no, se genera una fuerte
 // y se muestra UNA sola vez en el log (no queda escrita en código ni en BD en claro).
 const adminPass = process.env.ADMIN_PASSWORD_INICIAL || generarPasswordAleatoria(16);
 const hash = bcrypt.hashSync(adminPass, 12);
@@ -523,29 +523,29 @@ const hash = bcrypt.hashSync(adminPass, 12);
 
 //Recomendación de despliegue en Railway: define ADMIN_PASSWORD_INICIAL en las variables de entorno (una fuerte, ≥ 16 caracteres). Así nunca dependes de leer el log.
 console.log(`
-✅ Admin creado exitosamente`);
-console.log(`   📧 Email: ${adminEmail}`);
-console.log(`   🔑 Contraseña: ${adminPass}`);
-console.log(`   ⚠️  Deberás cambiar la contraseña al primer ingreso
+ Admin creado exitosamente`);
+console.log(`    Email: ${adminEmail}`);
+console.log(`    Contraseña: ${adminPass}`);
+console.log(`     Deberás cambiar la contraseña al primer ingreso
 `);
 if (!process.env.ADMIN_PASSWORD_INICIAL) {
 console.error(`
-⚠️  CONTRASEÑA DE ADMIN GENERADA AUTOMÁTICAMENTE — cópiala YA, no se volverá a mostrar:`);
-console.error(`   🔑 ${adminPass}
+  CONTRASEÑA DE ADMIN GENERADA AUTOMÁTICAMENTE — cópiala YA, no se volverá a mostrar:`);
+console.error(`    ${adminPass}
 `);
 }
   } catch (e) {
-    console.error(`❌ Error creando admin: ${e.message}`);
+    console.error(` Error creando admin: ${e.message}`);
   }
 } else {
-  console.log(`✅ Admin existente: ${adminEmail}`);
+  console.log(` Admin existente: ${adminEmail}`);
 }
 
-// 🛡️ R2 backfill RBAC (idempotente, seguro ante reinicios):
+//  R2 backfill RBAC (idempotente, seguro ante reinicios):
 // 1) Ningún NULL en las columnas nuevas.
 // 2) Si NO existe ningún superadmin, el/los admin(s) existentes se promocionan
 //    (caso seed: el admin actual conserva TODO su comportamiento).
-// 🆕 FIX: se ejecuta AQUÍ, DESPUÉS de crear el admin, para que el backfill
+//  FIX: se ejecuta AQUÍ, DESPUÉS de crear el admin, para que el backfill
 // funcione correctamente tanto en producción como en tests.
 db.prepare(`UPDATE usuarios SET permisos = '[]' WHERE permisos IS NULL`).run();
 db.prepare(`UPDATE usuarios SET activo = 1 WHERE activo IS NULL`).run();
@@ -553,7 +553,7 @@ db.prepare(`UPDATE usuarios SET es_superadmin = 0 WHERE es_superadmin IS NULL`).
 const haySuperadmin = db.prepare(`SELECT id FROM usuarios WHERE es_superadmin = 1`).get();
 if (!haySuperadmin) {
   const rBack = db.prepare(`UPDATE usuarios SET es_superadmin = 1, activo = 1 WHERE rol = 'admin'`).run();
-  if (rBack.changes > 0) console.log(`🛡️ R2 backfill: ${rBack.changes} admin(s) existentes marcados como superadmin activos`);
+  if (rBack.changes > 0) console.log(` R2 backfill: ${rBack.changes} admin(s) existentes marcados como superadmin activos`);
 }
 
 // ==========================================
@@ -561,7 +561,7 @@ if (!haySuperadmin) {
 // ASIGNAR CICLO Y FECHA DE VENCIMIENTO
 // A DOCUMENTOS APROBADOS ACTIVOS EXISTENTES
 // ==========================================
-console.log('🔄 Verificando datos existentes para vencimientos...');
+console.log(' Verificando datos existentes para vencimientos...');
 
 try {
   // 1. Asignar ciclo a documentos aprobados activos sin ciclo
@@ -623,7 +623,7 @@ try {
     console.log('   No se requieren actualizaciones de fecha de vencimiento.');
   }
 } catch (err) {
-  console.error('❌ Error en migración de datos de vencimientos:', err.message);
+  console.error(' Error en migración de datos de vencimientos:', err.message);
 }
 
 // ==========================================
@@ -647,7 +647,7 @@ const DOCUMENTOS_REQUERIDOS = [
 ];
 
 // ==========================================
-// 🆕 6.1 DOCUMENTOS POR TIPO DE PERSONA
+//  6.1 DOCUMENTOS POR TIPO DE PERSONA
 // ==========================================
 
 // Documento exclusivo de Persona Natural
@@ -669,18 +669,18 @@ const ORDEN_NATURAL = [
 
 const OBLIGATORIOS_NATURAL = ['gaf01', 'gaf07', 'gaf08', 'carta_ica', 'rut', 'cedula_rl'];
 /**
- * 🆕 Devuelve los documentos requeridos según el tipo de persona.
+ *  Devuelve los documentos requeridos según el tipo de persona.
  * - 'juridica' (o vacío/null) → lista ACTUAL sin cambios.
  * - 'natural' → todos con "No aplica", experiencia 1-2, sin cuenta_bancaria, + competencias.
  */
 function requerimientosPara(tipoPersona) {
   if (String(tipoPersona || '').trim().toLowerCase() !== 'natural') {
-  return DOCUMENTOS_REQUERIDOS; // 👈 Jurídica = flujo actual intacto
+  return DOCUMENTOS_REQUERIDOS; //  Jurídica = flujo actual intacto
   }
   return DOCUMENTOS_REQUERIDOS
   .filter(r => r.tipo !== 'cuenta_bancaria')
   .map(r => {
-  // 🆕 Los obligatorios para natural NO llevan "No aplica"; el resto sí
+  //  Los obligatorios para natural NO llevan "No aplica"; el resto sí
   const esObligatorio = OBLIGATORIOS_NATURAL.includes(r.tipo);
   const doc = esObligatorio ? { ...r } : { ...r, opcional: true };
   if (r.tipo === 'experiencia') {
@@ -697,7 +697,7 @@ function requerimientosPara(tipoPersona) {
   .sort((a, b) => ORDEN_NATURAL.indexOf(a.tipo) - ORDEN_NATURAL.indexOf(b.tipo));
 }
 
-/** 🆕 Configuración de un tipo de documento según el tipo de persona del proveedor */
+/**  Configuración de un tipo de documento según el tipo de persona del proveedor */
 function configDocumento(tipoDoc, tipoPersona) {
   return requerimientosPara(tipoPersona).find(d => d.tipo === tipoDoc) || null;
   }
@@ -713,7 +713,7 @@ function limpiarLogsAntiguos() {
     `).run();
 
     if (result.changes > 0) {
-      console.log(`🧹 ${result.changes} logs de seguridad antiguos eliminados`);
+      console.log(` ${result.changes} logs de seguridad antiguos eliminados`);
     }
   } catch (e) {
     console.error('Error limpiando logs:', e.message);
@@ -731,4 +731,4 @@ module.exports = {
     limpiarLogsAntiguos
 };
 
-console.log('✅ Base de datos completamente inicializada\n');
+console.log(' Base de datos completamente inicializada\n');
