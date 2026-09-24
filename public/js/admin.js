@@ -728,7 +728,7 @@ contenedor.innerHTML = `
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
 <h3 style="margin:0;">${ico('chart')} Métricas de productividad</h3>
-<button class="btn btn-sm btn-secondary" onclick="cargarMetricas()">${ico('refresh')} Actualizar</button>
+<button class="btn btn-sm btn-secondary" data-accion="cargarMetricas" data-args="${attrJSON([])}">${ico('refresh')} Actualizar</button>
 </div>
 <div id="metricasContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">${ico('clock')} Cargando métricas…</p></div>
 </div>`;
@@ -1005,19 +1005,19 @@ if (MODULO_PERMISO[modulo] && !tienePermisoUI(MODULO_PERMISO[modulo])) {
 }
 const botonesAccion = modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button class="btn btn-sm" onclick="mostrarModalCrearProveedor()" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
+<button class="btn btn-sm" data-accion="mostrarModalCrearProveedor" data-args="${attrJSON([])}" style="background:#059669;">${ICONOS.plus} Crear Proveedor</button>
 <div class="dropdown" style="position:relative;display:inline-block;">
-<button class="btn btn-sm btn-success" onclick="toggleExportDropdown()">${ico('file-text')} Exportar</button>
+<button class="btn btn-sm btn-success" data-accion="toggleExportDropdown" data-args="${attrJSON([])}">${ico('file-text')} Exportar</button>
 <div id="exportDropdown" style="display:none;position:absolute;background:white;min-width:160px;box-shadow:0px 8px 16px rgba(0,0,0,0.2);border-radius:6px;z-index:10;margin-top:4px;border:1px solid #e5e7eb;overflow:hidden;">
-<button onclick="exportarCSV()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">${ico('file-text')} CSV</button>
-<button onclick="exportarExcel()" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">${ico('chart')} Excel (.xlsx)</button>
+<button data-accion="exportarCSV" data-args="${attrJSON([])}" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;">${ico('file-text')} CSV</button>
+<button data-accion="exportarExcel" data-args="${attrJSON([])}" style="width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;cursor:pointer;font-size:0.9rem;">${ico('chart')} Excel (.xlsx)</button>
 </div>
 </div>
-<button class="btn btn-sm btn-secondary" onclick="exportarHabeasData()">${ico('file-text')} Habeas Data</button>
+<button class="btn btn-sm btn-secondary" data-accion="exportarHabeasData" data-args="${attrJSON([])}">${ico('file-text')} Habeas Data</button>
 </div>
 ` : (modulo === 'inactivos' ? `
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button class="btn btn-sm" style="background:#d97706;color:#fff;" onclick="recordarInactivos()">${ico('send')} Recordar a todos</button>
+<button class="btn btn-sm" style="background:#d97706;color:#fff;" data-accion="recordarInactivos" data-args="${attrJSON([])}">${ico('send')} Recordar a todos</button>
 </div>
 ` : '');
 
@@ -1035,20 +1035,20 @@ autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="f
 style="width:100%;padding:0.7rem 1rem 0.7rem 2.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
 <span style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:#9ca3af;">${ico('search')}</span>
 </div>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltros()">${ico('trash')} Limpiar filtros</button>
+<button class="btn btn-sm btn-secondary" data-accion="limpiarFiltros" data-args="${attrJSON([])}">${ico('trash')} Limpiar filtros</button>
 </div>
 ${modulo === 'registrados' ? `
 <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-<button class="filtro-estado active" data-estado="todos" onclick="filtrarEstado('todos')">${ico('file-text')} Todos <span id="count-todos" class="badge-count">0</span></button>
-<button class="filtro-estado" data-estado="aprobado" onclick="filtrarEstado('aprobado')">${ico('check')} Aprobados <span id="count-aprobado" class="badge-count badge-aprobado">0</span></button>
-<button class="filtro-estado" data-estado="rechazado" onclick="filtrarEstado('rechazado')">${ico('x')} Rechazados <span id="count-rechazado" class="badge-count badge-rechazado">0</span></button>
+<button class="filtro-estado active" data-estado="todos" data-accion="filtrarEstado" data-args="${attrJSON(["todos"])}">${ico('file-text')} Todos <span id="count-todos" class="badge-count">0</span></button>
+<button class="filtro-estado" data-estado="aprobado" data-accion="filtrarEstado" data-args="${attrJSON(["aprobado"])}">${ico('check')} Aprobados <span id="count-aprobado" class="badge-count badge-aprobado">0</span></button>
+<button class="filtro-estado" data-estado="rechazado" data-accion="filtrarEstado" data-args="${attrJSON(["rechazado"])}">${ico('x')} Rechazados <span id="count-rechazado" class="badge-count badge-rechazado">0</span></button>
 </div>
 ` : ''}
 
 <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
 <div style="flex:1;min-width:200px;">
 <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">Ordenar por:</label>
-<select id="ordenar" onchange="aplicarFiltros()" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<select id="ordenar" data-cambio="aplicarFiltros" data-args="${attrJSON([])}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="reciente">Más recientes</option>
 <option value="antiguo">Más antiguos</option>
 <option value="nombre">Nombre (A-Z)</option>
@@ -1056,7 +1056,7 @@ ${modulo === 'registrados' ? `
 </div>
 <div style="flex:1;min-width:180px;">
 <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;"> Tipo de persona:</label>
-<select id="filtroTipoPersona" onchange="paginaActual=1;cargarProveedoresPorModulo(moduloActual,1)" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<select id="filtroTipoPersona" data-cambio="recargarListaDesdePaginaUno" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="todos">Todos</option>
 <option value="juridica">${ico('briefcase')} Persona Jurídica</option>
 <option value="natural">${ico('user')} Persona Natural</option>
@@ -1065,7 +1065,7 @@ ${modulo === 'registrados' ? `
 </div>
 <div style="flex:1;min-width:220px;">
 <label style="display:block;font-size:0.85rem;color:#6b7280;margin-bottom:0.3rem;">${ico('file-text')} Documento faltante:</label>
-<select id="filtroDocFaltante" onchange="paginaActual=1;cargarProveedoresPorModulo(moduloActual,1)" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
+<select id="filtroDocFaltante" data-cambio="recargarListaDesdePaginaUno" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 <option value="todos">— Cualquiera —</option>
 ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.nombre)}</option>`).join('')}
 </select>
@@ -1073,13 +1073,13 @@ ${(requeridosDefault || []).map(r => `<option value="${r.tipo}">${escapeHtml(r.n
 </div>
 <div id="paginacion" style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;">
-<button id="btnAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPagina(-1)"> Anterior</button>
+<button id="btnAnterior" class="btn btn-sm btn-secondary" data-accion="cambiarPagina" data-args="${attrJSON([-1])}"> Anterior</button>
 <span id="infoPagina">Página 1 de 1</span>
-<button id="btnSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPagina(1)">Siguiente </button>
+<button id="btnSiguiente" class="btn btn-sm btn-secondary" data-accion="cambiarPagina" data-args="${attrJSON([1])}">Siguiente </button>
 </div>
 <div style="display:flex;gap:0.5rem;align-items:center;">
 <label style="font-size:0.85rem;">Mostrar:</label>
-<select id="selectLimite" onchange="cambiarLimite()" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
+<select id="selectLimite" data-cambio="cambiarLimite" data-args="${attrJSON([])}" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
 <option value="10">10</option>
 <option value="20">20</option>
 <option value="50" selected>50</option>
@@ -1214,6 +1214,11 @@ paginaActual = 1;
 cargarProveedoresPorModulo(moduloActual, 1);
 }
 
+// CSP L3: onchange compuesto migrado a delegación (data-cambio)
+function recargarListaDesdePaginaUno() {
+  paginaActual = 1;
+  cargarProveedoresPorModulo(moduloActual, 1);
+}
 // ==========================================
 //  FILTROS LOCALES
 // ==========================================
@@ -1314,7 +1319,7 @@ ${moduloActual !== 'registrados' ? `
 </div>
 ` : ''}
 ${badgeModulo}
-<button class="btn btn-sm" onclick="verProveedor(${p.id}, '${moduloActual}')">${ico('search')} Revisar</button>
+<button class="btn btn-sm" data-accion="verProveedor" data-args="${attrJSON([p.id, `${moduloActual}`])}">${ico('search')} Revisar</button>
 </div>
 `;
 }).join('');
@@ -1485,7 +1490,7 @@ ${d.fecha_vencimiento ? `<br><small style="color:#6b7280;">${ico('calendar')} Ve
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" data-accion="verDocumentoBtn" data-args="${attrJSON(['__EL__'])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 </div>
@@ -1519,7 +1524,7 @@ let html = `
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h4 style="margin:0;">Documentos activos</h4>
-<button class="btn btn-success" onclick="descargarZIP(${proveedor.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
+<button class="btn btn-success" data-accion="descargarZIP" data-args="${attrJSON([proveedor.id])}" style="display:inline-flex;align-items:center;gap:0.5rem;">
 ${ICONOS.zip} Descargar activos en ZIP
 </button>
 </div>
@@ -1577,14 +1582,14 @@ ${infoDocRow(d, { conBadgeNoAplica: true, extra: extraInfo })}
 ${esNoAplica
 ? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" data-accion="verDocumentoBtn" data-args="${attrJSON(['__EL__'])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
-${modo === 'verificacion' && !aprobado && tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " onclick= "rechazar(${d.id}) " >${ICONOS.x} Rechazar </button >` : ''}
-${modo === 'verificacion' && !aprobado && tienePermisoUI('docs.verificar') ? ` <button class= "btn btn-sm btn-danger " onclick= "eliminarDocumentoAdmin(${d.id}, ${proveedor.id}) " > ${ICONOS.trash} Eliminar </button >` : ''}
+${modo === 'verificacion' && !aprobado && tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " data-accion="rechazar" data-args="${attrJSON([d.id])}" >${ICONOS.x} Rechazar </button >` : ''}
+${modo === 'verificacion' && !aprobado && tienePermisoUI('docs.verificar') ? ` <button class= "btn btn-sm btn-danger " data-accion="eliminarDocumentoAdmin" data-args="${attrJSON([d.id, proveedor.id])}" > ${ICONOS.trash} Eliminar </button >` : ''}
 ${modo === 'aprobacion' && verificado && !aprobado ? `
-${tienePermisoUI('docs.aprobar') ? ` <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstado(${d.id},'aprobado') " >${ICONOS.check} Aprobar </button >` : ''}
-${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " onclick= "rechazar(${d.id}) " >${ICONOS.x} Rechazar </button >` : ''}
+${tienePermisoUI('docs.aprobar') ? ` <button class= "btn btn-sm " style= "background:#059669; " data-accion="cambiarEstado" data-args="${attrJSON([d.id, "aprobado"])}" >${ICONOS.check} Aprobar </button >` : ''}
+${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " data-accion="rechazar" data-args="${attrJSON([d.id])}" >${ICONOS.x} Rechazar </button >` : ''}
 ` : ''}
 </div>
 </div>`;
@@ -1683,7 +1688,7 @@ La lista de documentos requeridos depende de esta definición. Puedes definirla 
 <input type="radio" name="tipoPersonaDefinicion" value="natural"> ${ico('user')} Persona Natural
 </label>
 </div>
-<button class="btn" onclick="guardarTipoPersona(${proveedor.id})" style="background:#2563eb;">${ico('save')} Guardar tipo y cargar documentos</button>
+<button class="btn" data-accion="guardarTipoPersona" data-args="${attrJSON([proveedor.id])}" style="background:#2563eb;">${ico('save')} Guardar tipo y cargar documentos</button>
 </div>
 <div class="alert alert-info" style="margin-bottom:1rem;">
 <strong>${ico('info')} Mientras tanto:</strong> La lista de documentos que se muestra abajo corresponde a la lista estándar (Persona Jurídica). Una vez definido el tipo, se recargará con los documentos correctos.
@@ -1748,7 +1753,7 @@ Cuando todos estén verificados o marcados como "No aplica", el proveedor pasar�
 `;
 html += `
 <div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
-<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('verificacion')">${ico('search')} Revisión enfocada (uno por uno)</button>
+<button class="btn btn-sm" style="background:#8600dd;" data-accion="iniciarRevisionEnfocada" data-args="${attrJSON(["verificacion"])}">${ico('search')} Revisión enfocada (uno por uno)</button>
 </div>`;
 html += renderDocumentosConBotones(proveedor, documentos, true, 'verificacion');
 document.getElementById('modalContenidoDocs').innerHTML = html;
@@ -1766,7 +1771,7 @@ Aprueba o rechaza cada documento. Cuando todos estén aprobados (o marcados como
 `;
 html += `
 <div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
-<button class="btn btn-sm" style="background:#8600dd;" onclick="iniciarRevisionEnfocada('aprobacion')">${ico('search')} Revisión enfocada (aprobar uno por uno)</button>
+<button class="btn btn-sm" style="background:#8600dd;" data-accion="iniciarRevisionEnfocada" data-args="${attrJSON(["aprobacion"])}">${ico('search')} Revisión enfocada (aprobar uno por uno)</button>
 </div>`;
 html += renderDocumentosConBotones(proveedor, documentos, false, 'aprobacion');
 
@@ -1779,13 +1784,13 @@ ${proveedor.evaluacion_inicial ? `
 <p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? ' Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? ' Rechazado' : ' Pendiente'}</p>
 <p><strong>${ico('calendar')} Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-accion="verDocumento" data-args="${attrJSON([`/uploads/${proveedor.evaluacion_inicial}`, "Evaluación Inicial"])}">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 ${(proveedor.evaluacion_estado === 'pendiente' || proveedor.evaluacion_estado === 'rechazado') ? `
 ${todosAprobados && tienePermisoUI('evaluacion.gestionar') ? `
- <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstadoEvaluacion(${proveedor.id},'aprobado') " >${ico('check')} Aprobar evaluación </button >
-${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" onclick="rechazarEvaluacion(${proveedor.id})">${ico('x')} Rechazar evaluación</button>` : ''}
-<button class="btn btn-sm btn-danger" onclick="eliminarEvaluacion(${proveedor.id})" style="background:#dc2626;">${ICONOS.trash} Eliminar</button>
+ <button class= "btn btn-sm " style= "background:#059669; " data-accion="cambiarEstadoEvaluacion" data-args="${attrJSON([proveedor.id, "aprobado"])}" >${ico('check')} Aprobar evaluación </button >
+${proveedor.evaluacion_estado === 'pendiente' ? `<button class="btn btn-sm btn-danger" data-accion="rechazarEvaluacion" data-args="${attrJSON([proveedor.id])}">${ico('x')} Rechazar evaluación</button>` : ''}
+<button class="btn btn-sm btn-danger" data-accion="eliminarEvaluacion" data-args="${attrJSON([proveedor.id])}" style="background:#dc2626;">${ICONOS.trash} Eliminar</button>
 ` : `
 <button class="btn btn-sm" style="background:#9ca3af;cursor:not-allowed;" disabled>${ico('alert')} Primero aprueba todos los documentos</button>
 `}
@@ -1854,7 +1859,7 @@ ${infoDocRow(d, { extra: extraGest })}
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" data-accion="verDocumentoBtn" data-args="${attrJSON(['__EL__'])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${d.archivo}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 </div>
@@ -1874,7 +1879,7 @@ ${proveedor.evaluacion_inicial ? `
 <p><strong>${ico('file-text')} Estado:</strong> ${proveedor.evaluacion_estado === 'aprobado' ? ' Aprobado' : proveedor.evaluacion_estado === 'rechazado' ? ' Rechazado' : ' Pendiente'}</p>
 <p><strong>${ico('calendar')} Fecha:</strong> ${proveedor.evaluacion_fecha ? formatearFecha(proveedor.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${proveedor.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-accion="verDocumento" data-args="${attrJSON([`/uploads/${proveedor.evaluacion_inicial}`, "Evaluación Inicial"])}">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${proveedor.id}/evaluacion/download" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 </div>
 </div>
@@ -1963,7 +1968,7 @@ html += `
 <div class="card" style="background:#f9fafb;padding:1rem;margin-bottom:1rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0 0 2px;">
 <strong>Email:</strong> <span id="emailActualProv">${escapeHtml(p.email || '—')}</span>
-${tienePermisoUI('proveedores.gestionar') ? ` <button class= "btn btn-sm btn-secondary " onclick= "editarEmailProveedor(${p.id}, '${escapeAttr(p.email || '')}') " style= "padding:0.2rem 0.6rem;font-size:0.78rem; " >${ico('edit')} Cambiar </button >` : ''}</div>
+${tienePermisoUI('proveedores.gestionar') ? ` <button class= "btn btn-sm btn-secondary " data-accion="editarEmailProveedor" data-args="${attrJSON([p.id, `${escapeAttr(p.email || '')}`])}" style= "padding:0.2rem 0.6rem;font-size:0.78rem; " >${ico('edit')} Cambiar </button >` : ''}</div>
 <div id="contenedorEditarEmail" style="display:none;margin:0.3rem 0 0.4rem;"></div>
 <strong>NIT/RUT:</strong> ${escapeHtml(p.rfc || '—')}<br>
 <strong>Representante:</strong> ${escapeHtml(p.representante || '—')}<br>
@@ -1998,7 +2003,7 @@ ${tienePermisoUI('proveedores.gestionar') ? `
  <button class= "btn " style= "background:#2563eb;color:white;white-space:nowrap; "
 data-id= "${p.id} "
 data-nombre= "${escapeAttr(p.razon_social || p.nombre_empresa || 'Proveedor')} "
-onclick= "abrirSolicitudActualizacion(this) " >
+ data-accion="abrirSolicitudActualizacion" data-args="${attrJSON(['__EL__'])}" >
 ${ico('refresh')} Solicitar actualización
  </button >` : ''}
 </div>
@@ -2016,7 +2021,7 @@ ${!soloLectura ? `
 <h4 style="margin:0;">Documentos activos</h4>
 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
 ${numHistoricos > 0 ? `<small style="color:#6b7280;">${ico('archive')} ${numHistoricos} histórico(s) — ver pestaña "Históricos"</small>` : ''}
-<button class="btn btn-success" onclick="descargarZIP(${p.id})" style="display:inline-flex;align-items:center;gap:0.5rem;">
+<button class="btn btn-success" data-accion="descargarZIP" data-args="${attrJSON([p.id])}" style="display:inline-flex;align-items:center;gap:0.5rem;">
 ${ICONOS.zip} Descargar activos en ZIP
 </button>
 </div>
@@ -2063,12 +2068,12 @@ ${infoDocRow(d, { extra: extraCheck })}
 ${esNoAplica
 ? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" data-accion="verDocumentoBtn" data-args="${attrJSON(['__EL__'])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
 `}
 ${!soloLectura ? `
-${tienePermisoUI('docs.aprobar') ? ` <button class= "btn btn-sm " style= "background:#059669; " onclick= "cambiarEstado(${d.id},'aprobado') " >${ICONOS.check} Aprobar </button >` : ''}
-${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " onclick= "rechazar(${d.id}) " >${ICONOS.x} Rechazar </button >` : ''}
+${tienePermisoUI('docs.aprobar') ? ` <button class= "btn btn-sm " style= "background:#059669; " data-accion="cambiarEstado" data-args="${attrJSON([d.id, "aprobado"])}" >${ICONOS.check} Aprobar </button >` : ''}
+${tienePermisoUI('docs.rechazar') ? ` <button class= "btn btn-sm btn-danger " data-accion="rechazar" data-args="${attrJSON([d.id])}" >${ICONOS.x} Rechazar </button >` : ''}
 ` : ''}
 </div>
 </div>`;
@@ -2144,7 +2149,7 @@ ${p.evaluacion_inicial ? `
 <p><strong>${ico('file-text')} Estado:</strong> ${p.evaluacion_estado === 'aprobado' ? ' Aprobado' : p.evaluacion_estado === 'rechazado' ? ' Rechazado' : ' Pendiente'}</p>
 <p><strong>${ico('calendar')} Fecha:</strong> ${p.evaluacion_fecha ? formatearFecha(p.evaluacion_fecha) : ''}</p>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${p.evaluacion_inicial}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-accion="verDocumento" data-args="${attrJSON([`/uploads/${p.evaluacion_inicial}`, "Evaluación Inicial"])}">${ICONOS.eye} Ver</button>
 <a href="/api/admin/proveedor/${p.id}/evaluacion/download" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 </div>
 </div>
@@ -2287,7 +2292,7 @@ let html = `
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
 <h3 style="margin:0;">${ico('file-text')} Historial de actualizaciones</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-success" onclick="exportarHistorial()">${ico('file-text')} Exportar</button>
+<button class="btn btn-sm btn-success" data-accion="exportarHistorial" data-args="${attrJSON([])}">${ico('file-text')} Exportar</button>
 </div>
 </div>
 <div style="background:#f9fafb;padding:1rem;border-radius:8px;margin-bottom:1.5rem;">
@@ -2319,18 +2324,18 @@ value="${escapeHtml(rfc)}" style="width:100%;padding:0.5rem;border:1px solid #d1
 </div>
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosHistorial()">${ico('search')} Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosHistorial()">${ico('trash')} Limpiar</button>
+<button class="btn btn-sm" data-accion="aplicarFiltrosHistorial" data-args="${attrJSON([])}">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="limpiarFiltrosHistorial" data-args="${attrJSON([])}">${ico('trash')} Limpiar</button>
 </div>
 <div id="paginacionHistorial" style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;">
 <div style="display:flex;gap:0.5rem;align-items:center;">
-<button id="btnHistorialAnterior" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(-1)"> Anterior</button>
+<button id="btnHistorialAnterior" class="btn btn-sm btn-secondary" data-accion="cambiarPaginaHistorial" data-args="${attrJSON([-1])}"> Anterior</button>
 <span id="infoHistorialPagina">Página ${data.page} de ${data.totalPages} (${data.total} registros)</span>
-<button id="btnHistorialSiguiente" class="btn btn-sm btn-secondary" onclick="cambiarPaginaHistorial(1)">Siguiente </button>
+<button id="btnHistorialSiguiente" class="btn btn-sm btn-secondary" data-accion="cambiarPaginaHistorial" data-args="${attrJSON([1])}">Siguiente </button>
 </div>
 <div>
 <label style="font-size:0.85rem;">Mostrar:</label>
-<select id="historialLimite" onchange="cambiarLimiteHistorial()" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
+<select id="historialLimite" data-cambio="cambiarLimiteHistorial" data-args="${attrJSON([])}" style="padding:0.3rem;border-radius:4px;border:1px solid #d1d5db;">
 <option value="10" ${limit === 10 ? 'selected' : ''}>10</option>
 <option value="20" ${limit === 20 ? 'selected' : ''}>20</option>
 <option value="50" ${limit === 50 ? 'selected' : ''}>50</option>
@@ -2419,8 +2424,8 @@ html += `
 ${escapeHtml(c.rfc || '—')}
 </td>
 <td style="padding:0.7rem;text-align:center;">
-<button class="btn btn-sm btn-secondary" onclick="verCiclo(${c.id})">${ico('eye')} Ver docs</button>
-<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${c.id})">${ico('archive')} ZIP</button>
+<button class="btn btn-sm btn-secondary" data-accion="verCiclo" data-args="${attrJSON([c.id])}">${ico('eye')} Ver docs</button>
+<button class="btn btn-sm btn-success" data-accion="descargarZIPCiclo" data-args="${attrJSON([c.id])}">${ico('archive')} ZIP</button>
 </td>
 </tr>
 `;
@@ -2504,7 +2509,7 @@ docsHtml += `
 <span><strong>${ico('file-text')} Evaluación Inicial</strong> ${evalBadge}</span>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="verDocumento('/uploads/${evaluacion.archivo}','Evaluación Inicial')">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-accion="verDocumento" data-args="${attrJSON([`/uploads/${evaluacion.archivo}`, "Evaluación Inicial"])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${evaluacion.archivo}?download=true" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 </div>
 ${evaluacion.fecha ? `<small style="color:#6b7280;">${ico('calendar')} Fecha: ${formatearFecha(evaluacion.fecha)}</small>` : ''}
@@ -2515,7 +2520,7 @@ if (documentos && documentos.length > 0) {
 docsHtml += `
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h4 style="margin:0;">Documentos del ciclo ${escapeHtml(ciclo.numero_registro)}</h4>
-<button class="btn btn-sm btn-success" onclick="descargarZIPCiclo(${ciclo.id})">${ico('archive')} Descargar todos en ZIP</button>
+<button class="btn btn-sm btn-success" data-accion="descargarZIPCiclo" data-args="${attrJSON([ciclo.id])}">${ico('archive')} Descargar todos en ZIP</button>
 </div>
 <div class="doc-grid">
 `;
@@ -2537,7 +2542,7 @@ ${d.fecha_vencimiento ? `<span style="color:${vencimientoColor};font-size:0.8rem
 ${(d.no_aplica === 1 || d.archivo === 'no_aplica')
 ? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" data-accion="verDocumentoBtn" data-args="${attrJSON(['__EL__'])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ico('download')} Descargar</a>
 `}
 </div>
@@ -2554,7 +2559,7 @@ modal.innerHTML = `
 <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
 <h3 style="margin:0;"> Ciclo: ${escapeHtml(ciclo.numero_registro)}</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModalCiclo()"> Cerrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="cerrarModalCiclo" data-args="${attrJSON([])}"> Cerrar</button>
 </div>
 <div style="background:#f9fafb;padding:1rem;border-radius:6px;margin-bottom:1rem;">
 <p><strong>Proveedor:</strong> ${escapeHtml(ciclo.razon_social)}</p>
@@ -2657,7 +2662,7 @@ let html = `
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
 <h3 style="margin:0;">${ico('settings')} Configuración del sistema</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="recargarConfiguracion()">${ico('refresh')} Recargar</button>
+<button class="btn btn-sm btn-secondary" data-accion="recargarConfiguracion" data-args="${attrJSON([])}">${ico('refresh')} Recargar</button>
 </div>
 </div>
 <div id="configuracionContenido">
@@ -2711,7 +2716,7 @@ function renderizarFormularioConfiguracion(config) {
         <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">
             Esta acción moverá <strong>TODOS los documentos activos</strong> de <strong>TODOS los proveedores</strong> a histórico y los cambiará a estado RECHAZADO, sin importar su fecha de vencimiento.
         </p>
-        <button class="btn btn-danger" onclick="forzarVencimientosAhora()" style="background:#dc2626;color:white;font-weight:bold;padding:0.8rem 2rem;">
+        <button class="btn btn-danger" data-accion="forzarVencimientosAhora" data-args="${attrJSON([])}" style="background:#dc2626;color:white;font-weight:bold;padding:0.8rem 2rem;">
              Forzar vencimiento de todos los documentos
         </button>
         <small style="color:#6b7280;display:block;margin-top:0.5rem;">
@@ -2736,7 +2741,7 @@ function renderizarFormularioConfiguracion(config) {
                 <input type="datetime-local" id="fechaVencimientoInput" value="${fechaActual}"
                     style="width:100%;padding:0.7rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">
             </div>
-            <button class="btn" onclick="guardarConfiguracion()" style="background:#059669;">${ico('save')} Guardar</button>
+            <button class="btn" data-accion="guardarConfiguracion" data-args="${attrJSON([])}" style="background:#059669;">${ico('save')} Guardar</button>
         </div>
         <small style="color:#6b7280;display:block;margin-top:0.5rem;">
             ${ico('alert')} Este cambio afectará solo a los documentos que se aprueben a partir de ahora.
@@ -2749,7 +2754,7 @@ function renderizarFormularioConfiguracion(config) {
             Esto asignará la misma fecha y hora a todos los documentos aprobados.
         </p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-            <button class="btn btn-warning" onclick="recalcularVencimientos()" style="background:#d97706;color:white;">
+            <button class="btn btn-warning" data-accion="recalcularVencimientos" data-args="${attrJSON([])}" style="background:#d97706;color:white;">
                 ${ico('refresh')} Aplicar a todos (fecha fija)
             </button>
             <small style="color:#6b7280;display:block;margin-top:0.5rem;">
@@ -2764,8 +2769,8 @@ function renderizarFormularioConfiguracion(config) {
             Crea, verifica, descarga (copia externa) o restaura sin usar consola.
         </p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
-            <button class="btn" onclick="crearBackupAhora()" style="background:#0284c7;">${ico('plus')} Crear backup ahora</button>
-            <button class="btn btn-secondary" onclick="cargarBackups()">${ico('refresh')} Actualizar lista</button>
+            <button class="btn" data-accion="crearBackupAhora" data-args="${attrJSON([])}" style="background:#0284c7;">${ico('plus')} Crear backup ahora</button>
+            <button class="btn btn-secondary" data-accion="cargarBackups" data-args="${attrJSON([])}">${ico('refresh')} Actualizar lista</button>
         </div>
 <div id="listaBackups"><p style="color:#6b7280;">Cargando…</p></div> </div>`;
 aplicarGatingBotones(); //  R4: backups/acciones urgentes según permiso
@@ -2882,9 +2887,9 @@ backups.map(b => `
 <td style="padding:0.6rem;"><strong>${escapeHtml(b.nombre)}</strong></td>
 <td style="padding:0.6rem;text-align:center;">${(b.bytes / 1024 / 1024).toFixed(2)} MB</td>
 <td style="padding:0.6rem;text-align:center;white-space:nowrap;">
-<button class="btn btn-sm btn-secondary" onclick="verificarBackup('${escapeAttr(b.nombre)}')">${ico('search')} Verificar</button>
+<button class="btn btn-sm btn-secondary" data-accion="verificarBackup" data-args="${attrJSON([`${escapeAttr(b.nombre)}`])}">${ico('search')} Verificar</button>
 <a class="btn btn-sm btn-success" href="/api/admin/backups/${encodeURIComponent(b.nombre)}">${ico('download')} Descargar</a>
-<button class="btn btn-sm btn-warning" onclick="restaurarBackup('${escapeAttr(b.nombre)}')"> Restaurar</button>
+<button class="btn btn-sm btn-warning" data-accion="restaurarBackup" data-args="${attrJSON([`${escapeAttr(b.nombre)}`])}"> Restaurar</button>
 </td>
 </tr>`).join('') + `</tbody></table></div>`;
 } catch (err) {
@@ -3362,8 +3367,8 @@ function montarOverlayRevision() {
       <h3 style="margin:0;font-size:1.05rem;" id="revTitulo">Documento</h3>
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
         <span id="revContador" class="badge-count"></span>
-        <button id="btnRevFullscreen" class="btn btn-sm btn-secondary" onclick="toggleRevisionFullscreen()">${ico('maximize')} Pantalla completa</button>
-      <button class="btn btn-sm btn-secondary" onclick="cerrarRevisionEnfocada()"> Cerrar</button>
+        <button id="btnRevFullscreen" class="btn btn-sm btn-secondary" data-accion="toggleRevisionFullscreen" data-args="${attrJSON([])}">${ico('maximize')} Pantalla completa</button>
+      <button class="btn btn-sm btn-secondary" data-accion="cerrarRevisionEnfocada" data-args="${attrJSON([])}"> Cerrar</button>
       </div>
     </div>
     <div id="revMeta" style="font-size:0.85rem;color:#6b7280;"></div>
@@ -3373,8 +3378,8 @@ function montarOverlayRevision() {
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:0.6rem;flex-wrap:wrap;">
       <div style="display:flex;gap:0.5rem;">
-        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(-1)">← Anterior</button>
-        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(1)">Saltar →</button>
+        <button class="btn btn-sm btn-secondary" data-accion="navegarRevision" data-args="${attrJSON([-1])}">← Anterior</button>
+        <button class="btn btn-sm btn-secondary" data-accion="navegarRevision" data-args="${attrJSON([1])}">Saltar →</button>
       </div>
       <div id="revAcciones" style="display:flex;gap:0.5rem;flex-wrap:wrap;"></div>
     </div>
@@ -3422,21 +3427,21 @@ function pintarRevisionActual() {
 if (acciones) {
 if (doc.esNoAplica && r.modo === 'verificacion') {
 acciones.innerHTML = `
-<button class="btn btn-sm btn-secondary" onclick="accionRevision('desmarcar_noaplica')"> Desmarcar No aplica</button>
-<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${ico('check')} Confirmar No aplica y seguir</button>`;
+<button class="btn btn-sm btn-secondary" data-accion="accionRevision" data-args="${attrJSON(["desmarcar_noaplica"])}"> Desmarcar No aplica</button>
+<button class="btn btn-sm btn-success" data-accion="accionRevision" data-args="${attrJSON(["principal"])}">${ico('check')} Confirmar No aplica y seguir</button>`;
 } else if (doc.esNoAplica && r.modo === 'aprobacion') {
 //  FIX: en Aprobación el marcador No aplica se aprueba/rechaza como en la lista normal
 acciones.innerHTML = `
-<button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">${ico('x')} Rechazar</button>
-<button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${ico('check')} Aprobar y siguiente</button>`;
+<button class="btn btn-sm btn-danger" data-accion="accionRevision" data-args="${attrJSON(["rechazar"])}">${ico('x')} Rechazar</button>
+<button class="btn btn-sm btn-success" data-accion="accionRevision" data-args="${attrJSON(["principal"])}">${ico('check')} Aprobar y siguiente</button>`;
 } else if (doc.sinDocumento) {
       acciones.innerHTML = `
-        <button class="btn btn-sm" style="background:#0284c7;" onclick="accionRevision('marcar_noaplica')">${ico('file-text')} Marcar No aplica</button>
-        <button class="btn btn-sm btn-secondary" onclick="navegarRevision(1)"> Dejar pendiente y seguir</button>`;
+        <button class="btn btn-sm" style="background:#0284c7;" data-accion="accionRevision" data-args="${attrJSON(["marcar_noaplica"])}">${ico('file-text')} Marcar No aplica</button>
+        <button class="btn btn-sm btn-secondary" data-accion="navegarRevision" data-args="${attrJSON([1])}"> Dejar pendiente y seguir</button>`;
     } else {
       acciones.innerHTML = `
-        <button class="btn btn-sm btn-danger" onclick="accionRevision('rechazar')">${ico('x')} Rechazar</button>
-        <button class="btn btn-sm btn-success" onclick="accionRevision('principal')">${r.modo === 'verificacion' ? ' Verificar y siguiente' : ' Aprobar y siguiente'}</button>`;
+        <button class="btn btn-sm btn-danger" data-accion="accionRevision" data-args="${attrJSON(["rechazar"])}">${ico('x')} Rechazar</button>
+        <button class="btn btn-sm btn-success" data-accion="accionRevision" data-args="${attrJSON(["principal"])}">${r.modo === 'verificacion' ? ' Verificar y siguiente' : ' Aprobar y siguiente'}</button>`;
     }
   }
 }
@@ -3869,7 +3874,7 @@ overlay.innerHTML = `
 <div class="modal" style="max-width:540px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <h3 style="margin:0;">${ico('refresh')} Solicitar actualización de documentos</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModalSolicitarActualizacion()"> Cerrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="cerrarModalSolicitarActualizacion" data-args="${attrJSON([])}"> Cerrar</button>
 </div>
 <p style="color:#374151;margin-bottom:0.8rem;">
 Vas a solicitar la actualización anual a <strong>${escapeHtml(nombreProveedor)}</strong>.
@@ -3886,8 +3891,8 @@ Vas a solicitar la actualización anual a <strong>${escapeHtml(nombreProveedor)}
 <textarea id="mensajeActualizacion" rows="3" placeholder="Ej: Por favor actualiza tus documentos para el nuevo período..."></textarea>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-<button class="btn btn-secondary" onclick="cerrarModalSolicitarActualizacion()" style="flex:1;">Cancelar</button>
-<button class="btn" onclick="confirmarSolicitarActualizacion(${proveedorId})" style="flex:1;background:#2563eb;">${ico('refresh')} Confirmar solicitud</button>
+<button class="btn btn-secondary" data-accion="cerrarModalSolicitarActualizacion" data-args="${attrJSON([])}" style="flex:1;">Cancelar</button>
+<button class="btn" data-accion="confirmarSolicitarActualizacion" data-args="${attrJSON([proveedorId])}" style="flex:1;background:#2563eb;">${ico('refresh')} Confirmar solicitud</button>
 </div>
 </div>
 `;
@@ -4197,6 +4202,11 @@ document.getElementById('modalVisor').addEventListener('click', e => { if (e.tar
 document.getElementById('modalConfirmarEliminar').addEventListener('click', e => { if (e.target.id === 'modalConfirmarEliminar') cerrarConfirmacionEliminar(); });
 document.getElementById('modalCrearProveedor').addEventListener('click', e => { if (e.target.id === 'modalCrearProveedor') cerrarModalCrearProveedor(); });
 
+
+function ocultarEditorEmailProveedor() {
+  const c = document.getElementById('contenedorEditarEmail');
+  if (c) c.style.display = 'none';
+}
 // ==========================================
 //  EDITAR CORREO DE PROVEEDOR (admin) — AGENDA #2
 // ==========================================
@@ -4209,8 +4219,8 @@ function editarEmailProveedor(proveedorId, emailActual) {
         <label style="font-weight:600;color:#1e40af;display:block;margin-bottom:0.3rem;">${ico('mail')} Nuevo correo electrónico</label>
         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
             <input type="email" id="nuevoEmailProveedor" value="${escapeAttr(emailActual)}" placeholder="nuevo@correo.com" style="flex:1;min-width:200px;padding:0.45rem;border:1px solid #bfdbfe;border-radius:6px;">
-            <button class="btn btn-sm" style="background:#2563eb;" onclick="guardarEmailProveedor(${proveedorId})">${ico('save')} Guardar</button>
-            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('contenedorEditarEmail').style.display='none'"> Cancelar</button>
+            <button class="btn btn-sm" style="background:#2563eb;" data-accion="guardarEmailProveedor" data-args="${attrJSON([proveedorId])}">${ico('save')} Guardar</button>
+            <button class="btn btn-sm btn-secondary" data-accion="ocultarEditorEmailProveedor" data-args="${attrJSON([])}"> Cancelar</button>
         </div>
         <small style="color:#1e40af;font-size:0.78rem;display:block;margin-top:0.3rem;">El proveedor conservará historial, documentos y contraseña; solo cambia su correo de acceso.</small>
     </div>`;
@@ -4420,9 +4430,9 @@ contenedor.innerHTML = `
 <h3 style="margin:0;">${ico('chart')} Auditoría del sistema</h3>
 </div>
 <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--color-borde);flex-wrap:wrap;">
-<button class="tab active" data-atab="actividad" onclick="cambiarTabAuditoria('actividad', this)">${ico('file-text')} Actividad por usuario</button>
-<button class="tab" data-atab="historial" onclick="cambiarTabAuditoria('historial', this)">${ico('file-text')} Historial detalle</button>
-<button class="tab" data-atab="logs" onclick="cambiarTabAuditoria('logs', this)"> Logs de seguridad</button>
+<button class="tab active" data-atab="actividad" data-accion="cambiarTabAuditoria" data-args="${attrJSON(["actividad", '__EL__'])}">${ico('file-text')} Actividad por usuario</button>
+<button class="tab" data-atab="historial" data-accion="cambiarTabAuditoria" data-args="${attrJSON(["historial", '__EL__'])}">${ico('file-text')} Historial detalle</button>
+<button class="tab" data-atab="logs" data-accion="cambiarTabAuditoria" data-args="${attrJSON(["logs", '__EL__'])}"> Logs de seguridad</button>
 </div>
 <div id="auditoriaContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">${ico('clock')} Cargando…</p></div>
 </div>`;
@@ -4463,8 +4473,8 @@ cont.innerHTML = `
 <input type="date" id="audFechaHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">${ico('search')} Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">${ico('trash')} Limpiar</button>
+<button class="btn btn-sm" data-accion="aplicarFiltrosAuditoria" data-args="${attrJSON([])}" style="background:#8600dd;">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="limpiarFiltrosAuditoria" data-args="${attrJSON([])}">${ico('trash')} Limpiar</button>
 </div>
 </div>
 </div>
@@ -4549,12 +4559,12 @@ cont.innerHTML = `
 <input type="date" id="audHistHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">${ico('search')} Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">${ico('trash')}</button>
+<button class="btn btn-sm" data-accion="aplicarFiltrosAuditoria" data-args="${attrJSON([])}" style="background:#8600dd;">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="limpiarFiltrosAuditoria" data-args="${attrJSON([])}">${ico('trash')}</button>
 </div>
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm btn-success" onclick="exportarHistorialAuditoria()">${ico('file-text')} Exportar CSV</button>
+<button class="btn btn-sm btn-success" data-accion="exportarHistorialAuditoria" data-args="${attrJSON([])}">${ico('file-text')} Exportar CSV</button>
 </div>
 </div>
 <div id="audHistTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">${ico('clock')} Cargando historial…</p></div>`;
@@ -4620,9 +4630,9 @@ ${registros.map(r => `
 </table>
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.8rem;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}> Anterior</button>
+<button class="btn btn-sm btn-secondary" data-accion="cargarHistorialAuditoria" data-args="${attrJSON([data.page - 1])}" ${data.page <= 1 ? 'disabled' : ''}> Anterior</button>
 <span style="font-size:0.85rem;color:#6b7280;">Página ${data.page} de ${data.totalPages}</span>
-<button class="btn btn-sm btn-secondary" onclick="cargarHistorialAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente </button>
+<button class="btn btn-sm btn-secondary" data-accion="cargarHistorialAuditoria" data-args="${attrJSON([data.page + 1])}" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente </button>
 </div>`;
 } catch (e) {
 const cont = document.getElementById('audHistTabla');
@@ -4677,12 +4687,12 @@ cont.innerHTML = `
 <input type="date" id="audLogHasta" value="${escapeHtml(f.fecha_hasta)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;">
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm" onclick="aplicarFiltrosAuditoria()" style="background:#8600dd;">${ico('search')} Filtrar</button>
-<button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosAuditoria()">${ico('trash')}</button>
+<button class="btn btn-sm" data-accion="aplicarFiltrosAuditoria" data-args="${attrJSON([])}" style="background:#8600dd;">${ico('search')} Filtrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="limpiarFiltrosAuditoria" data-args="${attrJSON([])}">${ico('trash')}</button>
 </div>
 </div>
 <div style="display:flex;gap:0.5rem;">
-<button class="btn btn-sm btn-success" onclick="exportarLogsAuditoria()">${ico('file-text')} Exportar CSV</button>
+<button class="btn btn-sm btn-success" data-accion="exportarLogsAuditoria" data-args="${attrJSON([])}">${ico('file-text')} Exportar CSV</button>
 </div>
 </div>
 <div id="audLogsTabla"><p style="color:#6b7280;text-align:center;padding:1rem;">${ico('clock')} Cargando logs…</p></div>`;
@@ -4737,9 +4747,9 @@ ${registros.map(r => `
 </table>
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.8rem;gap:0.5rem;flex-wrap:wrap;">
-<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}> Anterior</button>
+<button class="btn btn-sm btn-secondary" data-accion="cargarLogsAuditoria" data-args="${attrJSON([data.page - 1])}" ${data.page <= 1 ? 'disabled' : ''}> Anterior</button>
 <span style="font-size:0.85rem;color:#6b7280;">Página ${data.page} de ${data.totalPages}</span>
-<button class="btn btn-sm btn-secondary" onclick="cargarLogsAuditoria(${data.page + 1})" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente </button>
+<button class="btn btn-sm btn-secondary" data-accion="cargarLogsAuditoria" data-args="${attrJSON([data.page + 1])}" ${data.page >= data.totalPages ? 'disabled' : ''}>Siguiente </button>
 </div>`;
 } catch (e) {
 const cont = document.getElementById('audLogsTabla');
@@ -4811,7 +4821,9 @@ function aplicarGatingRBAC() {
       const btn = document.createElement('button');
       btn.className = 'ad-item';
       btn.dataset.mod = 'equipo';
-      btn.setAttribute('onclick', 'cambiarModuloSidebar(this)');
+        btn.dataset.mod = 'equipo';
+        btn.dataset.accion = 'cambiarModuloSidebar';
+        btn.dataset.args = '["__EL__"]';
       btn.innerHTML = '<svg class="ico" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="txt">Equipo</span>';
       ref.parentNode.insertBefore(btn, ref.nextSibling);
     }
@@ -4845,13 +4857,13 @@ function aplicarGatingRBAC() {
 }
 function aplicarGatingBotones() {
   const reglas = [
-    ['[onclick*="mostrarModalCrearProveedor"]', 'proveedores.crear'],
-    ['[onclick*="toggleExportDropdown"]', 'exportar.datos'],
-    ['[onclick*="exportarHabeasData"]', 'exportar.datos'],
-    ['[onclick*="recordarInactivos"]', 'notas.enviar'],
-    ['[onclick*="crearBackupAhora"]', 'backups.gestionar'],
-    ['[onclick*="forzarVencimientosAhora"]', 'config.gestionar'],
-    ['[onclick*="recalcularVencimientos"]', 'config.gestionar']
+    ['[data-accion="mostrarModalCrearProveedor"]', 'proveedores.crear'],
+    ['[data-accion="toggleExportDropdown"]', 'exportar.datos'],
+    ['[data-accion="exportarHabeasData"]', 'exportar.datos'],
+    ['[data-accion="recordarInactivos"]', 'notas.enviar'],
+    ['[data-accion="crearBackupAhora"]', 'backups.gestionar'],
+    ['[data-accion="forzarVencimientosAhora"]', 'config.gestionar'],
+    ['[data-accion="recalcularVencimientos"]', 'config.gestionar']
   ];
   reglas.forEach(([sel, clave]) => {
     document.querySelectorAll(sel).forEach(el => {
@@ -4917,7 +4929,7 @@ async function cargarEquipo() {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
       <h3 style="margin:0;">${ico('users')} Equipo y permisos</h3>
-      <button class="btn btn-sm" style="background:#059669;" onclick="mostrarModalInvitar()">${ico('plus')} Invitar miembro</button>
+      <button class="btn btn-sm" style="background:#059669;" data-accion="mostrarModalInvitar" data-args="${attrJSON([])}">${ico('plus')} Invitar miembro</button>
     </div>
     <div class="alert alert-info" style="margin-bottom:1rem;">Los cambios de permisos o desactivación <strong>cierran la sesión activa</strong> del miembro afectado (debe volver a ingresar). Las 4 claves reservadas (usuarios.gestionar, sesiones.limpiar, rate_limits.limpiar, seguridad.diagnosticar) no se asignan: son del superadmin.</div>
     <div id="equipoContenido"><p style="color:#6b7280;text-align:center;padding:2rem;">${ico('clock')} Cargando equipo…</p></div>
@@ -4948,16 +4960,16 @@ const catalogo = clavesServidor.length
           </div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
 ${u.es_superadmin ? '' : `
- <button class="btn btn-sm btn-secondary" onclick="togglePermisosMiembro(${u.id}, this)">${ico('eye')} Ver permisos</button>
- <button class="btn btn-sm btn-secondary" onclick="guardarPermisosUsuario(${u.id})">${ico('save')} Guardar permisos</button>
+ <button class="btn btn-sm btn-secondary" data-accion="togglePermisosMiembro" data-args="${attrJSON([u.id, '__EL__'])}">${ico('eye')} Ver permisos</button>
+ <button class="btn btn-sm btn-secondary" data-accion="guardarPermisosUsuario" data-args="${attrJSON([u.id])}">${ico('save')} Guardar permisos</button>
 ${u.activo
-? `<button class="btn btn-sm btn-danger" onclick="toggleActivoUsuario(${u.id}, 0, '${escapeAttr(u.email)}')">${ico('ban')} Desactivar</button>`
-: `<button class="btn btn-sm btn-success" onclick="toggleActivoUsuario(${u.id}, 1, '${escapeAttr(u.email)}')">${ico('check')} Activar</button>`}
-${!esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, true, '${escapeAttr(u.email)}')"> Hacer superadmin</button>` : ''}
+? `<button class="btn btn-sm btn-danger" data-accion="toggleActivoUsuario" data-args="${attrJSON([u.id, 0, `${escapeAttr(u.email)}`])}">${ico('ban')} Desactivar</button>`
+: `<button class="btn btn-sm btn-success" data-accion="toggleActivoUsuario" data-args="${attrJSON([u.id, 1, `${escapeAttr(u.email)}`])}">${ico('check')} Activar</button>`}
+${!esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" data-accion="toggleSuperadminMiembro" data-args="${attrJSON([u.id, true, `${escapeAttr(u.email)}`])}"> Hacer superadmin</button>` : ''}
 `}
-${u.es_superadmin && !esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" onclick="toggleSuperadminMiembro(${u.id}, false, '${escapeAttr(u.email)}')">${ico('download')} Quitar superadmin</button>` : ''}
-<button class="btn btn-sm btn-secondary" onclick="cambiarEmailMiembro(${u.id}, '${escapeAttr(u.email)}')">${ico('edit')} Cambiar email</button>
-${u.email === (document.getElementById('userEmail')?.textContent || '').trim() ? '' : `<button class="btn btn-sm btn-negro" onclick="eliminarMiembroEquipo(${u.id}, '${escapeAttr(u.email)}')">${ico('trash')} Eliminar</button>`}
+${u.es_superadmin && !esYoMiembro(u) ? `<button class="btn btn-sm btn-warning" data-accion="toggleSuperadminMiembro" data-args="${attrJSON([u.id, false, `${escapeAttr(u.email)}`])}">${ico('download')} Quitar superadmin</button>` : ''}
+<button class="btn btn-sm btn-secondary" data-accion="cambiarEmailMiembro" data-args="${attrJSON([u.id, `${escapeAttr(u.email)}`])}">${ico('edit')} Cambiar email</button>
+${u.email === (document.getElementById('userEmail')?.textContent || '').trim() ? '' : `<button class="btn btn-sm btn-negro" data-accion="eliminarMiembroEquipo" data-args="${attrJSON([u.id, `${escapeAttr(u.email)}`])}">${ico('trash')} Eliminar</button>`}
           </div>
         </div>
         ${u.es_superadmin ? '<small style="color:#6b7280;">El superadmin tiene bypass total: no requiere switches.</small>' : `
@@ -5089,7 +5101,7 @@ function mostrarModalInvitar() {
   <div class="modal" style="max-width:560px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <h3 style="margin:0;">${ico('plus')} Invitar miembro al equipo</h3>
-      <button class="btn btn-sm btn-secondary" onclick="cerrarModalInvitar()"> Cerrar</button>
+      <button class="btn btn-sm btn-secondary" data-accion="cerrarModalInvitar" data-args="${attrJSON([])}"> Cerrar</button>
     </div>
     <div class="form-group"><label>${ico('mail')} Email corporativo *</label><input type="email" id="invEmail" placeholder="nombre@unab.edu.co"></div>
     <div class="form-group"><label> Nombre o área (opcional)</label><input type="text" id="invNombre" placeholder="Ej: Nayardy — Verificación"></div>
@@ -5101,8 +5113,8 @@ function mostrarModalInvitar() {
     </div>
     <div id="invAlerta"></div>
     <div style="display:flex;gap:0.5rem;">
-      <button class="btn btn-secondary" style="flex:1;" onclick="cerrarModalInvitar()">Cancelar</button>
-      <button class="btn" style="flex:1;background:#059669;" onclick="enviarInvitacionStaff()">${ico('send')} Enviar invitación</button>
+      <button class="btn btn-secondary" style="flex:1;" data-accion="cerrarModalInvitar" data-args="${attrJSON([])}">Cancelar</button>
+      <button class="btn" style="flex:1;background:#059669;" data-accion="enviarInvitacionStaff" data-args="${attrJSON([])}">${ico('send')} Enviar invitación</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
@@ -5131,6 +5143,121 @@ async function enviarInvitacionStaff() {
     await cargarEquipo();
   } catch (e) { alerta.innerHTML = `<div class="alert alert-error">${ico('x')} ${e.message}</div>`; }
 }
+
+// ==========================================
+// EVENT DELEGATION - Reemplaza onclick inline (CSP-compliant)
+// ==========================================
+document.addEventListener('click', function(e) {
+  const target = e.target.closest('[data-action]');
+  if (!target) return;
+  
+  const action = target.dataset.action;
+  
+  switch(action) {
+    case 'cambiar-modulo':
+      cambiarModuloSidebar(target);
+      break;
+      
+    case 'crear-proveedor':
+      mostrarModalCrearProveedor();
+      break;
+      
+    case 'ver-proveedor':
+      const id = parseInt(target.dataset.id);
+      const modulo = target.dataset.modulo || moduloActual;
+      verProveedor(id, modulo);
+      break;
+      
+    case 'toggle-export':
+      toggleExportDropdown();
+      break;
+      
+    case 'exportar-csv':
+      exportarCSV();
+      break;
+      
+    case 'exportar-excel':
+      exportarExcel();
+      break;
+      
+    case 'exportar-habeas':
+      exportarHabeasData();
+      break;
+      
+    case 'cambiar-tab':
+      const tabId = target.dataset.tab;
+      document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+      target.classList.add('active');
+      moduloActual = tabId;
+      paginaActual = 1;
+      cargarModulo(tabId);
+      break;
+      
+    case 'cambiar-pagina':
+      const delta = parseInt(target.dataset.delta);
+      cambiarPagina(delta);
+      break;
+      
+    case 'cambiar-limite':
+      cambiarLimite();
+      break;
+      
+    case 'filtrar-estado':
+      const estado = target.dataset.estado;
+      filtrarEstado(estado);
+      break;
+      
+    case 'limpiar-filtros':
+      limpiarFiltros();
+      break;
+      
+    case 'recordar-inactivos':
+      recordarInactivos();
+      break;
+      
+    case 'cargar-metricas':
+      cargarMetricas();
+      break;
+      
+    case 'toggle-sonido':
+      toggleSonidoD4();
+      break;
+      
+    case 'toggle-tema':
+      toggleTemaD1();
+      break;
+      
+    case 'abrir-ctrl-k':
+      abrirCtrlK();
+      break;
+      
+    case 'toggle-panel-eventos':
+      togglePanelEventosD4();
+      break;
+      
+    case 'logout':
+      logout();
+      break;
+  }
+});
+
+// Event delegation para change events (selects)
+document.addEventListener('change', function(e) {
+  const target = e.target;
+  
+  if (target.id === 'ordenar') {
+    aplicarFiltros();
+  } else if (target.id === 'filtroTipoPersona') {
+    paginaActual = 1;
+    cargarProveedoresPorModulo(moduloActual, 1);
+  } else if (target.id === 'filtroDocFaltante') {
+    paginaActual = 1;
+    cargarProveedoresPorModulo(moduloActual, 1);
+  } else if (target.id === 'selectLimite') {
+    cambiarLimite();
+  }
+});
+
 // ==========================================
 //  INICIAR APLICACIÓN
 // ==========================================

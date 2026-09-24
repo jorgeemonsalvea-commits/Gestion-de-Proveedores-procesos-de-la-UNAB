@@ -1483,11 +1483,11 @@ margin-left: auto;
 }
 
 /* 2) Botones sueltos del módulo Configuración */
-button[onclick="forzarVencimientosAhora()"] {
+button[data-accion="forzarVencimientosAhora"] {
 display: block;
 margin-left: auto;
 }
-button[onclick="recalcularVencimientos()"] {
+button[data-accion="recalcularVencimientos"] {
 margin-left: auto;
 }
 

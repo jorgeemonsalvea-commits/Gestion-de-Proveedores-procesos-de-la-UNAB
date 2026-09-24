@@ -234,3 +234,49 @@ function ico(nombre, clase = '') {
   if (!clase) return svg;
   return svg.replace('class="ico"', 'class="ico ' + clase + '"');
 }
+
+// ==========================================
+//  D18: DELEGACIÓN GLOBAL DE ACCIONES (CSP sin unsafe-inline)
+// Los handlers inline onclick=/onchange= se migran a data-accion/data-cambio
+// con argumentos JSON en data-args. El listener resuelve la función global
+// por nombre en el momento del evento (el orden de carga ya no importa).
+// Convención de args: "__EL__" = el elemento, "__EL_VALUE__" = el.value del elemento.
+// ==========================================
+function attrJSON(v) {
+  return escapeAttr(JSON.stringify(v));
+}
+function ejecutarAccionDelegada(el, nombre, argsRaw) {
+  const fn = window[nombre];
+  if (typeof fn !== 'function') return false;
+  let args = [];
+  if (argsRaw) {
+    try { args = JSON.parse(argsRaw); } catch (e) { return false; }
+  }
+  args = args.map(a =>
+    a === '__EL__' ? el : (a === '__EL_VALUE__' ? (el.value !== undefined ? el.value : el) : a)
+  );
+  // Fallback seguro: si el handler espera el elemento y el markup no trajo
+  // data-args (migraciones antiguas), se le pasa el elemento clickeado.
+  if (args.length === 0 && fn.length >= 1) args = [el];
+  fn.apply(null, args);
+  return true;
+}
+function instalarDelegacionGlobal() {
+  document.addEventListener('click', (e) => {
+    const el = e.target && e.target.closest ? e.target.closest('[data-accion]') : null;
+    if (el) ejecutarAccionDelegada(el, el.dataset.accion, el.dataset.args);
+  });
+  document.addEventListener('change', (e) => {
+    const el = e.target && e.target.closest ? e.target.closest('[data-cambio]') : null;
+    if (el) ejecutarAccionDelegada(el, el.dataset.cambio, el.dataset.args);
+  });
+  // Fallback de imágenes (antes onerror inline): captura en fase capture
+  document.addEventListener('error', (e) => {
+    const el = e.target;
+    if (el && el.tagName === 'IMG' && el.dataset.imgFallback && !el.dataset.imgFallbackOk) {
+      el.dataset.imgFallbackOk = '1';
+      el.src = el.dataset.imgFallback;
+    }
+  }, true);
+}
+if (typeof document !== 'undefined') instalarDelegacionGlobal();

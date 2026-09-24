@@ -114,22 +114,70 @@ const DUMMY_BCRYPT_HASH = '$2a$12$WApznUPhDubN0oeveSXoqOe6eHZMVj7S5rJtgvQXlhQl1J
 //  OPT RENDIMIENTO (#4): comprime HTML/JSON/JS/CSS (~70% menos transferencia).
 // PDF/ZIP ya están comprimidos: el filtro por defecto los deja pasar sin tocarlos.
 app.use(compression());
+// ==========================================
+//  D18 CSP: modo conmutable por variable de entorno CSP_MODO
+//  legacy      = política exacta de hoy (rollback de emergencia)
+//  report-only = DEFAULT: se impone lo de hoy (cero riesgo) y la política
+//                dura viaja aparte como Report-Only (solo reporta)
+//  intermedia  = script-src 'self' (mata <script> inyectado), attrs con inline
+//  dura        = sin 'unsafe-inline' en ningún eje de scripts
+//  Rollback: set "CSP_MODO=legacy" && node server.js
+// ==========================================
+const CSP_MODO = (process.env.CSP_MODO || 'report-only').trim().toLowerCase();
+const CSP_REPORT_URI = '/api/csp-report';
+
+function directivasCSP(modo) {
+  const base = {
+    defaultSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "blob:"],
+    frameSrc: ["'self'", "blob:"],
+    connectSrc: ["'self'"],
+    fontSrc: ["'self'", "data:"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"]
+  };
+  if (modo === 'legacy' || modo === 'report-only') {
+    return Object.assign({}, base, {
+      scriptSrc: ["'self'"],
+      scriptSrcAttr: ["'self'"],
+      scriptSrcElem: ["'self'"],
+    });
+  }
+  if (modo === 'intermedia') {
+    return Object.assign({}, base, {
+      scriptSrc: ["'self'"],
+      scriptSrcAttr: ["'self'"],
+      scriptSrcElem: ["'self'"]
+    });
+  }
+  return Object.assign({}, base, {
+    scriptSrc: ["'self'"],
+    scriptSrcAttr: ["'self'"],
+    scriptSrcElem: ["'self'"]
+  });
+}
+
+function politicaCSPTexto(modo) {
+  const orden = [
+    ['default-src', 'defaultSrc'], ['script-src', 'scriptSrc'],
+    ['script-src-attr', 'scriptSrcAttr'], ['script-src-elem', 'scriptSrcElem'],
+    ['style-src', 'styleSrc'], ['img-src', 'imgSrc'], ['frame-src', 'frameSrc'],
+    ['connect-src', 'connectSrc'], ['font-src', 'fontSrc'],
+    ['object-src', 'objectSrc'], ['base-uri', 'baseUri'], ['form-action', 'formAction']
+  ];
+  const d = directivasCSP(modo);
+  const partes = orden
+    .filter((par) => d[par[1]])
+    .map((par) => par[0] + ' ' + d[par[1]].join(' '));
+  partes.push('report-uri ' + CSP_REPORT_URI);
+  return partes.join('; ');
+}
+
 app.use(helmet({
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrcAttr: ["'self'", "'unsafe-inline'"],
-      scriptSrcElem: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:"],
-      frameSrc: ["'self'", "blob:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'", "data:"],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"]
-    }
+    directives: directivasCSP(CSP_MODO)
   },
 //  HSTS: fuerza HTTPS por 1 año en el navegador (anti downgrade/SSL-stripping)
 hsts: { maxAge: 31536000, includeSubDomains: true },
@@ -140,6 +188,28 @@ crossOriginEmbedderPolicy: false,
 permissionsPolicy: false,
 crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
+
+// D18: en report-only se impone la política de hoy (idéntica a la anterior,
+// cero riesgo funcional) y la política DURA se envía como
+// Content-Security-Policy-Report-Only: el navegador NO bloquea nada, solo
+// informa a /api/csp-report qué habría violado la dura.
+if (CSP_MODO === 'report-only') {
+  app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy-Report-Only', politicaCSPTexto('dura'));
+    next();
+  });
+}
+
+// D18: sumidero de reportes CSP (el navegador POSTea { "csp-report": {...} })
+app.post('/api/csp-report', express.json({ type: ['application/csp-report', 'application/json'] }), (req, res) => {
+  const r = (req.body && req.body['csp-report']) ? req.body['csp-report'] : (req.body || {});
+  console.warn('[CSP-REPORT] doc=' + (r['document-uri'] || '-') +
+    ' | bloqueada=' + (r['blocked-uri'] || '-') +
+    ' | directiva=' + (r['violated-directive'] || '-') +
+    ' | linea=' + (r['line-number'] || '-'));
+  res.status(204).end();
+});
+console.log('CSP modo activo: ' + CSP_MODO);
 
 const limiterLogin = rateLimit({
   windowMs: 15 * 60 * 1000,

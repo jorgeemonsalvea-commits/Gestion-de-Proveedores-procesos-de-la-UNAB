@@ -465,7 +465,7 @@ prov.tipo_proveedor === 'juridica' ? ' Persona Jurídica' : 'Sin definir';
           ${ico('alert')} Es obligatorio aceptar esta política para poder acceder al sistema y gestionar tus documentos.
         </div>
         <div style="display:flex;gap:0.5rem;">
-          <button class="btn btn-full" onclick="aceptarHabeasData()" style="background:#8600dd;">${ico('check')} Aceptar y continuar</button>
+          <button class="btn btn-full" data-accion="aceptarHabeasData" data-args="${attrJSON([])}" style="background:#8600dd;">${ico('check')} Aceptar y continuar</button>
         </div>
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb;text-align:center;">
           <small style="color:#6b7280;">Al aceptar, autorizas el tratamiento de tus datos conforme a la ley.</small>
@@ -764,7 +764,7 @@ avisoEtapa.innerHTML = `
 <strong>${ico('ban')} Tienes ${rechazadosActivos.length} documento(s) rechazado(s).</strong><br>
 Para poder subir nueva documentación, primero debes eliminar todos los documentos rechazados.
 <div style="margin-top:0.8rem;">
-<button type="button" class="btn btn-danger btn-sm" onclick="eliminarTodosRechazados()">${ico('trash')} Eliminar todos los rechazados</button>
+<button type="button" class="btn btn-danger btn-sm" data-accion="eliminarTodosRechazados" data-args="${attrJSON([])}">${ico('trash')} Eliminar todos los rechazados</button>
 </div>
 </div>`;
 } else if (etapaActual === 'registrado') {
@@ -807,7 +807,7 @@ let html = `<div class="doc-item doc-item-col" data-tipo-doc="${escapeAttr(req.t
 <h4>${idx + 1}. ${req.nombre}</h4>
 ${(req.descripcion || req.requiereFirma || req.requiereHuella) ? `
 <div style="margin-top:0.3rem;">
-<button type="button" data-target="info-${escapeAttr(req.tipo)}" onclick="toggleInfoDoc(this)"
+<button type="button" data-target="info-${escapeAttr(req.tipo)}" data-accion="toggleInfoDoc" data-args="${attrJSON(['__EL__'])}"
 style="background:none;border:none;color:#8600dd;font-size:0.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.2rem;font-family:inherit;font-weight:600;">
 ${ico('info')} ¿Qué debe contener?
 </button>
@@ -824,7 +824,7 @@ Requeridos: ${req.cantidadMin} · Subidos: ${sub.length}
 ${ok ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;">Completo</span>' : ''}
 ${noAplica ? '<span class="badge badge-aprobado" style="margin-left:0.5rem;background:#fef3c7;color:#92400e;">No aplica</span>' : ''}
 </small>
-${(ok || noAplica) && !tieneRechazado ? `<button type="button" class="btn-toggle-doc" onclick="toggleDocBody(this)" style="background:none;border:none;color:#8600dd;font-size:0.75rem;font-weight:600;cursor:pointer;padding:0.2rem 0.4rem;font-family:inherit;">▼ Ver detalle</button>` : ''}
+${(ok || noAplica) && !tieneRechazado ? `<button type="button" class="btn-toggle-doc" data-accion="toggleDocBody" data-args="${attrJSON(['__EL__'])}" style="background:none;border:none;color:#8600dd;font-size:0.75rem;font-weight:600;cursor:pointer;padding:0.2rem 0.4rem;font-family:inherit;">▼ Ver detalle</button>` : ''}
 </div>`;
 //  A7: las tarjetas completas (o No aplica) sin rechazados inician colapsadas
 const colapsado = (ok || noAplica) && !tieneRechazado;
@@ -895,11 +895,11 @@ ${esNoAplica && !tieneArchivoReal
 ? '<small style="color:#92400e;font-weight:600;"> Sin archivo (No aplica)</small>'
 : esMarcadorNoAplicaInvalido ? `
 <small style="color:#9ca3af;">Marcador No aplica inválido</small>
-${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">${ICONOS.trash}</button>` : ''}
+${puedeEliminar ? `<button class="btn btn-sm btn-danger" data-accion="eliminarDocumento" data-args="${attrJSON([d.id])}">${ICONOS.trash}</button>` : ''}
 ` : tieneArchivoReal ? `
-<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" onclick="verDocumentoBtn(this)">${ICONOS.eye} Ver</button>
+<button class="btn btn-sm btn-secondary" data-url="/uploads/${escapeAttr(d.archivo)}" data-nombre="${escapeAttr(nombreFormato(d.tipo))}" data-accion="verDocumentoBtn" data-args="${attrJSON(['__EL__'])}">${ICONOS.eye} Ver</button>
 <a href="/uploads/${escapeAttr(d.archivo)}?download=true" class="btn btn-sm btn-success">${ICONOS.download}</a>
-${puedeEliminar ? `<button class="btn btn-sm btn-danger" onclick="eliminarDocumento(${d.id})">${ICONOS.trash}</button>` : ''}
+${puedeEliminar ? `<button class="btn btn-sm btn-danger" data-accion="eliminarDocumento" data-args="${attrJSON([d.id])}">${ICONOS.trash}</button>` : ''}
 ` : '<small style="color:#9ca3af;">Sin archivo</small>'}
 </div>
           </div>`;
@@ -1035,13 +1035,13 @@ function aplicarModoGuiado() {
   nav.innerHTML = actual ? `
     <strong style="color:#6d28d9;"> Modo guiado — Pendiente ${idxGuiado + 1} de ${pendientes.length}: ${escapeHtml(actual.nombre)}</strong>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(-1)" ${idxGuiado === 0 ? 'disabled' : ''}>← Anterior</button>
-      <button class="btn btn-sm btn-secondary" onclick="navegarGuiado(1)" ${idxGuiado >= pendientes.length - 1 ? 'disabled' : ''}>Siguiente →</button>
-      <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()"> Salir</button>
+      <button class="btn btn-sm btn-secondary" data-accion="navegarGuiado" data-args="${attrJSON([-1])}" ${idxGuiado === 0 ? 'disabled' : ''}>← Anterior</button>
+      <button class="btn btn-sm btn-secondary" data-accion="navegarGuiado" data-args="${attrJSON([1])}" ${idxGuiado >= pendientes.length - 1 ? 'disabled' : ''}>Siguiente →</button>
+      <button class="btn btn-sm btn-danger" data-accion="toggleModoGuiado" data-args="${attrJSON([])}"> Salir</button>
     </div>
   ` : `
     <strong style="color:#065f46;"> No tienes documentos pendientes por subir.</strong>
-    <button class="btn btn-sm btn-danger" onclick="toggleModoGuiado()"> Salir del modo guiado</button>
+    <button class="btn btn-sm btn-danger" data-accion="toggleModoGuiado" data-args="${attrJSON([])}"> Salir del modo guiado</button>
   `;
   if (btn) btn.innerHTML = ico('list') + ' En modo guiado';
 }
@@ -1649,7 +1649,7 @@ recs.forEach(r => {
       p.textContent = r.mensaje;
       contenido.appendChild(p);
       const small = document.createElement('small');
-      small.textContent = `${ico('clock')} ${formatearFecha(r.creado_en)}`;
+      small.innerHTML = `${ico('clock')} ${escapeHtml(formatearFecha(r.creado_en))}`;
       contenido.appendChild(small);
 div.appendChild(contenido);
 fragRecs.appendChild(div);
@@ -1686,7 +1686,7 @@ notas.forEach(n => {
       strong.textContent = ` ${n.titulo}`;
       header.appendChild(strong);
       const small = document.createElement('small');
-      small.textContent = `${ico('clock')} ${formatearFecha(n.creado_en)}`;
+      small.innerHTML = `${ico('clock')} ${escapeHtml(formatearFecha(n.creado_en))}`;
       header.appendChild(small);
       div.appendChild(header);
 

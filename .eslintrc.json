@@ -7,6 +7,7 @@
     "io": "readonly",
     "ICONOS": "readonly",
     "ico": "readonly",
+    "attrJSON": "readonly",
     "formatearFecha": "readonly",
     "escapeHtml": "readonly",
     "escapeAttr": "readonly",

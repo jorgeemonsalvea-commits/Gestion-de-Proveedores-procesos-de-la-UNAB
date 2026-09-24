@@ -118,7 +118,7 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <button class="tab side-link" data-tab="hist"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
 </nav>
 <div class="pv-side-footer">
-<button onclick="logout()"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Cerrar sesión</span></button>
+<button data-accion="logout" data-args="[]"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Cerrar sesión</span></button>
 </div>
 </aside>
 <div class="pv-main">
@@ -127,8 +127,8 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
 <!-- B4: indicador de conexión Socket.IO en tiempo real -->
 <span id="socketStatus" style="font-size:.72rem;font-weight:700;color:#059669;white-space:nowrap;" title="Estado de la conexión en tiempo real"><svg class="ico ico-exito" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Conectado</span>
-<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real"><svg class="ico" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
+<button id="btnTemaD1" class="btn-sonido" data-accion="toggleTemaD1" data-args="[]" title="Modo claro/oscuro" aria-label="Cambiar tema"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+<button id="btnSonidoD4" class="btn-sonido" data-accion="toggleSonidoD4" data-args="[]" title="Activar/silenciar sonido de notificaciones en tiempo real"><svg class="ico" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
@@ -183,7 +183,7 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
             <h3 style="margin-bottom:1rem;">Documentación requerida</h3>
             <!-- B1: entrada al modo guiado (un pendiente a la vez) -->
             <div style="display:flex;justify-content:flex-end;margin:-0.5rem 0 0.8rem;">
-            <button id="btnModoGuiado" class="btn btn-sm btn-secondary" onclick="toggleModoGuiado()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Modo guiado</button>
+            <button id="btnModoGuiado" class="btn btn-sm btn-secondary" data-accion="toggleModoGuiado" data-args="[]"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Modo guiado</button>
             </div>
             <!-- A6: Checklist inteligente siempre visible -->
             <div id="checklist-faltantes" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:0.8rem 1rem;margin-bottom:1rem;"></div>
@@ -200,10 +200,10 @@ box-shadow: 0 0 0 3px rgba(134, 0, 221, 0.25);
 <label style="font-weight:700;"><svg class="ico" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Tipo de persona *</label>
 <div style="display:flex;gap:1.5rem;margin-top:0.4rem;flex-wrap:wrap;">
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipo_persona" value="juridica" onchange="sincronizarHintDocProv(this.value, true)"> <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="10" y2="6"/><line x1="14" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="15" y2="14"/><path d="M10 22v-4h4v4"/></svg> Persona Jurídica
+<input type="radio" name="tipo_persona" value="juridica" data-cambio="sincronizarHintDocProv" data-args="[&quot;__EL_VALUE__&quot;,true]"> <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="10" y2="6"/><line x1="14" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="15" y2="14"/><path d="M10 22v-4h4v4"/></svg> Persona Jurídica
 </label>
 <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
-<input type="radio" name="tipo_persona" value="natural" onchange="sincronizarHintDocProv(this.value, true)"> <svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Persona Natural
+<input type="radio" name="tipo_persona" value="natural" data-cambio="sincronizarHintDocProv" data-args="[&quot;__EL_VALUE__&quot;,true]"> <svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Persona Natural
 </label>
 </div>
 </div>
@@ -297,11 +297,11 @@ Es el correo con el que ingresas al portal. Puedes cambiarlo aquí; al guardar, 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
       <h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button type="button" class="btn-visor" onclick="toggleVisorPantallaCompleta()" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)"><svg class="ico" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+<button type="button" class="btn-visor" data-accion="toggleVisorPantallaCompleta" data-args="[]" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)"><svg class="ico" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
 <a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;">
           <svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
         <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary"><svg class="ico" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Abrir en pestaña</a>
-        <button class="btn btn-sm btn-danger" onclick="cerrarVisor()"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cerrar</button>
+        <button class="btn btn-sm btn-danger" data-accion="cerrarVisor" data-args="[]"><svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cerrar</button>
       </div>
     </div>
 <div id="visorMarco" style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">

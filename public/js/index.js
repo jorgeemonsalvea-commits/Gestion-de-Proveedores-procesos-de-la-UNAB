@@ -237,3 +237,19 @@ conectar('#Rp7Pw2', 'Mr5Xq3', 'Hr9Ys2'); //  registro público
 conectar('#Cn2Nw7', 'Mp3Mt1', 'Mp3Ht1'); //  modal cambio obligatorio
 })();
 console.log(' Portal de Proveedores cargado (v4.7)');
+// ==========================================
+// CSP L3: fallback de imágenes por delegación (captura), sin onerror inline
+// ==========================================
+document.addEventListener('error', function (e) {
+  const el = e.target;
+  if (!el || el.tagName !== 'IMG') return;
+  if (el.dataset.imgHideOnError === '1') {
+    el.style.display = 'none';
+    const next = el.nextElementSibling;
+    if (next) next.style.display = 'inline-block';
+  }
+  if (el.dataset.imgSelfHide === '1') {
+    if (el.dataset.imgSelfHideArmed === '1') el.style.display = 'none';
+    else el.dataset.imgSelfHideArmed = '1';
+  }
+}, true);

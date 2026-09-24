@@ -75,38 +75,38 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
     <span>Universidad Autónoma<br>de Bucaramanga</span>
   </div>
   <nav class="ad-menu">
-    <button class="ad-item active" data-mod="registrados" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="txt">Registrados</span><span class="ad-badge" id="side-registrados">0</span></button>
-    <button class="ad-item" data-mod="verificacion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="txt">Verificación</span><span class="ad-badge" id="side-verificacion">0</span></button>
-    <button class="ad-item" data-mod="aprobacion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span class="txt">Aprobación</span><span class="ad-badge" id="side-aprobacion">0</span></button>
-    <button class="ad-item" data-mod="inscripcion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="txt">Inscripción</span><span class="ad-badge" id="side-inscripcion">0</span></button>
-    <button class="ad-item" data-mod="rechazados" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span class="txt">Rechazados</span><span class="ad-badge" id="side-rechazados">0</span></button>
-    <button class="ad-item" data-mod="inactivos" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="txt">Inactivos</span><span class="ad-badge" id="side-inactivos">0</span></button>
+    <button class="ad-item active" data-mod="registrados" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="txt">Registrados</span><span class="ad-badge" id="side-registrados">0</span></button>
+    <button class="ad-item" data-mod="verificacion" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="txt">Verificación</span><span class="ad-badge" id="side-verificacion">0</span></button>
+    <button class="ad-item" data-mod="aprobacion" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span class="txt">Aprobación</span><span class="ad-badge" id="side-aprobacion">0</span></button>
+    <button class="ad-item" data-mod="inscripcion" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="txt">Inscripción</span><span class="ad-badge" id="side-inscripcion">0</span></button>
+    <button class="ad-item" data-mod="rechazados" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span class="txt">Rechazados</span><span class="ad-badge" id="side-rechazados">0</span></button>
+    <button class="ad-item" data-mod="inactivos" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="txt">Inactivos</span><span class="ad-badge" id="side-inactivos">0</span></button>
     <div class="ad-sep"></div>
-    <button class="ad-item" data-mod="historial" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
-    <button class="ad-item" data-mod="configuracion" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="txt">Configuración</span></button>
-    <button class="ad-item" data-mod="plantillas" onclick="cambiarModuloSidebar(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="txt">Plantillas</span></button>
-    <button class="ad-item" data-mod="auditoria" onclick="cambiarModuloSidebar(this)">
+    <button class="ad-item" data-mod="historial" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="txt">Historial</span></button>
+    <button class="ad-item" data-mod="configuracion" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="txt">Configuración</span></button>
+    <button class="ad-item" data-mod="plantillas" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="txt">Plantillas</span></button>
+    <button class="ad-item" data-mod="auditoria" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]">
 <svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
 <span class="txt">Auditoría</span>
 </button>
-<button class="ad-item" data-mod="metricas" onclick="cambiarModuloSidebar(this)">
+<button class="ad-item" data-mod="metricas" data-accion="cambiarModuloSidebar" data-args="[&quot;__EL__&quot;]">
 <svg class="ico" viewBox="0 0 24 24">
   <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg><span class="txt">Métricas</span></button>
   </nav>
   <div class="ad-side-footer">
-    <button class="ad-item" onclick="logout()"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="txt">Cerrar sesión</span></button>
+    <button class="ad-item" data-accion="logout" data-args="[]"><svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="txt">Cerrar sesión</span></button>
   </div>
 </aside>
 <div class="ad-main">
 <div class="ad-topbar">
-<div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b> <span class="badge-count" style="cursor:pointer;margin-left:0.5rem;" onclick="abrirCtrlK()" title="Búsqueda global (Ctrl+K)"> Ctrl+K</span></div>
+<div class="ad-crumb">Inicio <span>›</span> Panel Admin <span>›</span> <b id="crumbModulo">Registrados</b> <span class="badge-count" style="cursor:pointer;margin-left:0.5rem;" data-accion="abrirCtrlK" data-args="[]" title="Búsqueda global (Ctrl+K)"> Ctrl+K</span></div>
 <div style="display:flex;align-items:center;gap:.6rem;">
 <div class="feed-wrap">
-<button id="btnCampanaD4" class="btn-sonido btn-campana" onclick="togglePanelEventosD4()" title="Eventos en tiempo real"><span id="campanaBadgeD4" class="campana-badge" style="display:none;">0</span></button>
+<button id="btnCampanaD4" class="btn-sonido btn-campana" data-accion="togglePanelEventosD4" data-args="[]" title="Eventos en tiempo real"><span id="campanaBadgeD4" class="campana-badge" style="display:none;">0</span></button>
 <div id="panelEventosD4" class="feed-panel"></div>
 </div>
-<button id="btnTemaD1" class="btn-sonido" onclick="toggleTemaD1()" title="Modo claro/oscuro" aria-label="Cambiar tema"></button>
-<button id="btnSonidoD4" class="btn-sonido" onclick="toggleSonidoD4()" title="Activar/silenciar sonido de notificaciones en tiempo real"></button>
+<button id="btnTemaD1" class="btn-sonido" data-accion="toggleTemaD1" data-args="[]" title="Modo claro/oscuro" aria-label="Cambiar tema"></button>
+<button id="btnSonidoD4" class="btn-sonido" data-accion="toggleSonidoD4" data-args="[]" title="Activar/silenciar sonido de notificaciones en tiempo real"></button>
 <div class="user-chip">
 <span class="user-avatar" id="userAvatar">UN</span>
 <span class="user-meta">
@@ -121,11 +121,11 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 
 <!-- DASHBOARD CARDS = NAVEGACIÓN PRINCIPAL (las tarjetas funcionan como pestañas) -->
 <div id="dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.5rem;">
-<div class="kpi kpi--azul kpi-tab" data-modulo="registrados" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores registrados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="kpi-label">Registrados</div><div class="kpi-num" id="card-registrados">0</div><div class="kpi-spark" id="spark-registrados"></div></div></div>
-<div class="kpi kpi--ambar kpi-tab" data-modulo="verificacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Verificación de documentos"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><div class="kpi-label">Verificación</div><div class="kpi-num" id="card-verificacion">0</div><div class="kpi-spark" id="spark-verificacion"></div></div></div>
-<div class="kpi kpi--morado kpi-tab" data-modulo="aprobacion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Aprobación y evaluación"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div><div><div class="kpi-label">Aprobación</div><div class="kpi-num" id="card-aprobacion">0</div><div class="kpi-spark" id="spark-aprobacion"></div></div></div>
-<div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div><div class="kpi-spark" id="spark-inscripcion"></div></div></div>
-<div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" onclick="cambiarModuloCard(this)" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div><div class="kpi-spark" id="spark-rechazados"></div></div></div>
+<div class="kpi kpi--azul kpi-tab" data-modulo="registrados" data-accion="cambiarModuloCard" data-args="[&quot;__EL__&quot;]" role="button" tabindex="0" title="Proveedores registrados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="kpi-label">Registrados</div><div class="kpi-num" id="card-registrados">0</div><div class="kpi-spark" id="spark-registrados"></div></div></div>
+<div class="kpi kpi--ambar kpi-tab" data-modulo="verificacion" data-accion="cambiarModuloCard" data-args="[&quot;__EL__&quot;]" role="button" tabindex="0" title="Verificación de documentos"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><div class="kpi-label">Verificación</div><div class="kpi-num" id="card-verificacion">0</div><div class="kpi-spark" id="spark-verificacion"></div></div></div>
+<div class="kpi kpi--morado kpi-tab" data-modulo="aprobacion" data-accion="cambiarModuloCard" data-args="[&quot;__EL__&quot;]" role="button" tabindex="0" title="Aprobación y evaluación"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div><div><div class="kpi-label">Aprobación</div><div class="kpi-num" id="card-aprobacion">0</div><div class="kpi-spark" id="spark-aprobacion"></div></div></div>
+<div class="kpi kpi--verde kpi-tab" data-modulo="inscripcion" data-accion="cambiarModuloCard" data-args="[&quot;__EL__&quot;]" role="button" tabindex="0" title="Inscripción y actualización"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div><div class="kpi-label">Inscripción</div><div class="kpi-num" id="card-inscripcion">0</div><div class="kpi-spark" id="spark-inscripcion"></div></div></div>
+<div class="kpi kpi--rojo kpi-tab" data-modulo="registrados" data-estado="rechazado" data-accion="cambiarModuloCard" data-args="[&quot;__EL__&quot;]" role="button" tabindex="0" title="Proveedores rechazados"><div class="kpi-ico"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="kpi-label">Rechazados</div><div class="kpi-num" id="card-rechazados">0</div><div class="kpi-spark" id="spark-rechazados"></div></div></div>
 </div>
 <!--  E7→Métricas: la card del dashboard se movió al módulo "Métricas" del sidebar -->
 <div class="ad-grid">
@@ -147,7 +147,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="modal" style="max-width:950px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
 <h3 id="modalTitulo" style="margin:0;">Proveedor</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModal()"> Cerrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="cerrarModal" data-args="[]"> Cerrar</button>
 </div>
 <div id="modalContenidoDinamico"></div>
 
@@ -169,7 +169,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1rem;">El proveedor verá esta nota en su panel.</p>
 <div class="form-group"><label>Título</label><input type="text" id="tituloNota" placeholder="Ej: Corregir NIT..."></div>
 <div class="form-group"><label>Detalle</label><textarea id="detalleNota" rows="4" placeholder="Describe qué debe modificar..."></textarea></div>
-<button class="btn" onclick="guardarNota()"><svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar nota</button>
+<button class="btn" data-accion="guardarNota" data-args="[]"><svg class="ico" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar nota</button>
 </div>
 <h4 style="margin-bottom:0.8rem;"> Notas anteriores</h4>
 <div id="listaNotas"></div>
@@ -179,7 +179,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="card" style="background:#fffbeb;padding:1.5rem;">
 <h4 style="margin-bottom:0.5rem;"> Enviar recordatorio</h4>
 <div class="form-group"><label>Mensaje</label><textarea id="mensajeRecordatorio" rows="4" placeholder="Ej: Sube los documentos faltantes..."></textarea></div>
-<button class="btn" onclick="enviarRecordatorio()">Enviar</button>
+<button class="btn" data-accion="enviarRecordatorio" data-args="[]">Enviar</button>
 <h4 style="margin-top:1.5rem;margin-bottom:0.5rem;">Historial de recordatorios</h4>
 <div id="listaRecordatoriosEnviados"></div>
 </div>
@@ -193,7 +193,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <li>Notas y recordatorios</li><li>Cuenta de usuario</li>
 </ul>
 <p style="color:#991b1b;font-weight:600;margin-bottom:1rem;">Esta acción NO se puede deshacer.</p>
-<button class="btn btn-danger btn-full" onclick="mostrarConfirmacionEliminar()"> Eliminar proveedor completamente</button>
+<button class="btn btn-danger btn-full" data-accion="mostrarConfirmacionEliminar" data-args="[]"> Eliminar proveedor completamente</button>
 </div>
 </div>
 </div>
@@ -218,8 +218,8 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <input type="password" id="passwordConfirmacion" placeholder="Tu contraseña">
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-<button class="btn btn-secondary" onclick="cerrarConfirmacionEliminar()" style="flex:1;">Cancelar</button>
-<button class="btn btn-danger" onclick="ejecutarEliminacion()" style="flex:1;"> Eliminar definitivamente</button>
+<button class="btn btn-secondary" data-accion="cerrarConfirmacionEliminar" data-args="[]" style="flex:1;">Cancelar</button>
+<button class="btn btn-danger" data-accion="ejecutarEliminacion" data-args="[]" style="flex:1;"> Eliminar definitivamente</button>
 </div>
 </div>
 </div>
@@ -230,10 +230,10 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
 <h3 id="visorTitulo" style="margin:0;font-size:1rem;flex:1;min-width:200px;">Documento</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-<button type="button" class="btn-visor" onclick="toggleVisorPantallaCompleta()" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)">⛶</button>
+<button type="button" class="btn-visor" data-accion="toggleVisorPantallaCompleta" data-args="[]" title="Expandir / restaurar visor (el zoom y la rotación reales los pone el visor nativo del PDF)">⛶</button>
 <a id="visorDescargar" href="#" class="btn btn-success" style="padding:0.6rem 1.2rem;font-weight:bold;"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</a>
 <a id="visorNuevaPestana" href="#" target="_blank" class="btn btn-sm btn-secondary"> Abrir en pestaña</a>
-<button class="btn btn-sm btn-danger" onclick="cerrarVisor()"> Cerrar</button>
+<button class="btn btn-sm btn-danger" data-accion="cerrarVisor" data-args="[]"> Cerrar</button>
 </div>
 </div>
 <div id="visorMarco" style="height:calc(92vh - 80px);background:#525659;border-radius:8px;overflow:hidden;position:relative;">
@@ -250,7 +250,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <div class="modal" style="max-width:600px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
 <h3 style="margin:0;"> Crear Nuevo Proveedor</h3>
-<button class="btn btn-sm btn-secondary" onclick="cerrarModalCrearProveedor()"> Cerrar</button>
+<button class="btn btn-sm btn-secondary" data-accion="cerrarModalCrearProveedor" data-args="[]"> Cerrar</button>
 </div>
 <div id="alertaCrearProveedor"></div>
 <form id="formCrearProveedor">
@@ -272,7 +272,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 </div>
 <div class="form-group">
 <label>Tipo de persona</label>
-<select name="tipo_proveedor" onchange="sincronizarTipoDocCrear(this.value)">
+<select name="tipo_proveedor" data-cambio="sincronizarTipoDocCrear" data-args="[&quot;__EL_VALUE__&quot;]">
 <option value="">— El proveedor lo elegirá después —</option>
 <option value="juridica"> Persona Jurídica</option>
 <option value="natural"> Persona Natural</option>
@@ -302,7 +302,7 @@ transition: background .2s ease, transform .15s ease, border-color .2s ease, box
 <textarea name="direccion" rows="2" placeholder="Dirección completa"></textarea>
 </div>
 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-<button type="button" class="btn btn-secondary" onclick="cerrarModalCrearProveedor()" style="flex:1;">Cancelar</button>
+<button type="button" class="btn btn-secondary" data-accion="cerrarModalCrearProveedor" data-args="[]" style="flex:1;">Cancelar</button>
 <button type="submit" class="btn" style="flex:1;background:#059669;"> Crear y enviar credenciales</button>
 </div>
 </form>
