@@ -106,3 +106,65 @@ describe('🔑 Endpoints de autenticación', () => {
     });
   });
 });
+
+// ==========================================
+// SPRINT 1: AUTH HARDENING TESTS
+// ==========================================
+describe('Sprint 1: auth hardening', () => {
+  beforeAll(() => {
+    const hashInactivo = bcrypt.hashSync('InactivoTest123!', 12);
+    db.prepare('DELETE FROM usuarios WHERE email = ?').run('inactivo@test.local');
+    db.prepare(`
+      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password, activo)
+      VALUES (?, ?, 'proveedor', 'Inactivo Test', 0, 0)
+    `).run('inactivo@test.local', hashInactivo);
+
+    const hashDuplicado = bcrypt.hashSync('DuplicadoTest123!', 12);
+    db.prepare('DELETE FROM usuarios WHERE email = ?').run('duplicado@test.local');
+    db.prepare(`
+      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password, activo)
+      VALUES (?, ?, 'proveedor', 'Duplicado Test', 0, 1)
+    `).run('duplicado@test.local', hashDuplicado);
+  });
+
+  test('login con email en mayúsculas debe funcionar', async () => {
+    const res = await request(app)
+      .post('/api/login')
+      .send({
+        email: 'ADMIN@TEST.LOCAL',
+        password: 'AdminTest123!'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.rol).toBe('admin');
+  });
+
+  test('login con cuenta desactivada debe devolver 403', async () => {
+    const res = await request(app)
+      .post('/api/login')
+      .send({
+        email: 'inactivo@test.local',
+        password: 'InactivoTest123!'
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('Cuenta desactivada');
+  });
+
+  test('registro rechaza email duplicado sin importar mayúsculas', async () => {
+    const res = await request(app)
+      .post('/api/registro')
+      .send({
+        email: 'DUPLICADO@TEST.LOCAL',
+        password: 'DuplicadoTest123!',
+        nombre_empresa: 'Duplicado Test Empresa',
+        habeas_data: 'true',
+        website: '',
+        _ts: String(Date.now() - 5000)
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Email ya registrado');
+  });
+});

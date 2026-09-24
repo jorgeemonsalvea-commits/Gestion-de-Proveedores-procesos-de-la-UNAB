@@ -2920,15 +2920,61 @@ mostrarAlerta(' ' + (r.mensaje || 'Backup dañado'), 'error');
 } catch (err) { mostrarAlerta(' Error al verificar: ' + err.message, 'error'); }
 }
 async function restaurarBackup(nombre) {
-if (!await confirmarSwal({ titulo: `${ico('alert')} Restaurar "${nombre}"`, texto: 'Los datos ACTUALES se reemplazarán por los del backup. Se creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.', textoConfirmar: 'Sí, restaurar' })) return;
-if (!await confirmarSwal({ titulo: 'ÚLTIMA ADVERTENCIA', texto: 'El servicio se reiniciará tras restaurar.', textoConfirmar: 'Sí, continuar' })) return;
-mostrarAlerta(' Restaurando… el servicio se reiniciará en unos segundos.', 'info');
-try {
-const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/restaurar', { method: 'POST' });
-const r = await res.json();
-if (res.ok) { mostrarAlerta(' ' + (r.mensaje || 'Restauración completada.'), 'success'); setTimeout(() => location.reload(), 8000); }
-else mostrarAlerta(' ' + (r.error || 'Error al restaurar'), 'error');
-} catch (err) { setTimeout(() => location.reload(), 8000); }
+  if (!await confirmarSwal({
+    titulo: `${ico('alert')} Restaurar "${nombre}"`,
+    texto: 'Los datos ACTUALES se reemplazarán por los del backup. Se creará un snapshot de seguridad (pre_restore_*) antes de tocar nada.',
+    textoConfirmar: 'Sí, restaurar'
+  })) return;
+
+  if (!await confirmarSwal({
+    titulo: 'ÚLTIMA ADVERTENCIA',
+    texto: 'El servicio se reiniciará tras restaurar.',
+    textoConfirmar: 'Sí, continuar'
+  })) return;
+
+  const pwd = await Swal.fire({
+    title: 'Contraseña requerida',
+    html: `<p>Para restaurar <strong>${escapeHtml(nombre)}</strong> ingresa tu contraseña de administrador.</p>`,
+    input: 'password',
+    inputPlaceholder: 'Contraseña de administrador',
+    showCancelButton: true,
+    confirmButtonText: 'Restaurar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#6b7280',
+    inputValidator: (value) => {
+      if (!value || !String(value).trim()) {
+        return 'La contraseña es obligatoria.';
+      }
+      return null;
+    }
+  });
+
+  if (!pwd.isConfirmed) return;
+
+  mostrarAlerta(' Restaurando… el servicio se reiniciará en unos segundos.', 'info');
+
+  try {
+    const res = await fetchAPI('/api/admin/backups/' + encodeURIComponent(nombre) + '/restaurar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password: pwd.value })
+    });
+
+    const r = await res.json();
+
+    if (res.ok) {
+      mostrarAlerta(' ' + (r.mensaje || 'Restauración completada.'), 'success');
+      setTimeout(() => location.reload(), 8000);
+    } else {
+      mostrarAlerta(' ' + (r.error || 'Error al restaurar'), 'error');
+    }
+  } catch (err) {
+    console.error('Error restaurando backup:', err);
+    mostrarAlerta(' Error de conexión al restaurar el backup', 'error');
+  }
 }
 
 // ==========================================

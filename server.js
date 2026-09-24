@@ -76,6 +76,12 @@ const APP_URL_NORMALIZADO = (process.env.APP_URL || `http://localhost:${PORT}`)
 //  Validación básica de formato de email (local@dominio.tld).
 // Evita que basura llegue a la BD y llamadas inútiles a Brevo.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// ==========================================
+// [S1-01] Helper de normalización de email
+// ==========================================
+function normalizarEmail(valor) {
+  return String(valor || '').trim().toLowerCase();
+}
 
 if (!validarClaveMaestra(ENCRYPTION_KEY)) {
   console.error(' ENCRYPTION_KEY no es válida (mínimo 32 caracteres)');
@@ -358,6 +364,41 @@ console.error('Error cerrando sesiones:', e.message);
 return cerradas;
 }
 
+// ==========================================
+// [S1-02] Cerrar otras sesiones del usuario
+// Conserva la sesión actual cuando se pasa sesionActualId.
+// ==========================================
+function cerrarOtrasSesionesDeUsuario(usuarioId, sesionActualId = null) {
+  let cerradas = 0;
+
+  try {
+    for (const archivo of fs.readdirSync(sessionsDir)) {
+      if (!archivo.endsWith('.json')) continue;
+
+      if (sesionActualId && archivo.includes(sesionActualId)) {
+        continue;
+      }
+
+      try {
+        const contenido = JSON.parse(
+          fs.readFileSync(path.join(sessionsDir, archivo), 'utf8')
+        );
+
+        if (contenido && contenido.usuario && contenido.usuario.id === usuarioId) {
+          fs.unlinkSync(path.join(sessionsDir, archivo));
+          cerradas++;
+        }
+      } catch (e) {
+        // Sesión ilegible: se ignora.
+      }
+    }
+  } catch (e) {
+    console.error('Error cerrando otras sesiones:', e.message);
+  }
+
+  return cerradas;
+}
+
 const fileStoreOptions = {
   path: sessionsDir,
   ttl: 60 * 60 * 8,
@@ -561,6 +602,21 @@ function obtenerCarpetaProveedor(proveedorId) {
 
 function obtenerRutaRelativa(proveedorId, nombreArchivo) {
   return `${proveedorId}/${nombreArchivo}`;
+}
+
+// ==========================================
+// [S2-01] Helper para validar rutas internas
+// Evita path traversal en descargas y plantillas.
+// ==========================================
+function assertInsideDirectory(baseDir, relativePath) {
+  const root = path.resolve(baseDir);
+  const resolved = path.resolve(root, String(relativePath || ''));
+
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+    throw new Error('Ruta inválida');
+  }
+
+  return resolved;
 }
 
 function registrarHistorial(proveedorId, usuario, accion, detalle, docTipo = null, docId = null, req = null) {
@@ -1780,16 +1836,22 @@ if (!_tsNum || _elapsed < 3000) {
 registrarLogSeguridad(null, email || 'bot', 'registro_bot_too_fast', false, `elapsed=${_elapsed}ms`, req);
 return res.status(429).json({ error: 'Formulario enviado demasiado rápido. Espera unos segundos e inténtalo de nuevo.' });
 }
+
+// ==========================================
+// [S1-05] Normalizar email antes de validar/BD
+// ==========================================
+const emailNormalizado = normalizarEmail(email);
+
 //  Formato de email válido después del anti-bot (no revela honeypot)
 // y antes de tocar la BD.
-if (!EMAIL_REGEX.test(String(email).trim())) {
-return res.status(400).json({ error: 'Formato de email inválido' });
+if (!EMAIL_REGEX.test(emailNormalizado)) {
+  return res.status(400).json({ error: 'Formato de email inválido' });
 }
 const validacion = validarPassword(password);
   if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
 
   try {
-    const existente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
+    const existente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(emailNormalizado);
     if (existente) return res.status(400).json({ error: 'Email ya registrado' });
 
     const hash = bcrypt.hashSync(password, 12);
@@ -1797,7 +1859,7 @@ const validacion = validarPassword(password);
     const result = db.prepare(`
       INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password)
       VALUES (?, ?, 'proveedor', ?, 0)
-    `).run(email, hash, nombre_empresa);
+    `).run(emailNormalizado, hash, nombre_empresa);
 
     const usuarioId = result.lastInsertRowid;
 
@@ -1828,7 +1890,7 @@ const validacion = validarPassword(password);
       req
     );
 
-    registrarLogSeguridad(usuarioId, email, 'registro_proveedor', true, nombre_empresa, req);
+    registrarLogSeguridad(usuarioId, emailNormalizado, 'registro_proveedor', true, nombre_empresa, req);
     //  G10b: evento en tiempo real al panel admin (toast + refresco de KPIs/listas)
     // Se emite ANTES del bloque G10 para que el toast llegue aunque el correo falle.
     emitirAdmin('nuevo_proveedor_registrado', {
@@ -1927,11 +1989,14 @@ app.get('/api/admin/habeas-data', requiereAdmin, (req, res) => {
 
 app.post('/api/login', (req, res) => {
 const { email, password } = req.body;
-const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email);
+const emailNormalizado = normalizarEmail(email);
+
+const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(emailNormalizado);
+
 if (!usuario) {
-bcrypt.compareSync(password, DUMMY_BCRYPT_HASH);
-registrarLogSeguridad(null, email, 'login', false, 'Email no encontrado', req);
-return res.status(401).json({ error: 'Credenciales inválidas' });
+  bcrypt.compareSync(password, DUMMY_BCRYPT_HASH);
+  registrarLogSeguridad(null, emailNormalizado, 'login', false, 'Email no encontrado', req);
+  return res.status(401).json({ error: 'Credenciales inválidas' });
 }
 if (usuario.bloqueado_hasta) {
 if (usuario.rol === 'admin') {
@@ -1960,6 +2025,25 @@ return res.status(423).json({ error: 'Cuenta bloqueada por 15 minutos.' });
 db.prepare('UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?').run(intentos, usuario.id);
 return res.status(401).json({ error: `Credenciales inválidas. Intento ${intentos}/5` });
 }
+
+// ==========================================
+// [S1-04] Bloquear cuentas desactivadas
+// ==========================================
+if (usuario.activo === 0) {
+  registrarLogSeguridad(
+    usuario.id,
+    emailNormalizado,
+    'login',
+    false,
+    'Cuenta desactivada',
+    req
+  );
+
+  return res.status(403).json({
+    error: 'Cuenta desactivada. Contacta al administrador.'
+  });
+}
+
 db.prepare('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?').run(usuario.id);
 //  OWASP: nuevo ID de sesión al autenticar (previene session fixation)
 req.session.regenerate((err) => {
@@ -1999,11 +2083,27 @@ return res.status(400).json({ error: 'La nueva contraseña debe ser diferente a 
 }
 const hash = bcrypt.hashSync(password_nueva, 12);
 
-  db.prepare('UPDATE usuarios SET password = ?, debe_cambiar_password = 0 WHERE id = ?').run(hash, usuario.id);
+db.prepare('UPDATE usuarios SET password = ?, debe_cambiar_password = 0 WHERE id = ?').run(hash, usuario.id);
 
-  registrarLogSeguridad(usuario.id, usuario.email, 'cambio_password', true, null, req);
+// ==========================================
+// [S1-12] Cerrar otras sesiones tras cambio de contraseña
+// La sesión actual se conserva.
+// ==========================================
+const sesionesCerradas = cerrarOtrasSesionesDeUsuario(usuario.id, req.sessionID);
 
-  res.json({ ok: true });
+registrarLogSeguridad(
+  usuario.id,
+  usuario.email,
+  'cambio_password',
+  true,
+  `Sesiones cerradas: ${sesionesCerradas}`,
+  req
+);
+
+res.json({
+  ok: true,
+  sesiones_cerradas: sesionesCerradas
+});
 });
 
 app.post('/api/logout', (req, res) => {
@@ -2146,7 +2246,14 @@ app.post('/api/restablecer-password', async (req, res) => {
     //  Invalida el token usado y cualquier otro pendiente del usuario
     db.prepare(`DELETE FROM password_resets WHERE usuario_id = ?`).run(resetToken.usuario_id);
 
-    console.log(` Contraseña restablecida para usuario ID: ${resetToken.usuario_id}`);
+    // ==========================================
+    // [S1-13] Cerrar sesiones activas tras restablecer contraseña
+    // ==========================================
+    const sesionesCerradas = cerrarSesionesDeUsuario(resetToken.usuario_id);
+
+    console.log(
+      ` Contraseña restablecida para usuario ID: ${resetToken.usuario_id}. Sesiones cerradas: ${sesionesCerradas}`
+    );
 
     res.json({
       ok: true,
@@ -2264,22 +2371,34 @@ app.post('/api/proveedor/datos', requiereLogin, (req, res) => {
     const prov = db.prepare('SELECT * FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
     if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
     //  Cambio de correo electrónico (proveedor) — ahora con "email" declarado y prov definido
-    if (email && String(email).trim()) {
-        const emailNuevo = String(email).trim().toLowerCase();
-        if (!EMAIL_REGEX.test(emailNuevo)) {
-            return res.status(400).json({ error: 'Formato de correo electrónico inválido' });
-        }
+if (email && String(email).trim()) {
+    // ==========================================
+    // [S1-06] Normalizar email del proveedor
+    // ==========================================
+    const emailNuevo = normalizarEmail(email);
+
+    if (!EMAIL_REGEX.test(emailNuevo)) {
+        return res.status(400).json({ error: 'Formato de correo electrónico inválido' });
+    }
         const usuario = db.prepare('SELECT id, email FROM usuarios WHERE id = ?').get(req.session.usuario.id);
-        if (usuario && emailNuevo !== usuario.email) {
-            const duplicado = db.prepare('SELECT id FROM usuarios WHERE email = ? AND id != ?').get(emailNuevo, usuario.id);
+        if (usuario && emailNuevo !== normalizarEmail(usuario.email)) {
+            const duplicado = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE AND id != ?').get(emailNuevo, usuario.id);
             if (duplicado) {
                 return res.status(409).json({ error: 'El correo electrónico ya está registrado por otra cuenta.' });
             }
             db.prepare('UPDATE usuarios SET email = ? WHERE id = ?').run(emailNuevo, usuario.id);
             registrarHistorial(prov.id, { id: usuario.id, email: emailNuevo }, 'email_cambiado', `Correo cambiado de ${usuario.email} a ${emailNuevo}`, null, null, req);
             registrarLogSeguridad(usuario.id, emailNuevo, 'email_cambiado_proveedor', true, `Anterior: ${usuario.email}`, req);
-            req.session.usuario.email = emailNuevo;
-            console.log(` Email del proveedor ${usuario.id} cambiado a ${emailNuevo}`);
+req.session.usuario.email = emailNuevo;
+
+// ==========================================
+// [S1-07] Cerrar otras sesiones tras cambio de email
+// ==========================================
+const sesionesCerradasEmail = cerrarOtrasSesionesDeUsuario(usuario.id, req.sessionID);
+
+console.log(
+  ` Email del proveedor ${usuario.id} cambiado a ${emailNuevo}. Sesiones cerradas: ${sesionesCerradasEmail}`
+);
         }
     }
     // Bloquear cambio de tipo si ya tiene documentos ACTIVOS (en renovación por vencimiento los docs están archivados → permite elegir tipo)
@@ -2304,9 +2423,27 @@ if (!docVal.valido) return res.status(400).json({ error: docVal.mensaje });
 // adopta la cédula como NIT): el anti-duplicados los trata como un solo grupo
 // para impedir que la misma persona se registre dos veces con tipos distintos.
 const tipoEfectivo = (tipoPersona || prov.tipo_proveedor || '').toLowerCase();
-const grupoDocs = (tipoEfectivo === 'natural' && (tipoDocumento === 'cc' || tipoDocumento === 'nit'))
-? `IN ('cc','nit')` : `= '${tipoDocumento}'`;
-const dupDoc = db.prepare(`SELECT id FROM proveedores WHERE rfc = ? AND tipo_documento ${grupoDocs} AND id != ?`).get(docVal.numero, prov.id);
+
+// ==========================================
+// [S1-08] Consulta segura sin interpolación SQL
+// ==========================================
+const dupDoc =
+  tipoEfectivo === 'natural' &&
+  (tipoDocumento === 'cc' || tipoDocumento === 'nit')
+    ? db.prepare(`
+        SELECT id
+        FROM proveedores
+        WHERE rfc = ?
+          AND tipo_documento IN ('cc','nit')
+          AND id != ?
+      `).get(docVal.numero, prov.id)
+    : db.prepare(`
+        SELECT id
+        FROM proveedores
+        WHERE rfc = ?
+          AND tipo_documento = ?
+          AND id != ?
+      `).get(docVal.numero, tipoDocumento, prov.id);
 if (dupDoc) return res.status(409).json({ error: `Ya existe un proveedor registrado con ese ${tipoDocumento.toUpperCase()} (${docVal.numero}).` });
 db.prepare(`
 UPDATE proveedores
@@ -2501,7 +2638,7 @@ app.post('/api/proveedor/documento', requiereLogin, (req, res, next) => {
   }
 
   next();
-}, uploadDoc.single('archivo'), validarPDFMagico, (req, res) => {
+}, limiterUpload, uploadDoc.single('archivo'), validarPDFMagico, (req, res) => {
 const proveedor = db.prepare('SELECT id, etapa, tipo_proveedor FROM proveedores WHERE usuario_id = ?').get(req.session.usuario.id);
 if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
 const validacionEtapa = validarEtapaParaSubida(proveedor);
@@ -2860,7 +2997,13 @@ app.get('/api/proveedor/plantilla/:tipo', requiereLogin, (req, res) => {
     return res.status(404).json({ error: 'Plantilla no encontrada' });
   }
 
-  const rutaPlantilla = path.join(plantillasDir, plantilla.archivo);
+  let rutaPlantilla;
+
+  try {
+    rutaPlantilla = assertInsideDirectory(plantillasDir, plantilla.archivo);
+  } catch (e) {
+    return res.status(403).json({ error: 'Ruta inválida' });
+  }
 
   if (!fs.existsSync(rutaPlantilla)) {
     return res.status(404).json({ error: 'Archivo de plantilla no encontrado' });
@@ -3954,9 +4097,13 @@ app.post('/api/admin/proveedor/:id/email', requiereAdmin, (req, res) => {
     if (emailNuevo === String(prov.email_actual).toLowerCase()) return res.status(400).json({ error: 'El correo nuevo es igual al actual' });
     const dup = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE AND id != ?').get(emailNuevo, prov.usuario_id);
     if (dup) return res.status(409).json({ error: 'Ese correo ya está registrado por otra cuenta.' });
-db.prepare('UPDATE usuarios SET email = ? WHERE id = ?').run(emailNuevo, proveedor.usuario_id);
-//  Cierra las sesiones activas del proveedor: deberá entrar con el nuevo correo
-const sesionesCerradas = cerrarSesionesDeUsuario(proveedor.usuario_id);
+// ==========================================
+// [S1-11] FIX crítico: usar prov.usuario_id
+// ==========================================
+db.prepare('UPDATE usuarios SET email = ? WHERE id = ?').run(emailNuevo, prov.usuario_id);
+
+// Cierra las sesiones activas del proveedor: deberá entrar con el nuevo correo
+const sesionesCerradas = cerrarSesionesDeUsuario(prov.usuario_id);
         registrarHistorial(proveedorId, req.session.usuario, 'email_cambiado', `Admin cambió el correo de ${prov.email_actual} a ${emailNuevo}`, null, null, req);
         registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'email_cambiado_admin', true, `Proveedor ${proveedorId}: ${prov.email_actual} → ${emailNuevo}`, req);
         emitirAdmin('proveedores_actualizados');
@@ -4085,7 +4232,13 @@ if (!proveedor || !proveedor.evaluacion_inicial) {
 return res.status(404).json({ error: 'Evaluación no encontrada' });
 }
 
-    const rutaArchivo = path.join(uploadsDir, proveedor.evaluacion_inicial);
+    let rutaArchivo;
+
+    try {
+      rutaArchivo = assertInsideDirectory(uploadsDir, proveedor.evaluacion_inicial);
+    } catch (e) {
+      return res.status(403).json({ error: 'Ruta inválida' });
+    }
 
     if (!fs.existsSync(rutaArchivo)) {
       return res.status(404).json({ error: 'Archivo no encontrado' });
@@ -4103,6 +4256,7 @@ return res.status(404).json({ error: 'Evaluación no encontrada' });
     }
 
 res.setHeader('Content-Type', 'application/pdf');
+res.setHeader('Cache-Control', 'no-store, private');
 //  E8: nombre descriptivo también para la Evaluación Inicial
 const nombreEval = nombreDescargaE8({ tipo: 'Evaluacion Inicial', rfc: proveedor.rfc, razon_social: proveedor.razon_social, subido_en: proveedor.evaluacion_fecha }) || 'evaluacion_inicial.pdf';
 const asciiEval = nombreEval.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
@@ -4955,13 +5109,63 @@ res.json({ integro: false, mensaje: 'Backup dañado o ilegible: ' + e.message })
 }
 });
 app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
+  const { password } = req.body || {};
+
+  if (!password) {
+    return res.status(400).json({
+      error: 'Contraseña requerida para restaurar el backup'
+    });
+  }
+
+  const adminUsuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(req.session.usuario.id);
+
+  if (!adminUsuario || !bcrypt.compareSync(String(password), adminUsuario.password)) {
+    registrarLogSeguridad(
+      req.session.usuario?.id || null,
+      req.session.usuario?.email || 'desconocido',
+      'restaurar_backup_fallido',
+      false,
+      'Contraseña incorrecta al intentar restaurar backup',
+      req
+    );
+
+    return res.status(403).json({ error: 'Contraseña incorrecta' });
+  }
+
   const n = nombreBackupValido(req.params.nombre);
   if (!n) return res.status(400).json({ error: 'Nombre de backup inválido' });
-  const ruta = path.join(dataDir, 'backups', n);
-  if (!fs.existsSync(ruta)) return res.status(404).json({ error: 'Backup no encontrado' });
-  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'backup_restaurado', true, n, req);
+
+  const backupsDir = path.join(dataDir, 'backups');
+  const ruta = path.join(backupsDir, n);
+
+  if (!fs.existsSync(ruta)) {
+    return res.status(404).json({ error: 'Backup no encontrado' });
+  }
+
+  registrarLogSeguridad(
+    req.session.usuario.id,
+    req.session.usuario.email,
+    'backup_restaurar_solicitado',
+    true,
+    n,
+    req
+  );
+
   // 1) Snapshot de seguridad del estado actual (nunca pierdes lo de hoy)
-  const safety = path.join(dataDir, 'backups', `pre_restore_${Date.now()}.db`);
+  const safety = path.join(backupsDir, `pre_restore_${Date.now()}.db`);
+
+  // [S2-09] Retención de snapshots previos
+  try {
+    const preRestores = fs.readdirSync(backupsDir)
+      .filter(f => /^pre_restore_\d+\.db$/.test(f))
+      .sort();
+
+    while (preRestores.length > 7) {
+      fs.unlinkSync(path.join(backupsDir, preRestores.shift()));
+    }
+  } catch (e) {
+    console.error('Error limpiando snapshots antiguos:', e.message);
+  }
   db.backup(safety).then(() => {
     // 2) Cerrar BD y reemplazar archivos (incluye WAL/SHM para evitar corrupción)
     try { db.close(); } catch (e) {}
@@ -5000,20 +5204,43 @@ app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
       rutas.forEach(rel => copiarSiFalta(rel, mUp, uploadsDir));
       rutasPlant.forEach(rel => copiarSiFalta(rel, mPl, plantillasDir));
       if (archivosRestaurados > 0) console.log(` Restauración: ${archivosRestaurados} archivo(s) físico(s) recuperado(s) del mirror`);
-      //  GC post-restauración: elimina de uploads/ los archivos que NINGUNA fila referencia
+      //  [S2-10] GC post-restauración:
+      //  Los archivos no referenciados se mueven a cuarentena.
+      //  No se eliminan definitivamente.
       try {
-        let borrados = 0;
+        let movidosQuarantine = 0;
+        const quarantineRoot = path.join(dataDir, 'uploads_quarantine');
+
         const caminar = (dir) => {
           for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
             const full = path.join(dir, entry.name);
-            if (entry.isDirectory()) { caminar(full); continue; }
+
+            if (entry.isDirectory()) {
+              caminar(full);
+              continue;
+            }
+
             const rel = path.relative(uploadsDir, full).replace(/\\/g, '/');
-            if (!referencias.has(rel)) { fs.unlinkSync(full); borrados++; }
+
+            if (!referencias.has(rel)) {
+              const dest = path.join(quarantineRoot, rel);
+              fs.mkdirSync(path.dirname(dest), { recursive: true });
+              fs.renameSync(full, dest);
+              movidosQuarantine++;
+            }
           }
         };
-        if (fs.existsSync(uploadsDir)) caminar(uploadsDir);
-        if (borrados > 0) console.log(` GC post-restauración: ${borrados} archivo(s) huérfano(s) eliminado(s) de uploads/`);
-      } catch (e) { console.error(' Error en GC post-restauración:', e.message); }
+
+        if (fs.existsSync(uploadsDir)) {
+          caminar(uploadsDir);
+        }
+
+        if (movidosQuarantine > 0) {
+          console.log(` GC post-restauración: ${movidosQuarantine} archivo(s) movidos a uploads_quarantine/`);
+        }
+      } catch (e) {
+        console.error(' Error en GC post-restauración:', e.message);
+      }
     } catch (e) {
       console.error(' Error restaurando archivos del mirror:', e.message);
     }
@@ -5573,12 +5800,19 @@ app.post('/api/admin/proveedor/:id/documento/:docId/no-aplica', requiereAdmin, (
 
 app.post('/api/admin/proveedor', requiereAdmin, async (req, res) => {
 const { email, password, nombre_empresa, razon_social, rfc, representante, telefono, direccion, tipo_proveedor, tipo_documento } = req.body;
+
 if (!email || !nombre_empresa) {
-return res.status(400).json({ error: 'Email y nombre de empresa son obligatorios' });
+  return res.status(400).json({ error: 'Email y nombre de empresa son obligatorios' });
 }
+
+// ==========================================
+// [S1-09] Normalizar email en creación admin
+// ==========================================
+const emailNormalizado = normalizarEmail(email);
+
 //  Validar formato de email antes de tocar BD/Brevo
-if (!EMAIL_REGEX.test(String(email).trim())) {
-return res.status(400).json({ error: 'Formato de email inválido' });
+if (!EMAIL_REGEX.test(emailNormalizado)) {
+  return res.status(400).json({ error: 'Formato de email inválido' });
 }
 //  OPT SEGURIDAD: si no se proporciona contraseña, se genera una aleatoria
 // y se envía un enlace de activación de un solo uso (nunca se envía la contraseña por email)
@@ -5592,14 +5826,14 @@ const validacion = validarPassword(password);
 if (!validacion.valido) return res.status(400).json({ error: validacion.mensaje });
 }
 try {
-const existente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
+const existente = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(emailNormalizado);
 if (existente) return res.status(400).json({ error: 'El email ya está registrado' });
 const hash = bcrypt.hashSync(passwordFinal, 12);
 
     const result = db.prepare(`
       INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password)
       VALUES (?, ?, 'proveedor', ?, 1)
-    `).run(email, hash, nombre_empresa);
+    `).run(emailNormalizado, hash, nombre_empresa);
 
 //  G11: en creación el teléfono (si viene) debe ser válido desde ya
 const tel = normalizarTelefonoCO(telefono || '');
@@ -5613,9 +5847,24 @@ if (!docVal.valido) return res.status(400).json({ error: docVal.mensaje });
 numeroDoc = docVal.numero;
 //  G7-b: natural → cc/nit equivalen (misma persona, mismo número)
 const tipoProvBody = String(tipo_proveedor || '').toLowerCase();
-const grupoDocs = (tipoProvBody === 'natural' && (tipoDocumento === 'cc' || tipoDocumento === 'nit'))
-? `IN ('cc','nit')` : `= '${tipoDocumento}'`;
-const dupDoc = db.prepare(`SELECT id FROM proveedores WHERE rfc = ? AND tipo_documento ${grupoDocs}`).get(numeroDoc);
+// ==========================================
+// [S1-10] Consulta segura sin interpolación SQL
+// ==========================================
+const dupDoc =
+  tipoProvBody === 'natural' &&
+  (tipoDocumento === 'cc' || tipoDocumento === 'nit')
+    ? db.prepare(`
+        SELECT id
+        FROM proveedores
+        WHERE rfc = ?
+          AND tipo_documento IN ('cc','nit')
+      `).get(numeroDoc)
+    : db.prepare(`
+        SELECT id
+        FROM proveedores
+        WHERE rfc = ?
+          AND tipo_documento = ?
+      `).get(numeroDoc, tipoDocumento);
 if (dupDoc) return res.status(409).json({ error: `Ya existe un proveedor registrado con ese ${tipoDocumento.toUpperCase()} (${numeroDoc}).` });
 }
 const provResult = db.prepare(`
@@ -5642,7 +5891,7 @@ direccion || '',
       req
     );
 
-registrarLogSeguridad(result.lastInsertRowid, email, 'proveedor_creado_admin', true, nombre_empresa, req);
+registrarLogSeguridad(result.lastInsertRowid, emailNormalizado, 'proveedor_creado_admin', true, nombre_empresa, req);
 //  OPT SEGURIDAD: si no se escribió contraseña, generamos un token de activación
 // de un solo uso (7 días) y enviamos el enlace a restablecer-password.html.
 // Si el admin escribió contraseña, se mantiene el correo clásico de credenciales.
@@ -5661,13 +5910,13 @@ enlaceActivacion = `${APP_URL_NORMALIZADO}/restablecer-password.html?token=${tok
 try {
 if (usarActivacion) {
 await enviarEmail(
-email,
+emailNormalizado,
 ` Bienvenido - Activa tu cuenta en el Portal de Proveedores`,
 emailBienvenidaConActivacion(email, nombre_empresa, enlaceActivacion)
 );
 } else {
 await enviarEmail(
-email,
+emailNormalizado,
 ` Bienvenido - Credenciales de acceso al Portal de Proveedores`,
 emailBienvenidaProveedor(email, passwordFinal, nombre_empresa)
 );
@@ -5735,7 +5984,54 @@ app.get('/api/admin/plantillas', requiereAdmin, (req, res) => {
   res.json(db.prepare('SELECT * FROM plantillas').all());
 });
 
-app.post('/api/admin/plantilla', requiereAdmin, uploadPlantilla.single('archivo'), (req, res) => {
+// ==========================================
+// [S2-07] Validación fuerte de plantillas
+// Valida extensión + magic bytes.
+// ==========================================
+function validarPlantillaMagica(req, res, next) {
+  if (!req.file || !req.file.buffer) {
+    return next();
+  }
+
+  const buf = req.file.buffer;
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+
+  const permitidas = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+
+  if (!permitidas.includes(ext)) {
+    return res.status(400).json({ error: 'Formato no permitido' });
+  }
+
+  const pdfValido =
+    ext === '.pdf' &&
+    buf.length >= 5 &&
+    buf.slice(0, 5).toString('latin1') === '%PDF-';
+
+  const zipValido =
+    buf.length >= 4 &&
+    buf.slice(0, 4).toString('latin1') === 'PK\x03\x04';
+
+  const officeOpenXMLValido =
+    ['.docx', '.xlsx'].includes(ext) && zipValido;
+
+  const oleValido =
+    ['.doc', '.xls'].includes(ext) &&
+    buf.length >= 4 &&
+    buf[0] === 0xd0 &&
+    buf[1] === 0xcf &&
+    buf[2] === 0x11 &&
+    buf[3] === 0xe0;
+
+  if (pdfValido || officeOpenXMLValido || oleValido) {
+    return next();
+  }
+
+  return res.status(400).json({
+    error: 'El archivo no corresponde al formato declarado'
+  });
+}
+
+app.post('/api/admin/plantilla', requiereAdmin, uploadPlantilla.single('archivo'), validarPlantillaMagica, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
 
   const { tipo } = req.body;
@@ -5744,7 +6040,13 @@ app.post('/api/admin/plantilla', requiereAdmin, uploadPlantilla.single('archivo'
 
   const existente = db.prepare('SELECT archivo FROM plantillas WHERE tipo = ?').get(tipo);
 
-  const nombreArchivo = `${tipo}-${Date.now()}${path.extname(req.file.originalname)}`;
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+
+  if (!['.pdf', '.doc', '.docx', '.xls', '.xlsx'].includes(ext)) {
+    return res.status(400).json({ error: 'Formato no permitido' });
+  }
+
+  const nombreArchivo = `${tipo}-${Date.now()}${ext}`;
   const ruta = path.join(plantillasDir, nombreArchivo);
 
   if (existente) {
@@ -6134,6 +6436,7 @@ documentoInfo = doc;
     const esDescarga = req.query.download === 'true';
 
     res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store, private');
 
     if (esDescarga) {
       //  FIX DESCARGA: los nombres de formato (nombreFormatoServer) NO traen
