@@ -6465,7 +6465,7 @@ app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
     return res.status(403).json({ error: 'Acceso denegado: solo el superadmin invita al equipo.' });
   }
 
-  const { email, nombre_empresa, permisos_iniciales } = req.body || {};
+  const { email, nombre_empresa } = req.body || {};
   if (!email || !String(email).trim()) {
     return res.status(400).json({ error: 'El correo es obligatorio' });
   }
@@ -6474,11 +6474,14 @@ app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Formato de correo inválido' });
   }
 
-  // Validar permisos_iniciales: solo claves del catálogo conmutable
-  let permisosValidos = [];
-  if (Array.isArray(permisos_iniciales)) {
-    permisosValidos = permisos_iniciales.filter(p => PERMISOS_CONMUTABLES.includes(p));
-  }
+// Validar permisos iniciales: solo claves del catálogo conmutable.
+// FIX: acepta ambas claves del body (`permisos_iniciales` o `permisos`).
+// admin.js envía `permisos`; antes se leía solo `permisos_iniciales` y toda
+// invitación nacía sin permisos (había que asignarlos después a mano).
+const permisosInicialesBrutos = Array.isArray(req.body && req.body.permisos_iniciales)
+? req.body.permisos_iniciales
+: (Array.isArray(req.body && req.body.permisos) ? req.body.permisos : []);
+let permisosValidos = permisosInicialesBrutos.filter(p => PERMISOS_CONMUTABLES.includes(p));
 
   try {
     const existente = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE').get(emailNuevo);

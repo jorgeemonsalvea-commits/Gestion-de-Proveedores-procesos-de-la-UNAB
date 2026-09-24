@@ -2293,10 +2293,33 @@ html[data-tema="oscuro"] #exportDropdown button:first-child { border-bottom-colo
 }
 .eq-nombre { grid-column: 2; grid-row: 1; font-size: 0.86rem; font-weight: 600; color: var(--color-texto); line-height: 1.25; }
 .eq-ayuda  { grid-column: 2; grid-row: 2; font-size: 0.72rem; color: var(--color-texto-suave); line-height: 1.3; }
-#modalInvitarStaff .modal { max-width: 860px !important; }
-#modalInvitarStaff .eq-matriz { max-height: 320px; overflow-y: auto; margin-top: 0.4rem; }
+#modalInvitarStaff .modal { max-width: 1200px !important; width: 96vw; }
+#modalInvitarStaff .eq-matriz { max-height: none; overflow: visible; margin-top: 0; }
 /* ---- Modo oscuro ---- */
 html[data-tema="oscuro"] .eq-matriz { background: var(--color-blanco); }
 html[data-tema="oscuro"] .eq-check { background: #2a2238; border-color: var(--color-borde-input); }
 html[data-tema="oscuro"] .eq-check:hover { border-color: var(--color-primario); background: var(--color-primario-muy-claro); }
 html[data-tema="oscuro"] .eq-nombre { color: var(--color-texto); }
+/* FIX S10-pre: revisión enfocada a pantalla completa (sin padding del overlay) */
+#modalRevisionEnfocada.rev-fullscreen { padding: 0; }
+#modalRevisionEnfocada.rev-fullscreen .modal {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0;
+  padding: 0.6rem 0.8rem;
+}
+/* ==========================================================================
+   C1-fix: REVISIÓN ENFOCADA A PANTALLA COMPLETA (toggle tipo visor E4)
+   El !important gana sobre el inline del .modal (width:1250px;height:94vh).
+   El área del PDF (flex:1;min-height:0) crece sola al expandir.
+   ========================================================================== */
+#modalRevisionEnfocada.rev-fullscreen { padding: 0; }
+#modalRevisionEnfocada.rev-fullscreen .modal {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0;
+}

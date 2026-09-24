@@ -3362,7 +3362,8 @@ function montarOverlayRevision() {
       <h3 style="margin:0;font-size:1.05rem;" id="revTitulo">Documento</h3>
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
         <span id="revContador" class="badge-count"></span>
-        <button class="btn btn-sm btn-secondary" onclick="cerrarRevisionEnfocada()"> Cerrar</button>
+        <button id="btnRevFullscreen" class="btn btn-sm btn-secondary" onclick="toggleRevisionFullscreen()">${ico('maximize')} Pantalla completa</button>
+      <button class="btn btn-sm btn-secondary" onclick="cerrarRevisionEnfocada()"> Cerrar</button>
       </div>
     </div>
     <div id="revMeta" style="font-size:0.85rem;color:#6b7280;"></div>
@@ -3380,7 +3381,11 @@ function montarOverlayRevision() {
     <small style="color:#9ca3af;">Atajos: ← anterior · → saltar · V verificar/aprobar · R rechazar · Esc cerrar</small>
   </div>`;
   document.body.appendChild(ov);
+ov.classList.add('rev-fullscreen'); // C1: inicia en pantalla completa
+const btnFs0 = ov.querySelector('#btnRevFullscreen');
+if (btnFs0) btnFs0.innerHTML = `${ico('minimize')} Salir de pantalla completa`;
 }
+
 function pintarRevisionActual() {
   const r = revisionEnfocada;
   if (!r.activa) return;
@@ -3547,6 +3552,21 @@ function cerrarRevisionEnfocada() {
   const iframe = document.getElementById('revIframe');
   if (iframe) iframe.src = 'about:blank';
   finalizarRevisionEnfocada(false);
+}
+//  C1-fix: expandir/colapsar la Revisión Enfocada a pantalla completa,
+// mismo patrón del visor PDF (E4): clase .rev-fullscreen + CSS !important
+// que gana sobre los styles inline del .modal (width:1250px, height:94vh).
+function toggleRevisionFullscreen() {
+  const ov = document.getElementById('modalRevisionEnfocada');
+  if (!ov) return;
+  const activo = ov.classList.toggle('rev-fullscreen');
+  const btn = document.getElementById('btnRevFullscreen');
+  if (btn) {
+    btn.innerHTML = activo
+      ? `${ico('minimize')} Salir de pantalla completa`
+      : `${ico('maximize')} Pantalla completa`;
+    btn.setAttribute('aria-label', activo ? 'Salir de pantalla completa' : 'Expandir a pantalla completa');
+  }
 }
 // ==========================================
 //  VISOR DE DOCUMENTOS
@@ -5074,7 +5094,7 @@ function mostrarModalInvitar() {
     <div class="form-group"><label>${ico('mail')} Email corporativo *</label><input type="email" id="invEmail" placeholder="nombre@unab.edu.co"></div>
     <div class="form-group"><label> Nombre o área (opcional)</label><input type="text" id="invNombre" placeholder="Ej: Nayardy — Verificación"></div>
     <div class="form-group"><label>${ico('key')} Permisos iniciales</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;max-height:180px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;padding:0.6rem;">
+      <div style="max-height:calc(92vh - 300px);min-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;padding:0.6rem;">
         ${renderChecklistInvitacion()}
       </div>
       <small style="color:#6b7280;">Recibirá un correo con enlace de activación válido por 7 días (un solo uso).</small>
