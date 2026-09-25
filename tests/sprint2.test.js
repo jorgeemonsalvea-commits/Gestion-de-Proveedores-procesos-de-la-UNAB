@@ -66,6 +66,36 @@ afterAll(async () => {
   }
 });
 
+describe('Sprint 3F — hardening de servidor', () => {
+  test('paginación de proveedores limita limit a 200', async () => {
+    const res = await agent.get('/api/admin/proveedores?limit=5000');
+    expect(res.status).toBe(200);
+    expect(res.body.limit).toBeLessThanOrEqual(200);
+  });
+
+  test('verificar-integridad de un "No aplica" no rompe', async () => {
+    const prov = await agent.post('/api/admin/proveedor').send({
+      email: `prov-integridad-${Date.now()}@test.com`,
+      nombre_empresa: 'Prov Integridad',
+      razon_social: 'Prov Integridad',
+      rfc: '900111222',
+      tipo_proveedor: 'juridica'
+    });
+    expect(prov.status).toBe(200);
+    const pid = prov.body.proveedorId;
+    const na = await agent
+      .post(`/api/admin/proveedor/${pid}/documento/0/no-aplica`)
+      .send({ no_aplica: true, tipo: 'calidad' });
+    expect(na.status).toBe(200);
+    const detalle = await agent.get(`/api/admin/proveedor/${pid}`);
+    const doc = detalle.body.documentos.find(d => d.tipo === 'calidad');
+    expect(doc).toBeTruthy();
+    const res = await agent.get(`/api/admin/documento/${doc.id}/verificar-integridad`);
+    expect(res.status).toBe(200);
+    expect(res.body.integro).toBeNull();
+  });
+});
+
 describe('Sprint 2 — Backups seguros', () => {
   test('restaurar backup sin contraseña devuelve 400', async () => {
     const res = await agent

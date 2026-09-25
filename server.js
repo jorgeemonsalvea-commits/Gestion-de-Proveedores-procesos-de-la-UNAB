@@ -600,6 +600,15 @@ function obtenerCarpetaProveedor(proveedorId) {
   return ruta;
 }
 
+// ==========================================
+// [SPRINT 3F-3] Tope de paginación
+// ==========================================
+function limitePaginacion(valor, porDefecto = 50, maximo = 200) {
+  const n = parseInt(valor, 10);
+  if (!Number.isFinite(n) || n <= 0) return porDefecto;
+  return Math.min(n, maximo);
+}
+
 function obtenerRutaRelativa(proveedorId, nombreArchivo) {
   return `${proveedorId}/${nombreArchivo}`;
 }
@@ -3206,7 +3215,7 @@ app.delete('/api/admin/documento/:id', requiereAdmin, (req, res) => {
 app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50; //  F5: default 50 (solo proveedores; ciclos sigue en 20)
+    const limit = limitePaginacion(req.query.limit, 50, 200); //  F5: default 50 (solo proveedores; ciclos sigue en 20)
     const offset = (page - 1) * limit;
     const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
     const estado = req.query.estado || null;
@@ -3410,7 +3419,7 @@ p.todos_verificados = p.todos_verificados === 1;
 app.get('/api/admin/ciclos', requiereAdmin, (req, res) => {
 try {
 const page = parseInt(req.query.page) || 1;
-const limit = parseInt(req.query.limit) || 20;
+const limit = limitePaginacion(req.query.limit, 20, 200);
 const offset = (page - 1) * limit;
 const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
  const año = req.query.año ? parseInt(req.query.año) : null;
@@ -5367,13 +5376,18 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
     } else {
       if (config.cantidadMin === 1) {
         const existente = db.prepare(`
-          SELECT id, archivo
+          SELECT id, archivo, estado
           FROM documentos
           WHERE proveedor_id = ?
             AND tipo = ?
             AND es_historico = 0
         `).get(proveedorId, tipo);
-
+        // [SPRINT 3F-6] Documento APROBADO no se pisa desde el panel.
+        if (existente && existente.estado === 'aprobado') {
+          return res.status(400).json({
+            error: 'El documento actual está APROBADO. Para reemplazarlo solicita una actualización o reinicia el proceso.'
+          });
+        }
         fs.writeFileSync(rutaArchivo, bufferCifrado);
 
         if (existente) {
@@ -6263,10 +6277,18 @@ app.get('/api/admin/diagnosticar-cifrado', requiereAdmin, (req, res) => {
 });
 
 app.get('/api/admin/documento/:id/verificar-integridad', requiereAdmin, (req, res) => {
-  const doc = db.prepare('SELECT * FROM documentos WHERE id = ?').get(req.params.id);
-
+    const doc = db.prepare('SELECT * FROM documentos WHERE id = ?').get(req.params.id);
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
-
+  // [SPRINT 3F-4] "No aplica" y documentos sin hash no rompen la verificación.
+  if (doc.no_aplica === 1 || !doc.archivo || doc.archivo === 'no_aplica') {
+    return res.json({ integro: null, mensaje: 'Documento marcado como "No aplica": sin archivo físico que verificar.' });
+  }
+  if (!doc.hash_archivo) {
+    return res.json({ integro: null, mensaje: 'El documento no tiene hash registrado (subida anterior al control de integridad).' });
+  }
+  if (!/^[a-f0-9]{64}$/i.test(doc.hash_archivo)) {
+    return res.json({ integro: false, mensaje: 'Hash almacenado con formato inválido.' });
+  }
   const ruta = path.join(uploadsDir, doc.archivo);
 
   if (!fs.existsSync(ruta)) {
@@ -6415,14 +6437,22 @@ const usuario = req.session.usuario;
   let documentoInfo = null;
 
 if (usuario.rol === 'admin') {
-tieneAcceso = true;
-//  E8: se traen NIT, razón social y fecha de subida para el nombre descriptivo
-//  R2 (D6): + etapa del proveedor para aplicar el filtro revisor
-documentoInfo = db.prepare(`SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social, p.etapa FROM documentos d JOIN proveedores p ON d.proveedor_id = p.id WHERE d.archivo = ?`).get(req.params.path);
-if (esSoloLectorReq(res) && documentoInfo && documentoInfo.etapa !== 'registrado') {
-  tieneAcceso = false;
-  registrarLogSeguridad(usuario.id, usuario.email, 'acceso_denegado', false, `Uploads de proveedor en etapa ${documentoInfo.etapa} bloqueado para perfil revisor`, req);
-}
+  tieneAcceso = true;
+  documentoInfo = db.prepare(`SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social, p.etapa FROM documentos d JOIN proveedores p ON d.proveedor_id = p.id WHERE d.archivo = ?`).get(req.params.path);
+  // [SPRINT 3F-2] Solo lector: denegado por defecto salvo documento de proveedor REGISTRADO.
+  if (esSoloLectorReq(res)) {
+    if (!documentoInfo || documentoInfo.etapa !== 'registrado') {
+      tieneAcceso = false;
+      registrarLogSeguridad(
+        usuario.id,
+        usuario.email,
+        'acceso_denegado',
+        false,
+        `Uploads sin documento registrado o etapa ${documentoInfo ? documentoInfo.etapa : 'desconocida'} bloqueado para perfil revisor`,
+        req
+      );
+    }
+  }
 } else {
 const prov = db.prepare('SELECT id FROM proveedores WHERE usuario_id = ?').get(usuario.id);
 if (prov) {
@@ -6498,7 +6528,7 @@ documentoInfo = doc;
 app.get('/api/admin/audit-log', requiereAdmin, (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const limit = limitePaginacion(req.query.limit, 50, 200);
         const offset = (page - 1) * limit;
      const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
      const accion = req.query.accion || null;
@@ -6717,7 +6747,7 @@ try {
 app.get('/api/admin/logs-seguridad', requiereAdmin, (req, res) => {
 try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = limitePaginacion(req.query.limit, 50, 200);
     const offset = (page - 1) * limit;
     const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
     const accion = req.query.accion || null;
@@ -7653,13 +7683,26 @@ app.post('/api/admin/proveedor/:id/solicitar-actualizacion', requiereAdmin, asyn
   }
 });
 
+// ==========================================
+// [SPRINT 3F-1] Error handler central
+// Multer/validaciones de archivo → 400 controlado.
+// Todo lo demás → 500 sanitizado.
+// ==========================================
 app.use((err, req, res, next) => {
-if (res.headersSent) {
-return next(err);
-}
-if (err instanceof multer.MulterError) return res.status(400).json({ error: err.message });
-if (err) return res.status(400).json({ error: err.message });
-next();
+  if (res.headersSent) {
+    return next(err);
+  }
+  if (err instanceof multer.MulterError) {
+    const msg = err.code === 'LIMIT_FILE_SIZE'
+      ? 'El archivo supera el tamaño máximo permitido (15 MB).'
+      : 'Archivo no válido para la subida.';
+    return res.status(400).json({ error: msg });
+  }
+  if (err && /PDF|Formato no permitido|archivo/i.test(err.message || '')) {
+    return res.status(400).json({ error: err.message });
+  }
+  console.error(' Error no controlado:', err);
+  return res.status(500).json({ error: 'Error interno del servidor. Intenta nuevamente.' });
 });
 
 function recuperarDocumentosHuérfanos() {
@@ -7668,6 +7711,11 @@ function recuperarDocumentosHuérfanos() {
 
     const carpetas = fs.readdirSync(uploadsDir);
     let totalRecuperados = 0;
+    // [SPRINT 3F-5] Catálogo cerrado de tipos válidos.
+    const tiposConocidos = new Set(
+      requerimientosPara('juridica').map(d => d.tipo)
+        .concat(requerimientosPara('natural').map(d => d.tipo))
+    );
 
     for (const carpeta of carpetas) {
       if (!/^\d+$/.test(carpeta)) continue;
@@ -7704,6 +7752,14 @@ if (mapTipos[tipo]) {
 tipo = mapTipos[tipo];
 }
 if (tipo === 'evaluacion') continue;
+          // [SPRINT 3F-5] Tipo fuera del catálogo → cuarentena, nunca INSERT inventado.
+          if (!tiposConocidos.has(tipo)) {
+            const cuarentenaTipo = path.join(rutaCarpeta, '_recuperados');
+            if (!fs.existsSync(cuarentenaTipo)) fs.mkdirSync(cuarentenaTipo, { recursive: true });
+            fs.renameSync(path.join(rutaCarpeta, archivo), path.join(cuarentenaTipo, archivo));
+            console.log(` Huérfano de tipo desconocido en cuarentena (${tipo}): ${archivo}`);
+            continue;
+          }
 //  ANTI-DUPLICADOS: si el proveedor YA tiene un registro ACTIVO de este tipo
 // y el tipo no permite múltiples archivos, NO insertamos un registro duplicado:
 // el archivo huérfano se pone en cuarentena (fuera de futuros escaneos) y se reporta.
