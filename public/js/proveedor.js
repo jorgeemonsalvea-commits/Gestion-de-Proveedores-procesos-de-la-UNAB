@@ -599,10 +599,16 @@ setTimeout(() => location.reload(), 1200);
         document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
 actualizarBannerEstado(prov);
 actualizarPanelProveedor(prov);
-const lblTipo = document.getElementById('tipoPersonaLabel');
-if (lblTipo) lblTipo.textContent =
-prov.tipo_proveedor === 'natural' ? ' Persona Natural' :
-prov.tipo_proveedor === 'juridica' ? ' Persona Jurídica' : 'Sin definir';
+        const lblTipo = document.getElementById('tipoPersonaLabel');
+        if (lblTipo) lblTipo.textContent =
+          prov.tipo_proveedor === 'natural' ? 'Persona Natural' :
+          prov.tipo_proveedor === 'juridica' ? 'Persona Jurídica' : 'Sin definir';
+
+        // [FIX HALL-039] En vivo: reaplicar el mismo bloqueo que init().
+        // Si el rechazo dejó tipo_proveedor = NULL, el portal debe mandar
+        // al proveedor a "Mis datos" SIN necesidad de F5.
+        actualizarTipoPersonaUI(prov);
+        verificarYBloquearPerfil(prov);
 
         documentos = await (await fetchAPI('/api/proveedor/documentos')).json();
         renderDocumentos();
@@ -1605,6 +1611,10 @@ m.classList.toggle('visor-fullscreen');
           prov.estado_general === 'rechazado' ? '#dc2626' : '#d97706';
         document.getElementById('etapaActual').textContent = formatearEtapa(prov.etapa);
         actualizarBannerEstado(prov);
+        // [FIX HALL-039] Tras eliminar rechazados u otra acción propia,
+        // reaplicar bloqueo de perfil en vivo (sin F5).
+        actualizarTipoPersonaUI(prov);
+        verificarYBloquearPerfil(prov);
         await actualizarBadgesVerificacion();
       }
     } catch (err) {

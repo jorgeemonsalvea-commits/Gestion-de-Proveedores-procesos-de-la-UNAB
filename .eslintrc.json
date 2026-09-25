@@ -22,7 +22,9 @@
     "formatearTelefonoCO": "readonly",
     "validarTelefonoCO": "readonly",
     "limpiarMotivoRechazo": "readonly",
-    "infoDocRow": "readonly"
+    "infoDocRow": "readonly",
+    "module": "readonly"
+
   },
   "rules": {
     "no-unused-vars": ["warn", { "vars": "local", "args": "none", "varsIgnorePattern": "^_" }],

@@ -15,21 +15,23 @@ const path = require('path');
 const os = require('os');
 const request = require('supertest');
 
+// ⏱️ Timeout global
+jest.setTimeout(30000);
+
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'proveedores-docs-test-'));
 process.env.RAILWAY_VOLUME_MOUNT_PATH = dataDir;
 
-// PDF mínimo con magic bytes válidos (%PDF-)
 const PDF_VALIDO = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n');
-// Archivo .pdf con cabecera incorrecta
-const PDF_INVALIDO = Buffer.from('ESTO NO ES UN PDF REAL');
 
 let app, db, agent, proveedorId, docRut, docCamara;
 
-// ⚡ OPT TEST: timeout elevado porque bcryptjs en Windows con cost 12
-// es muy lento (~200 ms por compare + ~250 ms por hash). El setup completo
-// de la BD (migraciones + índices + Socket.IO) suma fácilmente 12-14 s.
-// 60 s da margen seguro sin enmascarar cuellos de botella reales.
 beforeAll(async () => {
+  // FIX: limpiar cache de require para evitar BD compartida entre archivos de test
+  delete require.cache[require.resolve('../server')];
+  delete require.cache[require.resolve('../database')];
+  delete require.cache[require.resolve('../security')];
+  delete require.cache[require.resolve('../email')];
+
   const serverModule = require('../server');
   app = serverModule.app;
   db = serverModule.db;
@@ -39,7 +41,11 @@ beforeAll(async () => {
     email: 'admin@test.local',
     password: 'AdminTest123!'
   });
-  if (login.status !== 200) throw new Error('No se pudo loguear el admin de prueba');
+
+  if (login.status !== 200) {
+    console.error(' Login admin falló:', login.status, login.body);
+    throw new Error('No se pudo loguear el admin de prueba');
+  }
 }, 60000);
 
 afterAll(async () => {
@@ -49,22 +55,35 @@ afterAll(async () => {
 
 describe('📄 Flujo de documentos (admin)', () => {
   test('crear proveedor de prueba', async () => {
+    // FIX: email único por ejecución para evitar colisiones con tests paralelos
+    const emailUnico = `prov-test-${Date.now()}@empresa.com`;
+
     const res = await agent.post('/api/admin/proveedor').send({
-      email: 'prov-test@empresa.com',
+      email: emailUnico,
       password: 'Proveedor2026!',
       nombre_empresa: 'Proveedor Test SA',
       razon_social: 'Proveedor Test SA',
       rfc: '900123456',
-      tipo_proveedor: 'juridica'
+      representante: 'Juan Test',
+      telefono: '3001234567',
+      direccion: 'Calle 123 #45-67, Bucaramanga',
+      tipo_proveedor: 'juridica',
+      tipo_documento: 'nit'
     });
+
+    // FIX: logging de diagnóstico si falla
+    if (res.status !== 200) {
+      console.error('Error creando proveedor:', res.status, JSON.stringify(res.body, null, 2));
+    }
+
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+    expect(res.body.proveedorId).toBeDefined();
     proveedorId = res.body.proveedorId;
-    // 🧹 Eliminado el setTimeout(300): Brevo envía en fire-and-forget
-    // y no bloquea la respuesta HTTP. El test no depende de ese correo.
   }, 30000);
 
   test('rechaza archivo que no es PDF', async () => {
+    expect(proveedorId).toBeDefined();
     const res = await agent
       .post(`/api/admin/proveedor/${proveedorId}/documento`)
       .field('tipo', 'rut')
@@ -73,6 +92,8 @@ describe('📄 Flujo de documentos (admin)', () => {
   });
 
   test('rechaza PDF con cabecera inválida (magic bytes)', async () => {
+    expect(proveedorId).toBeDefined();
+    const PDF_INVALIDO = Buffer.from('ESTO NO ES UN PDF REAL');
     const res = await agent
       .post(`/api/admin/proveedor/${proveedorId}/documento`)
       .field('tipo', 'rut')
@@ -82,6 +103,7 @@ describe('📄 Flujo de documentos (admin)', () => {
   });
 
   test('sube PDF válido como admin', async () => {
+    expect(proveedorId).toBeDefined();
     const res = await agent
       .post(`/api/admin/proveedor/${proveedorId}/documento`)
       .field('tipo', 'rut')
@@ -91,28 +113,31 @@ describe('📄 Flujo de documentos (admin)', () => {
   });
 
   test('el documento queda pendiente y sin verificar', async () => {
+    expect(proveedorId).toBeDefined();
     const res = await agent.get(`/api/admin/proveedor/${proveedorId}`);
     expect(res.status).toBe(200);
     docRut = res.body.documentos.find(d => d.tipo === 'rut');
     expect(docRut).toBeTruthy();
     expect(docRut.estado).toBe('pendiente');
     expect(docRut.verificado).toBe(0);
-    // El archivo se guarda cifrado (.enc)
     expect(docRut.archivo).toMatch(/\.enc$/);
   });
 
   test('no se puede aprobar sin verificar antes', async () => {
+    expect(docRut).toBeDefined();
     const res = await agent.post(`/api/admin/documento/${docRut.id}/estado`).send({ estado: 'aprobado' });
     expect(res.status).toBe(400);
   });
 
   test('verificar documento', async () => {
+    expect(docRut).toBeDefined();
     const res = await agent.post(`/api/admin/documento/${docRut.id}/verificar`).send({ verificado: true });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
   });
 
   test('aprobar documento asigna fecha de vencimiento', async () => {
+    expect(docRut).toBeDefined();
     const res = await agent.post(`/api/admin/documento/${docRut.id}/estado`).send({ estado: 'aprobado' });
     expect(res.status).toBe(200);
     const prov = await agent.get(`/api/admin/proveedor/${proveedorId}`);
@@ -122,6 +147,7 @@ describe('📄 Flujo de documentos (admin)', () => {
   });
 
   test('rechazar otro documento con comentario', async () => {
+    expect(proveedorId).toBeDefined();
     const up = await agent
       .post(`/api/admin/proveedor/${proveedorId}/documento`)
       .field('tipo', 'camara_comercio')
