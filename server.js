@@ -5255,8 +5255,16 @@ app.post('/api/admin/backups/:nombre/restaurar', requiereAdmin, (req, res) => {
             }
 
             const rel = path.relative(uploadsDir, full).replace(/\\/g, '/');
-
-            if (!referencias.has(rel)) {
+            // ==========================================
+            // [FIX RESTORE-EVAL-001] HALL-042
+            // Las evaluaciones NO tienen fila en `documentos`:
+            //  - la ACTIVA vive en proveedores.evaluacion_inicial
+            //  - las HISTÓRICAS se resuelven por escaneo de disco
+            //    del ciclo (resolverEvaluacionDelCiclo).
+            // Si el GC las manda a cuarentena, el ciclo pierde su evaluación.
+            // ==========================================
+            const esEvaluacion = /(^|\/)evaluacion_[^/]*\.enc$/i.test(rel);
+            if (!referencias.has(rel) && !esEvaluacion) {
               const dest = path.join(quarantineRoot, rel);
               fs.mkdirSync(path.dirname(dest), { recursive: true });
               fs.renameSync(full, dest);
