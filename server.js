@@ -7812,6 +7812,93 @@ const nombreOriginal = archivo.replace('.enc', '.pdf');
 //  TEST-SAFE: el escaneo de huérfanos no se ejecuta en tests (ahorra I/O y bloqueos)
 if (process.env.NODE_ENV !== 'test') recuperarDocumentosHuérfanos();
 
+// ==========================================
+// [FIX RESTORE-EVAL-002] Auto-reparo de arranque (Railway-compatible)
+// Devuelve a uploads/ las evaluaciones que el GC post-restauración
+// movió a uploads_quarantine/ (conserva la ruta relativa original).
+// Idempotente y seguro (REGLA INC-001):
+//   - Solo toca archivos evaluacion_*.enc
+//   - Valida que proveedor (y ciclo, si aplica) existan en BD
+//   - Nunca pisa un archivo que ya exista en el destino
+//   - Lo que no sea evaluación se deja intacto en cuarentena
+// ==========================================
+function restaurarEvalsDeCuarentena() {
+  const quarantineDir = path.join(dataDir, 'uploads_quarantine');
+  if (!fs.existsSync(quarantineDir)) return;
+
+  const RE_EVAL_CICLO = /^(\d+)\/([^/]+)\/(evaluacion_[^/]*\.enc)$/i;
+  const RE_EVAL_RAIZ = /^(\d+)\/(evaluacion_[^/]*\.enc)$/i;
+
+  const pendientes = [];
+  const caminar = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        caminar(full);
+        continue;
+      }
+      pendientes.push(full);
+    }
+  };
+  try {
+    caminar(quarantineDir);
+  } catch (e) {
+    console.error(' Error leyendo uploads_quarantine:', e.message);
+    return;
+  }
+
+  let movidas = 0;
+  for (const full of pendientes) {
+    const rel = path.relative(quarantineDir, full).replace(/\\/g, '/');
+    const mCiclo = rel.match(RE_EVAL_CICLO);
+    const mRaiz = rel.match(RE_EVAL_RAIZ);
+    if (!mCiclo && !mRaiz) continue; // no es evaluación: se deja intacta
+
+    const provId = Number((mCiclo || mRaiz)[1]);
+    const prov = db.prepare('SELECT id FROM proveedores WHERE id = ?').get(provId);
+    if (!prov) continue;
+
+    if (mCiclo) {
+      const ciclo = db.prepare(`
+        SELECT id FROM ciclos_actualizacion
+        WHERE proveedor_id = ? AND numero_registro = ?
+      `).get(provId, mCiclo[2]);
+      if (!ciclo) continue; // ciclo no existe en esta BD: no se toca
+    }
+
+    const destino = path.join(uploadsDir, rel);
+    if (fs.existsSync(destino)) continue; // ya existe: no pisar
+
+    try {
+      fs.mkdirSync(path.dirname(destino), { recursive: true });
+      fs.renameSync(full, destino);
+      console.log(` [RESTORE-EVAL] Evaluación restaurada de cuarentena: ${rel}`);
+      movidas++;
+    } catch (e) {
+      console.error(` [RESTORE-EVAL] Error restaurando ${rel}:`, e.message);
+    }
+  }
+
+  // Limpieza de carpetas vacías dentro de cuarentena
+  if (movidas > 0) {
+    const limpiarVacios = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) limpiarVacios(path.join(dir, entry.name));
+      }
+      if (dir !== quarantineDir && fs.readdirSync(dir).length === 0) {
+        fs.rmdirSync(dir);
+      }
+    };
+    try {
+      limpiarVacios(quarantineDir);
+      if (fs.readdirSync(quarantineDir).length === 0) fs.rmdirSync(quarantineDir);
+    } catch (e) {
+      // ignorar
+    }
+    console.log(` [RESTORE-EVAL] Total evaluaciones restauradas: ${movidas}`);
+  }
+}
+
 function reorganizarHistoricosPorCiclo() {
     try {
         // 1) Documentos históricos con ciclo pero archivo fuera de la carpeta del ciclo
@@ -7911,7 +7998,8 @@ function reorganizarHistoricosPorCiclo() {
     }
 }
 //  TEST-SAFE: la reorganización de históricos no se ejecuta en tests
-if (process.env.NODE_ENV !== 'test') reorganizarHistoricosPorCiclo();
+if (process.env.NODE_ENV !== 'test') restaurarEvalsDeCuarentena();
+reorganizarHistoricosPorCiclo();
 
 function notificarAdminDocumento(proveedorId, usuario, config, nombreArchivoOriginal, accion) {
   console.log(` [notificarAdminDocumento] Ejecutando para proveedor ${proveedorId}, accion: ${accion}`);
