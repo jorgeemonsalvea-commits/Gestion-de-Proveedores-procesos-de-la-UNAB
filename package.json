@@ -9,7 +9,7 @@
     "test": "jest --forceExit --detectOpenHandles",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --forceExit",
+    "test:ci": "jest --ci --coverage --forceExit --runInBand",
     "lint": "eslint public/js/utils.js public/js/admin.js public/js/proveedor.js"
   },
   "engines": {

@@ -1232,6 +1232,29 @@ function arrancarVencimientos(opts = {}) {
 }
 
 // ==========================================
+// [SPRINT 3G-2a] HALL-025: conteo previo de forzar vencimientos.
+// Solo LEE: no archiva ni modifica nada.
+// ==========================================
+function conteoForzarVencimientos() {
+  const docs = db.prepare(`
+    SELECT COUNT(*) AS total, COUNT(DISTINCT proveedor_id) AS proveedores
+    FROM documentos
+    WHERE es_historico = 0
+  `).get();
+  const evaluaciones = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM proveedores
+    WHERE evaluacion_inicial IS NOT NULL
+      AND evaluacion_inicial != 'no_aplica'
+  `).get();
+  return {
+    documentos: docs.total || 0,
+    proveedores: docs.proveedores || 0,
+    evaluaciones_activas: evaluaciones.total || 0
+  };
+}
+
+// ==========================================
 //  A1: PRE-AVISO DE VENCIMIENTO (30 y 15 días)
 // ==========================================
 async function procesarPreAvisoVencimientos() {
@@ -1613,8 +1636,10 @@ function tienePermisoReq(res, clave) {
 }
 
 /**
- *  R2 (D6): perfil REVISOR = solo lectura.
-// Tiene docs.ver y NINGÚN permiso de acción ⇒ el server restringe a etapa 'registrado'.
+ *  R2 (D6): perfil VISUALIZADOR = solo lectura.
+ *  Tiene docs.ver y NINGÚN permiso de acción ⇒ ve TODO (todas las etapas) en modo lectura.
+ *  [INC-002] El permiso "Ver documentos y expedientes" habilita histórico completo sin restricción de etapa.
+ *  La función sigue detectando el perfil para bloquear escrituras donde aplique.
  */
 function esSoloLectorReq(res) {
   if (res.locals.esSuper) return false;
@@ -3165,9 +3190,44 @@ app.post('/api/proveedor/recordatorio/:id/cerrar', requiereLogin, (req, res) => 
 // 8. ENDPOINTS DE ADMINISTRADOR
 // ==========================================
 app.post('/api/admin/forzar-vencimientos', requiereAdmin, (req, res) => {
-const r = arrancarVencimientos({ forzar: true });
-if (!r.ok) return res.status(409).json({ error: 'Ya hay un procesamiento de vencimientos en curso.', yaEnCurso: true });
-res.status(202).json({ ok: true, mensaje: 'Vencimiento forzado iniciado en segundo plano. Consulta /api/admin/vencimientos-job.' });
+  // ==========================================
+  // [SPRINT 3G-2a] HALL-025: dry_run devuelve el impacto SIN archivar nada.
+  // El frontend lo usará para mostrar el conteo ANTES de confirmar (3G-2b).
+  // ==========================================
+  const { dry_run } = req.body || {};
+  if (dry_run === true || dry_run === 'true' || dry_run === 1) {
+    const conteo = conteoForzarVencimientos();
+    registrarLogSeguridad(
+      req.session.usuario.id,
+      req.session.usuario.email,
+      'forzar_vencimientos_dry_run',
+      true,
+      `Conteo previo: ${conteo.documentos} documento(s) de ${conteo.proveedores} proveedor(es)`,
+      req
+    );
+    return res.json({ ok: true, dry_run: true, ...conteo });
+  }
+
+  const conteo = conteoForzarVencimientos();
+  const r = arrancarVencimientos({ forzar: true });
+  if (!r.ok) {
+    return res.status(409).json({ error: 'Ya hay un procesamiento de vencimientos en curso.', yaEnCurso: true });
+  }
+
+  registrarLogSeguridad(
+    req.session.usuario.id,
+    req.session.usuario.email,
+    'forzar_vencimientos_ejecutado',
+    true,
+    `Archivado forzado iniciado: ${conteo.documentos} documento(s) de ${conteo.proveedores} proveedor(es)`,
+    req
+  );
+
+  res.status(202).json({
+    ok: true,
+    mensaje: 'Vencimiento forzado iniciado en segundo plano. Consulta /api/admin/vencimientos-job.',
+    impacto: conteo
+  });
 });
 
 app.delete('/api/admin/documento/:id', requiereAdmin, (req, res) => {
@@ -3224,12 +3284,8 @@ app.get('/api/admin/proveedores', requiereAdmin, (req, res) => {
 
  let whereConditions = [];
  let params = [];
- //  R2 (D6): perfil revisor (solo lectura) consulta ÚNICAMENTE etapa registrado.
- // Se combina con cualquier condición de módulo: si pedía verificacion/aprobacion/
- // inscripcion, el AND de etapas deja el listado vacío (sin fuga de datos).
- if (esSoloLectorReq(res)) {
-   whereConditions.push(`p.etapa = 'registrado'`);
- }
+ //  [INC-002] Visualizador (solo lectura) ve TODAS las etapas.
+ // La función esSoloLectorReq se conserva para auditoría/bloqueos de escritura donde aplique.
  if (modulo && modulo !== 'registrados') {
       let etapa = null;
 
@@ -3448,10 +3504,7 @@ const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
       params.push(rfc);
     }
 
- //  R2 (D6): revisor solo ve ciclos de proveedores actualmente registrados
- if (esSoloLectorReq(res)) {
-   whereConditions.push(`p.etapa = 'registrado'`);
- }
+ //  [INC-002] Visualizador (solo lectura) ve ciclos de TODAS las etapas.
  if (estado && ['activo', 'cerrado', 'rechazado'].includes(estado)) {
    whereConditions.push(`c.estado = ?`);
    params.push(String(estado));
@@ -3516,11 +3569,7 @@ const ciclo = db.prepare(`SELECT c.*, p.razon_social, u.email, p.evaluacion_inic
 if (!ciclo) {
   return res.status(404).json({ error: 'Ciclo no encontrado' });
 }
-//  R2 (D6): revisor solo consulta ciclos de proveedores registrados
-if (esSoloLectorReq(res) && ciclo.etapa !== 'registrado') {
-  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `Ciclo ${cicloId} bloqueado para perfil revisor`, req);
-  return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
-}
+//  [INC-002] Visualizador (solo lectura) puede consultar ciclos de cualquier etapa.
 
     const documentos = db.prepare(`
       SELECT d.*,
@@ -3554,11 +3603,7 @@ const ciclo = db.prepare(`SELECT c.*, p.razon_social, p.id as proveedor_id, p.ev
 if (!ciclo) {
   return res.status(404).json({ error: 'Ciclo no encontrado' });
 }
-//  R2 (D6): revisor solo descarga ZIP de ciclos de proveedores registrados
-if (esSoloLectorReq(res) && ciclo.etapa !== 'registrado') {
-  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `ZIP del ciclo ${cicloId} bloqueado para perfil revisor`, req);
-  return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
-}
+//  [INC-002] Visualizador (solo lectura) puede descargar ZIP de ciclos de cualquier etapa.
 
 const documentos = db.prepare(`
 SELECT archivo, nombre_original, tipo, estado
@@ -4700,15 +4745,7 @@ const p = db.prepare(`
 
 if (!p) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-//  R2 (D6): revisor = activos e históricos pero SOLO etapa registrado
-if (esSoloLectorReq(res) && p.etapa !== 'registrado') {
-  registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
-    'acceso_denegado', false,
-    `Detalle de proveedor ${proveedorId} (etapa ${p.etapa}) bloqueado para perfil revisor`, req);
-  return res.status(403).json({
-    error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.'
-  });
-}
+//  [INC-002] Visualizador (solo lectura) puede ver detalle de proveedores de cualquier etapa.
 
 const docs = db.prepare(`SELECT * FROM documentos WHERE proveedor_id = ? AND es_historico = 0 ORDER BY tipo, id`).all(p.id);
 
@@ -5502,11 +5539,7 @@ const proveedor = db.prepare(`SELECT id, razon_social, evaluacion_inicial, etapa
 if (!proveedor) {
    return res.status(404).json({ error: 'Proveedor no encontrado' });
  }
-//  R2 (D6): revisor solo descarga ZIP de proveedores registrados
-if (esSoloLectorReq(res) && proveedor.etapa !== 'registrado') {
-   registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email, 'acceso_denegado', false, `ZIP de proveedor ${proveedorId} (etapa ${proveedor.etapa}) bloqueado para perfil revisor`, req);
-   return res.status(403).json({ error: 'Acceso denegado: el perfil revisor solo consulta proveedores registrados.' });
- }
+//  [INC-002] Visualizador (solo lectura) puede descargar ZIP de proveedores de cualquier etapa.
 
     const documentos = db.prepare(`
       SELECT id, archivo, nombre_original, tipo
@@ -6447,18 +6480,38 @@ const usuario = req.session.usuario;
 if (usuario.rol === 'admin') {
   tieneAcceso = true;
   documentoInfo = db.prepare(`SELECT d.nombre_original, d.tipo, d.subido_en, p.rfc, p.razon_social, p.etapa FROM documentos d JOIN proveedores p ON d.proveedor_id = p.id WHERE d.archivo = ?`).get(req.params.path);
-  // [SPRINT 3F-2] Solo lector: denegado por defecto salvo documento de proveedor REGISTRADO.
+  // [INC-002] Visualizador (solo lectura) puede ver documentos de cualquier etapa.
+  // Se conserva la validación de que el archivo esté referenciado (defensa en profundidad).
   if (esSoloLectorReq(res)) {
-    if (!documentoInfo || documentoInfo.etapa !== 'registrado') {
-      tieneAcceso = false;
-      registrarLogSeguridad(
-        usuario.id,
-        usuario.email,
-        'acceso_denegado',
-        false,
-        `Uploads sin documento registrado o etapa ${documentoInfo ? documentoInfo.etapa : 'desconocida'} bloqueado para perfil revisor`,
-        req
-      );
+    if (!documentoInfo) {
+      // [INC-002 FIX-2] Las evaluaciones NO tienen fila en `documentos`:
+      //   - la ACTIVA vive en proveedores.evaluacion_inicial
+      //   - las HISTÓRICAS viven en la carpeta del ciclo (ciclos_actualizacion)
+      // Sin esto, el visualizador recibe 403 solo en la Evaluación Inicial.
+      let esEvalReferenciada = false;
+      if (/(^|\/)evaluacion_[^/]*\.enc$/i.test(req.params.path)) {
+        const provEval = db.prepare(`SELECT id FROM proveedores WHERE evaluacion_inicial = ?`).get(req.params.path);
+        if (provEval) {
+          esEvalReferenciada = true;
+        } else {
+          const mCiclo = String(req.params.path).match(/^(\d+)\/([^/]+)\/(evaluacion_[^/]*\.enc)$/i);
+          if (mCiclo) {
+            const ciclo = db.prepare(`SELECT id FROM ciclos_actualizacion WHERE proveedor_id = ? AND numero_registro = ?`).get(Number(mCiclo[1]), mCiclo[2]);
+            if (ciclo) esEvalReferenciada = true;
+          }
+        }
+      }
+      if (!esEvalReferenciada) {
+        tieneAcceso = false;
+        registrarLogSeguridad(
+          usuario.id,
+          usuario.email,
+          'acceso_denegado',
+          false,
+          `Uploads: archivo no referenciado para perfil visualizador`,
+          req
+        );
+      }
     }
   }
 } else {
@@ -6856,316 +6909,6 @@ try {
 }
 });
 
-// ==========================================
-//  R3: STAFF ENDPOINTS — Gestión de usuarios admin
-// ==========================================
-
-// ---- GET /api/admin/usuarios — Listar staff (solo superadmin) ----
-app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
-  //  Solo superadmin puede gestionar el equipo
-  if (!res.locals.esSuper) {
-    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin gestiona el equipo.' });
-  }
-  try {
-    const usuarios = db.prepare(`
-      SELECT id, email, rol, nombre_empresa, permisos, es_superadmin, activo,
-             creado_en, debe_cambiar_password
-      FROM usuarios
-      WHERE rol = 'admin'
-      ORDER BY es_superadmin DESC, id ASC
-    `).all();
-
-    const data = usuarios.map(u => {
-      let permisosArr = [];
-      try { permisosArr = JSON.parse(u.permisos || '[]'); } catch (e) { permisosArr = []; }
-      return {
-        id: u.id,
-        email: u.email,
-        nombre_empresa: u.nombre_empresa,
-        permisos: Array.isArray(permisosArr) ? permisosArr : [],
-        es_superadmin: u.es_superadmin === 1,
-        activo: u.activo !== 0,
-        creado_en: u.creado_en,
-        debe_cambiar_password: u.debe_cambiar_password === 1
-      };
-    });
-
-    res.json({ data });
-  } catch (err) {
-    console.error(' Error listando staff:', err.message);
-    res.status(500).json({ error: 'Error al listar el equipo' });
-  }
-});
-
-// ---- POST /api/admin/usuarios — Invitar nuevo admin (token 7d) ----
-app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
-  if (!res.locals.esSuper) {
-    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin invita al equipo.' });
-  }
-
-  const { email, nombre_empresa } = req.body || {};
-  if (!email || !String(email).trim()) {
-    return res.status(400).json({ error: 'El correo es obligatorio' });
-  }
-  const emailNuevo = String(email).trim().toLowerCase();
-  if (!EMAIL_REGEX.test(emailNuevo)) {
-    return res.status(400).json({ error: 'Formato de correo inválido' });
-  }
-
-// Validar permisos iniciales: solo claves del catálogo conmutable.
-// FIX: acepta ambas claves del body (`permisos_iniciales` o `permisos`).
-// admin.js envía `permisos`; antes se leía solo `permisos_iniciales` y toda
-// invitación nacía sin permisos (había que asignarlos después a mano).
-const permisosInicialesBrutos = Array.isArray(req.body && req.body.permisos_iniciales)
-? req.body.permisos_iniciales
-: (Array.isArray(req.body && req.body.permisos) ? req.body.permisos : []);
-let permisosValidos = permisosInicialesBrutos.filter(p => PERMISOS_CONMUTABLES.includes(p));
-
-  try {
-    const existente = db.prepare('SELECT id FROM usuarios WHERE email = ? COLLATE NOCASE').get(emailNuevo);
-    if (existente) {
-      return res.status(409).json({ error: 'Ese correo ya está registrado.' });
-    }
-
-    // Password aleatoria temporal (el usuario la cambiará con el token)
-    const passwordTemp = generarPasswordAleatoria(16);
-    const hash = bcrypt.hashSync(passwordTemp, 12);
-
-    const result = db.prepare(`
-      INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password,
-                            permisos, es_superadmin, activo)
-      VALUES (?, ?, 'admin', ?, 1, ?, 0, 1)
-    `).run(emailNuevo, hash, nombre_empresa || '', JSON.stringify(permisosValidos));
-
-    const nuevoId = result.lastInsertRowid;
-
-    // Token de activación de un solo uso (7 días)
-    const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const expiracion = new Date(Date.now() + 7 * 24 * 3600000).toISOString()
-      .replace('T', ' ').substring(0, 19);
-
-    db.prepare(`
-      INSERT INTO password_resets (usuario_id, token, expiracion)
-      VALUES (?, ?, ?)
-    `).run(nuevoId, tokenHash, expiracion);
-
-    const enlaceActivacion = `${APP_URL_NORMALIZADO}/restablecer-password.html?token=${token}`;
-
-    // Enviar correo de invitación
-    try {
-      const htmlInvitacion = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #8600dd 0%, #6b00b0 100%);
-                      color: white; padding: 30px; text-align: center;
-                      border-radius: 8px 8px 0 0; border-bottom: 4px solid #e9a427;">
-            <h1 style="margin: 0;">Has sido invitado al Portal de Proveedores</h1>
-          </div>
-          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb;
-                      border-top: none; border-radius: 0 0 8px 8px;">
-            <p>Hola${nombre_empresa ? ' ' + escapeHtml(nombre_empresa) : ''},</p>
-            <p>El administrador te ha invitado a formar parte del equipo de gestión
-               del Portal de Proveedores UNAB.</p>
-            <div style="text-align: center; margin: 20px 0;">
-              <a href="${enlaceActivacion}"
-                 style="background: #8600dd; color: white; padding: 15px 30px;
-                        text-decoration: none; border-radius: 6px;
-                        display: inline-block; font-weight: bold;">
-                Activar cuenta y crear contraseña
-              </a>
-            </div>
-            <p style="word-break: break-all; background: #f3f4f6; padding: 10px;
-                      border-radius: 4px; font-size: 0.85rem;">
-              ${enlaceActivacion}
-            </p>
-            <p>Este enlace expira en <strong>7 días</strong>.
-               Después de activar tu cuenta, deberás cambiar la contraseña
-               en tu primer inicio de sesión.</p>
-          </div>
-        </div>
-      `;
-      await enviarEmail(emailNuevo, 'Invitación — Portal de Proveedores UNAB', htmlInvitacion);
-    } catch (emailErr) {
-      console.error(' Error enviando invitación:', emailErr.message);
-    }
-
-    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
-      'staff_invitado', true, `Invitado: ${emailNuevo}`, req);
-
-    res.json({
-      ok: true,
-      mensaje: `Invitación enviada a ${emailNuevo}. El enlace expira en 7 días.`,
-      usuarioId: nuevoId
-    });
-  } catch (err) {
-    console.error(' Error invitando usuario:', err.message);
-    res.status(500).json({ error: 'Error al invitar al usuario' });
-  }
-});
-
-// ---- PUT /api/admin/usuarios/:id/permisos — Cambiar permisos ----
-app.put('/api/admin/usuarios/:id/permisos', requiereAdmin, (req, res) => {
-  if (!res.locals.esSuper) {
-    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin cambia permisos.' });
-  }
-
-  const targetId = parseInt(req.params.id);
-  const { permisos } = req.body || {};
-
-  if (!Array.isArray(permisos)) {
-    return res.status(400).json({ error: 'permisos debe ser un array de claves.' });
-  }
-
-  // Solo claves del catálogo conmutable
-  const permisosLimpios = permisos.filter(p => PERMISOS_CONMUTABLES.includes(p));
-
-  try {
-    const target = db.prepare('SELECT id, email, es_superadmin FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
-    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
-
-    //  D8: nadie se degrada a sí mismo
-    if (targetId === req.session.usuario.id) {
-      return res.status(409).json({
-        error: 'No puedes modificar tus propios permisos. Pide a otro superadmin que lo haga.'
-      });
-    }
-
-    db.prepare('UPDATE usuarios SET permisos = ? WHERE id = ?')
-      .run(JSON.stringify(permisosLimpios), targetId);
-
-    //  Destruir sesiones activas del usuario modificado
-    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
-
-    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
-      'staff_permisos_cambiados', true,
-      `Usuario ${target.email}: ${permisosLimpios.join(', ') || 'sin permisos'} · ${sesionesCerradas} sesión(es) cerrada(s)`, req);
-
-    res.json({
-      ok: true,
-      mensaje: `Permisos actualizados para ${target.email}. Sesiones activas cerradas (${sesionesCerradas}).`,
-      sesiones_cerradas: sesionesCerradas
-    });
-  } catch (err) {
-    console.error(' Error cambiando permisos:', err.message);
-    res.status(500).json({ error: 'Error al cambiar permisos' });
-  }
-});
-
-// ---- PUT /api/admin/usuarios/:id/activo — Activar/desactivar ----
-app.put('/api/admin/usuarios/:id/activo', requiereAdmin, (req, res) => {
-  if (!res.locals.esSuper) {
-    return res.status(403).json({ error: 'Acceso denegado: solo el superadmin activa/desactiva cuentas.' });
-  }
-
-  const targetId = parseInt(req.params.id);
-  const { activo } = req.body || {};
-  const nuevoEstado = activo === true || activo === 1 ? 1 : 0;
-
-  try {
-    const target = db.prepare('SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
-    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
-
-    //  D8: nadie se desactiva a sí mismo
-    if (targetId === req.session.usuario.id) {
-      return res.status(409).json({
-        error: 'No puedes desactivar tu propia cuenta.'
-      });
-    }
-
-    //  D8: último superadmin activo es intocable
-    if (target.es_superadmin === 1 && nuevoEstado === 0) {
-      const superadminsActivos = db.prepare(
-        'SELECT COUNT(*) as count FROM usuarios WHERE es_superadmin = 1 AND activo = 1'
-      ).get().count;
-      if (superadminsActivos <= 1) {
-        return res.status(409).json({
-          error: 'No puedes desactivar al último superadmin activo del sistema.'
-        });
-      }
-    }
-
-    db.prepare('UPDATE usuarios SET activo = ? WHERE id = ?').run(nuevoEstado, targetId);
-
-    //  Destruir sesiones si se desactiva
-    let sesionesCerradas = 0;
-    if (nuevoEstado === 0) {
-      sesionesCerradas = cerrarSesionesDeUsuario(targetId);
-    }
-
-    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
-      nuevoEstado ? 'staff_activado' : 'staff_desactivado', true,
-      `Usuario ${target.email} → ${nuevoEstado ? 'ACTIVO' : 'INACTIVO'}${sesionesCerradas ? ` · ${sesionesCerradas} sesión(es) cerrada(s)` : ''}`, req);
-
-    res.json({
-      ok: true,
-      mensaje: `${target.email} ${nuevoEstado ? 'activado' : 'desactivado'} correctamente.`,
-      sesiones_cerradas: sesionesCerradas
-    });
-  } catch (err) {
-    console.error(' Error activando/desactivando:', err.message);
-    res.status(500).json({ error: 'Error al cambiar estado' });
-  }
-});
-
-// ---- PUT /api/admin/usuarios/:id/superadmin — Promover/quitar superadmin ----
-app.put('/api/admin/usuarios/:id/superadmin', requiereAdmin, (req, res) => {
-  if (!res.locals.esSuper) {
-    return res.status(403).json({ error: 'Acceso denegado.' });
-  }
-
-  const targetId = parseInt(req.params.id);
-  const { es_superadmin } = req.body || {};
-  const nuevoValor = es_superadmin === true || es_superadmin === 1 ? 1 : 0;
-
-  try {
-    const target = db.prepare('SELECT id, email, es_superadmin, activo FROM usuarios WHERE id = ? AND rol = \'admin\'').get(targetId);
-    if (!target) return res.status(404).json({ error: 'Usuario admin no encontrado' });
-
-    if (targetId === req.session.usuario.id) {
-      return res.status(409).json({
-        error: 'No puedes modificar tu propio rol de superadmin.'
-      });
-    }
-
-    //  D8: no quitar superadmin al último activo
-    if (target.es_superadmin === 1 && nuevoValor === 0) {
-      const superadminsActivos = db.prepare(
-        'SELECT COUNT(*) as count FROM usuarios WHERE es_superadmin = 1 AND activo = 1'
-      ).get().count;
-      if (superadminsActivos <= 1) {
-        return res.status(409).json({
-          error: 'No puedes quitar el superadmin al último superadmin activo.'
-        });
-      }
-    }
-
-    db.prepare('UPDATE usuarios SET es_superadmin = ? WHERE id = ?').run(nuevoValor, targetId);
-
-    const sesionesCerradas = cerrarSesionesDeUsuario(targetId);
-
-    registrarLogSeguridad(req.session.usuario.id, req.session.usuario.email,
-      nuevoValor ? 'staff_promovido_superadmin' : 'staff_degradado', true,
-      `Usuario ${target.email} → ${nuevoValor ? 'SUPERADMIN' : 'admin regular'}`, req);
-
-    res.json({
-      ok: true,
-      mensaje: `${target.email} ${nuevoValor ? 'promovido a superadmin' : 'degradado a admin regular'}.`,
-      sesiones_cerradas: sesionesCerradas
-    });
-  } catch (err) {
-    console.error(' Error cambiando superadmin:', err.message);
-    res.status(500).json({ error: 'Error al cambiar rol' });
-  }
-});
-
-// ==========================================
-//  R3: STAFF ENDPOINTS (invitar, listar, permisos, activar/desactivar)
-// Alcance: solo superadmin (clave reservada 'usuarios.gestionar' + doble
-// chequeo res.locals.esSuper). Candados D8: nadie se auto-modifica; el
-// último superadmin activo es intocable (409). Toda mutación destruye las
-// sesiones del afectado y deja log en logs_seguridad.
-// ==========================================
-
 // ---- GET /api/admin/usuarios — listado del equipo (solo superadmin) ----
 app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
   if (!res.locals.esSuper) {
@@ -7199,7 +6942,9 @@ app.get('/api/admin/usuarios', requiereAdmin, (req, res) => {
     res.status(500).json({ error: 'Error al cargar el equipo' });
   }
 });
-
+// ==========================================
+//  R3: STAFF ENDPOINTS (invitar, listar, permisos, activar/desactivar)
+// ==========================================
 // ---- POST /api/admin/usuarios — invitación con token de 7 días ----
 app.post('/api/admin/usuarios', requiereAdmin, async (req, res) => {
   if (!res.locals.esSuper) {

@@ -1,6 +1,9 @@
 // ==========================================
 // 🛡️ TESTS: RBAC COMPOSABLE (Sprint 8 R5)
 // 403 cruzados por perfil · candados D8 · filtro revisor (D6)
+// [INC-002] El perfil visualizador (docs.ver sin claves de acción) ve TODAS
+// las etapas en modo lectura (listado, detalle, ZIP, ciclos/historial).
+// Las ESCRITURAS siguen bloqueadas por clave (docs.verificar/aprobar/...).
 // ==========================================
 process.env.NODE_ENV = 'test';
 process.env.ENCRYPTION_KEY = 'test-encryption-key-32-characters-min!';
@@ -21,26 +24,23 @@ process.env.RAILWAY_VOLUME_MOUNT_PATH = dataDir;
 
 let app, db;
 let agentSuper, agentVerif, agentAprob, agentRevisor;
-let provRegistrado, provVerificacion, docVerificado, superId, verifId;
+let provRegistrado, provVerificacion, docVerificado, cicloVerificacion, superId, verifId;
 
 // Admin de prueba con catálogo concreto (es_superadmin=0: el backfill ya corrió al arranque)
 function crearAdminDB(email, permisos) {
   const hash = bcrypt.hashSync('Perfil2026!', 10);
   return db.prepare(
-    `INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password, permisos, es_superadmin, activo)
-     VALUES (?, ?, 'admin', ?, 0, ?, 0, 1)`
+    `INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password, permisos, es_superadmin, activo) VALUES (?, ?, 'admin', ?, 0, ?, 0, 1)`
   ).run(email, hash, 'Perfil ' + email, JSON.stringify(permisos)).lastInsertRowid;
 }
 
 function crearProveedorDB(email, etapa) {
   const hash = bcrypt.hashSync('Proveedor2026!', 10);
   const u = db.prepare(
-    `INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password)
-     VALUES (?, ?, 'proveedor', ?, 0)`
+    `INSERT INTO usuarios (email, password, rol, nombre_empresa, debe_cambiar_password) VALUES (?, ?, 'proveedor', ?, 0)`
   ).run(email, hash, 'Prov ' + email);
   return db.prepare(
-    `INSERT INTO proveedores (usuario_id, razon_social, rfc, etapa, tipo_proveedor)
-     VALUES (?, ?, '900123', ?, 'juridica')`
+    `INSERT INTO proveedores (usuario_id, razon_social, rfc, etapa, tipo_proveedor) VALUES (?, ?, '900123', ?, 'juridica')`
   ).run(u.lastInsertRowid, 'Razon ' + email, etapa).lastInsertRowid;
 }
 
@@ -55,21 +55,21 @@ beforeAll(async () => {
   const serverModule = require('../server');
   app = serverModule.app;
   db = serverModule.db;
-
   agentSuper = await loginAgent('admin@test.local', 'AdminTest123!');
-
   verifId = crearAdminDB('verificador@test.local', ['docs.ver', 'docs.verificar']);
   crearAdminDB('aprobador@test.local', ['docs.ver', 'docs.aprobar', 'docs.rechazar']);
   crearAdminDB('revisor@test.local', ['docs.ver']);
   superId = db.prepare(`SELECT id FROM usuarios WHERE email = 'admin@test.local'`).get().id;
-
   provRegistrado = crearProveedorDB('prov-registrado@test.com', 'registrado');
   provVerificacion = crearProveedorDB('prov-verificacion@test.com', 'verificacion');
   docVerificado = db.prepare(
-    `INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, verificado)
-     VALUES (?, 'rut', 'rut_rbac.enc', 'rut.pdf', 'pendiente', 1)`
+    `INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, estado, verificado) VALUES (?, 'rut', 'rut_rbac.enc', 'rut.pdf', 'pendiente', 1)`
   ).run(provVerificacion).lastInsertRowid;
-
+  // [INC-002] Ciclo del proveedor en verificación: permite probar que el
+  // visualizador ve el HISTORIAL (ciclos) de proveedores en cualquier etapa.
+  cicloVerificacion = db.prepare(
+    `INSERT INTO ciclos_actualizacion (proveedor_id, numero_registro, estado, fecha_inicio) VALUES (?, 'REG-RBAC-3G', 'cerrado', datetime('now', '-30 days'))`
+  ).run(provVerificacion).lastInsertRowid;
   agentVerif = await loginAgent('verificador@test.local', 'Perfil2026!');
   agentAprob = await loginAgent('aprobador@test.local', 'Perfil2026!');
   agentRevisor = await loginAgent('revisor@test.local', 'Perfil2026!');
@@ -107,16 +107,21 @@ describe('🛡️ RBAC composable (Sprint 8 R5)', () => {
     expect(res.status).toBe(200);
   });
 
-  test('revisor solo ve proveedores en etapa registrado', async () => {
+  // [INC-002] ANTES: "revisor solo ve proveedores en etapa registrado".
+  // AHORA: el visualizador con docs.ver ve TODAS las etapas (solo lectura).
+  test('[INC-002] revisor con docs.ver ve proveedores de todas las etapas', async () => {
     const res = await agentRevisor.get('/api/admin/proveedores');
     expect(res.status).toBe(200);
-    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
-    expect(res.body.data.every(p => p.etapa === 'registrado')).toBe(true);
+    const etapas = res.body.data.map(p => p.etapa);
+    expect(etapas).toContain('registrado');
+    expect(etapas).toContain('verificacion');
   });
 
-  test('revisor 403 en detalle de proveedor en verificación', async () => {
+  // [INC-002] ANTES: 403 en detalle de proveedor en verificación. AHORA: 200.
+  test('[INC-002] revisor 200 en detalle de proveedor en verificación', async () => {
     const res = await agentRevisor.get(`/api/admin/proveedor/${provVerificacion}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body.proveedor.etapa).toBe('verificacion');
   });
 
   test('revisor 200 en detalle de proveedor registrado', async () => {
@@ -124,8 +129,54 @@ describe('🛡️ RBAC composable (Sprint 8 R5)', () => {
     expect(res.status).toBe(200);
   });
 
-  test('revisor 403 en ZIP de proveedor en verificación', async () => {
+  // [INC-002] ANTES: 403 en ZIP de proveedor en verificación. AHORA: 200.
+  test('[INC-002] revisor descarga ZIP de proveedor en verificación (sin 403 de etapa)', async () => {
     const res = await agentRevisor.get(`/api/admin/proveedor/${provVerificacion}/documentos/zip`);
+    expect(res.status).toBe(200);
+  });
+
+    // [INC-002 FIX-2] La evaluación activa no tiene fila en documentos:
+  // se referencia por proveedores.evaluacion_inicial. El visualizador debe poder verla.
+  test('[INC-002 FIX-2] revisor ve la evaluación inicial referenciada (uploads 200)', async () => {
+    const rel = `${provVerificacion}/evaluacion_rbac.enc`;
+    const dir = path.join(dataDir, 'uploads', String(provVerificacion));
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'evaluacion_rbac.enc'), '%PDF-1.4 dummy');
+    db.prepare(`UPDATE proveedores SET evaluacion_inicial = ? WHERE id = ?`).run(rel, provVerificacion);
+    const res = await agentRevisor.get(`/uploads/${rel}`);
+    expect(res.status).toBe(200);
+  });
+
+  test('[INC-002 FIX-2] revisor 403 en evaluación NO referenciada (huérfana)', async () => {
+    const rel = `${provVerificacion}/evaluacion_huerfana.enc`;
+    const dir = path.join(dataDir, 'uploads', String(provVerificacion));
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'evaluacion_huerfana.enc'), '%PDF-1.4 dummy');
+    const res = await agentRevisor.get(`/uploads/${rel}`);
+    expect(res.status).toBe(403);
+  });
+
+  // [INC-002] NUEVO: el historial (ciclos) de proveedores en verificación
+  // es visible para el visualizador (caso exacto del reporte de producción).
+  test('[INC-002] revisor ve ciclos (historial) de proveedores en verificación', async () => {
+    const res = await agentRevisor.get('/api/admin/ciclos');
+    expect(res.status).toBe(200);
+    const provs = res.body.data.map(c => c.proveedor_id);
+    expect(provs).toContain(provVerificacion);
+  });
+
+  // [INC-002] NUEVO: la lectura ampliada NO concede escritura.
+  test('[INC-002] revisor con docs.ver NO puede aprobar (escritura sigue bloqueada)', async () => {
+    const res = await agentRevisor.post(`/api/admin/documento/${docVerificado}/estado`).send({ estado: 'aprobado' });
+    expect(res.status).toBe(403);
+    expect(res.body.requiere_permiso).toBe('docs.aprobar');
+  });
+
+  // [INC-002] NUEVO: no relajamos el gate de ruta: sin docs.ver sigue 403.
+  test('[INC-002] admin SIN docs.ver sigue sin listar proveedores (403 de ruta)', async () => {
+    crearAdminDB('sinpermisos@test.local', []);
+    const agentSin = await loginAgent('sinpermisos@test.local', 'Perfil2026!');
+    const res = await agentSin.get('/api/admin/proveedores');
     expect(res.status).toBe(403);
   });
 
