@@ -241,6 +241,7 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     if (!container) return;
     const notif = document.createElement('div');
     notif.className = `notification notification-${tipo}`;
+    // [SPRINT 5] Escapado en cada llamador (ver comentario en admin.js)
     notif.innerHTML = `<span class="notification-content">${mensaje}</span>`;
     container.appendChild(notif);
     setTimeout(() => notif.remove(), duracion);
@@ -326,7 +327,7 @@ pasoRechazo = `Para volver a ser proveedor activo, primero <strong>selecciona tu
 bannerRechazado.style.display = 'block';
 bannerRechazado.innerHTML = `
 <h2 style="color:#991b1b;">${tituloRechazo}</h2>
-<p style="color:#7f1d1d; font-size:1.1rem;">${mensajeRechazo}</p>
+<p style="color:#7f1d1d; font-size:1.1rem;">${escapeHtml(mensajeRechazo)}</p>
 <p style="color:#6b7280; margin-top:0.5rem;">${pasoRechazo}</p>
 `;
 } 
@@ -876,7 +877,7 @@ html += `
       if (req.esPlantilla && req.plantilla) {
         html += `<div style="background:#f0f9ff;padding:0.8rem;border-radius:6px;margin-bottom:0.5rem;border-left:3px solid #0284c7;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-            <small style="color:#0369a1;">${ico('file-text')} <strong>Plantilla disponible:</strong> ${req.plantilla.nombre_original}</small>
+            <small style="color:#0369a1;">${ico('file-text')} <strong>Plantilla disponible:</strong> ${escapeHtml(req.plantilla.nombre_original)}</small>
             <a href="/api/proveedor/plantilla/${req.tipo}" class="btn btn-sm" style="background:#0284c7;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;">${ICONOS.download} Descargar</a>
           </div>
         </div>`;

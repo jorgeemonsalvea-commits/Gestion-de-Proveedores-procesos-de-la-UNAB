@@ -231,7 +231,8 @@ feedNoLeidos++;
 const badge = document.getElementById('campanaBadgeD4');
 if (badge) { badge.style.display = 'flex'; badge.textContent = feedNoLeidos > 9 ? '9+' : String(feedNoLeidos); }
 const btn = document.getElementById('btnCampanaD4');
-if (btn) btn.title = `Último: ${titulo} — ${detalle}`;
+// [SPRINT 5] Escapado defensivo en atributo
+if (btn) btn.title = `Último: ${escapeAttr(titulo)} — ${escapeAttr(detalle)}`;
 const panel = document.getElementById('panelEventosD4');
 if (panel && panel.classList.contains('open')) renderFeedD4();
 }
@@ -392,7 +393,8 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     if (!container) return;
     const notif = document.createElement('div');
     notif.className = `notification notification-${tipo}`;
-    notif.innerHTML = `<span class="notification-content">${mensaje}</span>`;
+    // [SPRINT 5] Escapado defensivo en contenido HTML
+notif.innerHTML = `<span class="notification-content">${escapeHtml(mensaje)}</span>`;
     container.appendChild(notif);
     setTimeout(() => notif.remove(), duracion);
 }
@@ -2218,7 +2220,7 @@ plantillasRequeridas.forEach(req => {
                 <div style="margin-bottom:0.5rem;"><h4>${req.nombre}</h4></div>
                 ${p ? `
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:#f9fafb;border-radius:6px;margin-bottom:0.5rem;">
-                    <small>${ico('check')} ${p.nombre_original}</small>
+                    <small>${ico('check')} ${escapeHtml(p.nombre_original)}</small>
                     <a href="/plantillas/${p.archivo}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>
                 </div>
                 ` : `
@@ -2910,7 +2912,7 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ valor: fecha })
 });
 const data = await response.json();
-if (response.ok) { mostrarAlerta(`${ico('check')} ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
+if (response.ok) { mostrarAlerta(`${ico('check')} ${escapeHtml(data.mensaje)}`, 'success'); await recargarConfiguracion(); }
 else { mostrarAlerta(`${ico('x')} ${data.error || 'Error al guardar'}`, 'error'); }
 } catch (err) {
 console.error(' Error guardando configuración:', err);
@@ -2926,7 +2928,7 @@ btn.disabled = true; btn.textContent = ' Procesando...';
 try {
 const response = await fetchAPI('/api/admin/recalcular-vencimientos', { method: 'POST' });
 const data = await response.json();
-if (response.ok) { mostrarAlerta(`${ico('check')} ${data.mensaje}`, 'success'); await recargarConfiguracion(); }
+if (response.ok) { mostrarAlerta(`${ico('check')} ${escapeHtml(data.mensaje)}`, 'success'); await recargarConfiguracion(); }
 else { mostrarAlerta(`${ico('x')} ${data.error || 'Error al recalcular'}`, 'error'); }
 } catch (err) {
 console.error(' Error recalculando:', err);
@@ -3108,7 +3110,7 @@ try {
 const res = await fetchAPI(`/api/admin/proveedor/${proveedorId}/documento`, { method: 'POST', body: fd });
 const r = await res.json();
 if (res.ok) {
-mostrarAlerta(`${ico('check')} ${r.mensaje}`, 'success');
+mostrarAlerta(`${ico('check')} ${escapeHtml(r.mensaje)}`, 'success');
 await recargarVistaProveedor();
 await cargarProveedoresPorModulo(moduloActual, paginaActual);
 } else {
@@ -3806,7 +3808,7 @@ return `
 <div class="historial-item">
 <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || ico('pin')}</div>
 <div class="historial-contenido">
-<div class="detalle">${h.detalle}</div>
+<div class="detalle">${escapeHtml(h.detalle)}</div>
 <div class="meta"><span>${ico('clock')} ${formatearFecha(h.creado_en)}</span><span class="usuario"> ${escapeHtml(h.usuario_nombre)}</span></div>
 </div>
 </div>
@@ -3827,7 +3829,7 @@ cont.innerHTML = recs.map(r => `
 <div class="historial-item">
 <div class="historial-icono recordatorio">${ico('send')}</div>
 <div class="historial-contenido">
-<div class="detalle">${r.detalle.replace('Recordatorio enviado: ', '')}</div>
+<div class="detalle">${escapeHtml(r.detalle.replace('Recordatorio enviado: ', ''))}</div>
 <div class="meta"><span>${ico('clock')} ${formatearFecha(r.creado_en)}</span></div>
 </div>
 </div>
@@ -3900,7 +3902,7 @@ body: JSON.stringify({ password })
 });
 const r = await res.json();
 if (res.ok) {
-alertaEl.innerHTML = `<div class="alert alert-success">${ico('check')} ${r.mensaje}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-success">${ico('check')} ${escapeHtml(r.mensaje)}</div>`;
 setTimeout(() => {
 cerrarConfirmacionEliminar();
 cerrarModal();
@@ -4244,7 +4246,7 @@ body: JSON.stringify(data)
 });
 const r = await res.json();
 if (res.ok) {
-alertaEl.innerHTML = `<div class="alert alert-success">${ico('check')} ${r.mensaje}</div>`;
+alertaEl.innerHTML = `<div class="alert alert-success">${ico('check')} ${escapeHtml(r.mensaje)}</div>`;
 setTimeout(async () => {
 cerrarModalCrearProveedor();
 await cargarProveedoresPorModulo(moduloActual, 1);
