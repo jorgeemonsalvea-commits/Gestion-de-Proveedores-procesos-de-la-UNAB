@@ -5000,7 +5000,14 @@ const prov = aplicarEstadoDocumento();
 
     const todosAprobados = docs.every(d => d.estado === 'aprobado' || d.no_aplica === 1);
 
-    if (todosAprobados && prov && prov.evaluacion_estado === 'aprobado') {
+    // ==========================================
+    // [SPRINT 4-1] HALL-046: el avance a INSCRIPCION solo procede desde
+    // etapas de proceso (verificacion/aprobacion). Sin esta guarda, una
+    // re-aprobación idempotente sobre un proveedor REGISTRADO regresaría
+    // su etapa a 'inscripcion' (regresión de estado).
+    // ==========================================
+    if (todosAprobados && prov && prov.evaluacion_estado === 'aprobado' &&
+        (prov.etapa === 'verificacion' || prov.etapa === 'aprobacion')) {
       db.prepare(`UPDATE proveedores SET etapa = 'inscripcion' WHERE id = ?`).run(doc.proveedor_id);
 
       console.log(` Proveedor ${doc.proveedor_id} pasa a etapa INSCRIPCION (todos documentos aprobados y evaluación aprobada)`);

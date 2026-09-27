@@ -57,3 +57,49 @@ describe('Sprint 4-0 — HALL-044 Cache-Control en /api', () => {
     expect(cc).not.toContain('no-store');
   });
 });
+
+describe('Sprint 4-1 — HALL-046: avance a INSCRIPCION solo desde etapas de proceso', () => {
+  let ag;
+  beforeAll(async () => {
+    ag = request.agent(app);
+    const l = await ag.post('/api/login').send({ email: 'admin@test.local', password: 'AdminTest123!' });
+    expect(l.status).toBe(200);
+  });
+
+  test('re-aprobar documento de proveedor REGISTRADO no regresa su etapa', async () => {
+    const prov = await ag.post('/api/admin/proveedor').send({
+      email: `prov-41-${Date.now()}@test.com`,
+      nombre_empresa: 'Prov 41',
+      razon_social: 'Prov 41',
+      rfc: '900111222',
+      tipo_proveedor: 'juridica'
+    });
+    expect(prov.status).toBe(200);
+    const pid = prov.body.proveedorId;
+
+    const na = await ag.post(`/api/admin/proveedor/${pid}/documento/0/no-aplica`)
+      .send({ no_aplica: true, tipo: 'calidad' });
+    expect(na.status).toBe(200);
+    const det = await ag.get(`/api/admin/proveedor/${pid}`);
+    const doc = det.body.documentos.find(d => d.tipo === 'calidad');
+
+    const apr = await ag.post(`/api/admin/documento/${doc.id}/estado`).send({ estado: 'aprobado' });
+    expect(apr.status).toBe(200);
+
+    // Proveedor ya registrado con evaluación aprobada (estado objetivo protegido)
+    db.prepare(`UPDATE proveedores SET etapa = 'registrado', evaluacion_estado = 'aprobado', fecha_aprobacion = datetime('now','-5 hours') WHERE id = ?`).run(pid);
+
+    // Re-aprobación idempotente: NO debe regresar la etapa
+    const re = await ag.post(`/api/admin/documento/${doc.id}/estado`).send({ estado: 'aprobado' });
+    expect(re.status).toBe(200);
+    const d1 = await ag.get(`/api/admin/proveedor/${pid}`);
+    expect(d1.body.proveedor.etapa).toBe('registrado');
+
+    // Control positivo: desde APROBACION sí avanza a INSCRIPCION
+    db.prepare(`UPDATE proveedores SET etapa = 'aprobacion' WHERE id = ?`).run(pid);
+    const re2 = await ag.post(`/api/admin/documento/${doc.id}/estado`).send({ estado: 'aprobado' });
+    expect(re2.status).toBe(200);
+    const d2 = await ag.get(`/api/admin/proveedor/${pid}`);
+    expect(d2.body.proveedor.etapa).toBe('inscripcion');
+  });
+});
