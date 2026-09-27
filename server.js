@@ -446,6 +446,20 @@ app.use('/uploads/', cargarPermisosReq);
 app.use(middlewareRBAC);
 app.use('/api/', requierePasswordCambiada);
 
+// ==========================================
+// [SPRINT 4-0] HALL-044: las respuestas JSON de /api NUNCA se cachean.
+// Sin esto, el navegador puede guardar respuestas por caché heurística
+// y servirlas estales (304) incluso tras cambiar de cuenta o permisos.
+// /uploads ya fija su propio no-store dentro de su handler; los estáticos
+// (public/, fonts/, img/) conservan su caché larga deliberadamente.
+// ==========================================
+app.use('/api/', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 const sharedsession = require('express-socket.io-session');
 
 io.use(sharedsession(sessionMiddleware, {
