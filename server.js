@@ -664,6 +664,24 @@ function eliminarCarpetaRecursiva(ruta) {
   if (fs.existsSync(ruta)) fs.rmSync(ruta, { recursive: true, force: true });
 }
 
+// ==========================================
+// [INC-003] Multer/busboy decodifica el filename multipart como latin-1:
+// los nombres UTF-8 (ñ, tildes) llegan mojibake ("soluciÃ³n.pdf").
+// Convertimos de vuelta SOLO si el resultado es UTF-8 válido sin U+FFFD;
+// si el nombre ya venía bien decodificado, se conserva tal cual.
+// Idempotente: aplicar dos veces no doble-convierte.
+// ==========================================
+function nombreOriginalUTF8(nombre) {
+  if (!nombre) return nombre;
+  try {
+    const fijo = Buffer.from(nombre, 'latin1').toString('utf8');
+    return fijo.includes('\uFFFD') ? nombre : fijo;
+  } catch (e) {
+    return nombre;
+  }
+}
+
+
 function escapeHtml(text) {
 if (!text) return '';
 return String(text)
@@ -2764,7 +2782,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
               verificado = 0,
               subido_en = datetime('now', '-05:00')
           WHERE id = ?
-        `).run(rutaRelativa, req.file.originalname, hashOriginal, rechazado.id);
+        `).run(rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal, rechazado.id);
 
         docId = rechazado.id;
         accion = 'documento_reemplazado';
@@ -2772,7 +2790,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
         const r = db.prepare(`
           INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, hash_archivo, no_aplica)
           VALUES (?, ?, ?, ?, ?, 0)
-        `).run(proveedor.id, tipo, rutaRelativa, req.file.originalname, hashOriginal);
+        `).run(proveedor.id, tipo, rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal);
 
         docId = r.lastInsertRowid;
         accion = 'documento_subido';
@@ -2812,7 +2830,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
                 verificado = 0,
                 subido_en = datetime('now', '-05:00')
             WHERE id = ?
-          `).run(rutaRelativa, req.file.originalname, hashOriginal, existente.id);
+          `).run(rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal, existente.id);
 
           docId = existente.id;
           accion = 'documento_reemplazado';
@@ -2820,7 +2838,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
           const r = db.prepare(`
             INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, hash_archivo, no_aplica)
             VALUES (?, ?, ?, ?, ?, 0)
-          `).run(proveedor.id, tipo, rutaRelativa, req.file.originalname, hashOriginal);
+          `).run(proveedor.id, tipo, rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal);
 
           docId = r.lastInsertRowid;
           accion = 'documento_subido';
@@ -2831,7 +2849,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
         const r = db.prepare(`
           INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, hash_archivo, no_aplica)
           VALUES (?, ?, ?, ?, ?, 0)
-        `).run(proveedor.id, tipo, rutaRelativa, req.file.originalname, hashOriginal);
+        `).run(proveedor.id, tipo, rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal);
 
         docId = r.lastInsertRowid;
         accion = 'documento_subido';
@@ -2842,7 +2860,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
       proveedor.id,
       req.session.usuario,
       accion,
-      `Documento "${config.nombre}" subido: ${req.file.originalname}`,
+      `Documento "${config.nombre}" subido: ${nombreOriginalUTF8(req.file.originalname)}`,
       tipo,
       docId,
       req
@@ -2860,7 +2878,7 @@ error: `Ya has subido el máximo de ${maxExperiencia} certificados de experienci
       `).run(provActual.numero_registro, docId);
     }
 
-    notificarAdminDocumento(proveedor.id, req.session.usuario, config, req.file.originalname, accion);
+    notificarAdminDocumento(proveedor.id, req.session.usuario, config, nombreOriginalUTF8(req.file.originalname), accion);
 
     emitirTodos(proveedor.id, 'documento_subido', payloadEventoDoc(proveedor.id, tipo, req.session.usuario.email, { accion, documentoId: docId }));
 
@@ -4467,7 +4485,7 @@ app.post('/api/admin/proveedor/:id/evaluacion', requiereAdmin, uploadDoc.single(
       proveedorId,
       req.session.usuario,
       'evaluacion_subida',
-      `Evaluación inicial subida por admin: ${req.file.originalname}`,
+      `Evaluación inicial subida por admin: ${nombreOriginalUTF8(req.file.originalname)}`,
       null,
       null,
       req
@@ -5479,7 +5497,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
               verificado = 0,
               subido_en = datetime('now', '-05:00')
           WHERE id = ?
-        `).run(rutaRelativa, req.file.originalname, hashOriginal, rechazado.id);
+        `).run(rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal, rechazado.id);
 
         docId = rechazado.id;
         accion = 'documento_reemplazado';
@@ -5487,7 +5505,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
         const r = db.prepare(`
           INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, hash_archivo, no_aplica)
           VALUES (?, ?, ?, ?, ?, 0)
-        `).run(proveedorId, tipo, rutaRelativa, req.file.originalname, hashOriginal);
+        `).run(proveedorId, tipo, rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal);
 
         docId = r.lastInsertRowid;
         accion = 'documento_subido';
@@ -5526,7 +5544,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
                 verificado = 0,
                 subido_en = datetime('now', '-05:00')
             WHERE id = ?
-          `).run(rutaRelativa, req.file.originalname, hashOriginal, existente.id);
+          `).run(rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal, existente.id);
 
           docId = existente.id;
           accion = 'documento_reemplazado';
@@ -5534,7 +5552,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
           const r = db.prepare(`
             INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, hash_archivo, no_aplica)
             VALUES (?, ?, ?, ?, ?, 0)
-          `).run(proveedorId, tipo, rutaRelativa, req.file.originalname, hashOriginal);
+          `).run(proveedorId, tipo, rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal);
 
           docId = r.lastInsertRowid;
           accion = 'documento_subido';
@@ -5545,7 +5563,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
         const r = db.prepare(`
           INSERT INTO documentos (proveedor_id, tipo, archivo, nombre_original, hash_archivo, no_aplica)
           VALUES (?, ?, ?, ?, ?, 0)
-        `).run(proveedorId, tipo, rutaRelativa, req.file.originalname, hashOriginal);
+        `).run(proveedorId, tipo, rutaRelativa, nombreOriginalUTF8(req.file.originalname), hashOriginal);
 
         docId = r.lastInsertRowid;
         accion = 'documento_subido';
@@ -5556,7 +5574,7 @@ error: `Este proveedor ya tiene el máximo de ${maxExperiencia} certificados de 
       proveedorId,
       req.session.usuario,
       accion,
-      `Documento "${config.nombre}" subido por admin: ${req.file.originalname}`,
+      `Documento "${config.nombre}" subido por admin: ${nombreOriginalUTF8(req.file.originalname)}`,
       tipo,
       docId,
       req
@@ -6150,7 +6168,7 @@ function validarPlantillaMagica(req, res, next) {
   }
 
   const buf = req.file.buffer;
-  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  const ext = path.extname(nombreOriginalUTF8(req.file.originalname) || '').toLowerCase();
 
   const permitidas = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
 
@@ -6196,7 +6214,7 @@ app.post('/api/admin/plantilla', requiereAdmin, uploadPlantilla.single('archivo'
 
   const existente = db.prepare('SELECT archivo FROM plantillas WHERE tipo = ?').get(tipo);
 
-  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  const ext = path.extname(nombreOriginalUTF8(req.file.originalname) || '').toLowerCase();
 
   if (!['.pdf', '.doc', '.docx', '.xls', '.xlsx'].includes(ext)) {
     return res.status(400).json({ error: 'Formato no permitido' });
@@ -6209,9 +6227,9 @@ app.post('/api/admin/plantilla', requiereAdmin, uploadPlantilla.single('archivo'
     const rutaVieja = path.join(plantillasDir, existente.archivo);
     if (fs.existsSync(rutaVieja)) fs.unlinkSync(rutaVieja);
 
-    db.prepare('UPDATE plantillas SET archivo = ?, nombre_original = ? WHERE tipo = ?').run(nombreArchivo, req.file.originalname, tipo);
+    db.prepare('UPDATE plantillas SET archivo = ?, nombre_original = ? WHERE tipo = ?').run(nombreArchivo, nombreOriginalUTF8(req.file.originalname), tipo);
   } else {
-    db.prepare('INSERT INTO plantillas (tipo, archivo, nombre_original) VALUES (?, ?, ?)').run(tipo, nombreArchivo, req.file.originalname);
+    db.prepare('INSERT INTO plantillas (tipo, archivo, nombre_original) VALUES (?, ?, ?)').run(tipo, nombreArchivo, nombreOriginalUTF8(req.file.originalname));
   }
 
   fs.writeFileSync(ruta, req.file.buffer);

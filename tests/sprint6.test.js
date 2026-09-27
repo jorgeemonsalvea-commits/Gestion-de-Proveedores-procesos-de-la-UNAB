@@ -99,3 +99,27 @@ describe('Sprint 6 — cambio de email de miembro (R4.1)', () => {
     expect(res.status).toBe(409);
   });
 });
+
+describe('Sprint 6 / INC-003 — nombre de archivo UTF-8 sin mojibake', () => {
+  test('subida con nombre UTF-8 guarda el nombre correcto', async () => {
+    const prov = await agent.post('/api/admin/proveedor').send({
+      email: `prov-utf8-${Date.now()}@test.com`,
+      nombre_empresa: 'Prov UTF8',
+      razon_social: 'Prov UTF8',
+      rfc: '900111222',
+      tipo_proveedor: 'juridica'
+    });
+    expect(prov.status).toBe(200);
+    const pid = prov.body.proveedorId;
+
+    const pdf = Buffer.from('%PDF-1.4\nprueba utf8', 'latin1');
+    const res = await agent
+      .post(`/api/admin/proveedor/${pid}/documento`)
+      .attach('archivo', pdf, 'Prueba_ñ_ó.pdf')
+      .field('tipo', 'rut');
+    expect(res.status).toBe(200);
+
+    const row = db.prepare('SELECT nombre_original FROM documentos WHERE proveedor_id = ? ORDER BY id DESC LIMIT 1').get(pid);
+    expect(row.nombre_original).toBe('Prueba_ñ_ó.pdf');
+  });
+});
