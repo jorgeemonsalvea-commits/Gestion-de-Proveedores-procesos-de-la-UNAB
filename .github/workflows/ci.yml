@@ -31,5 +31,17 @@ jobs:
           node --check security.js
           node --check email.js
 
+      # [SPRINT 6] El incidente de SPRINT 5 (template literal roto en admin.js)
+      # se detectó con node --check manual: ahora es puerta de CI.
+      - name: Chequeo de sintaxis frontend
+        run: |
+          node --check public/js/utils.js
+          node --check public/js/admin.js
+          node --check public/js/proveedor.js
+
+      # [SPRINT 6] Lint real configurado (.eslintrc.json): se ejecuta en CI.
+      - name: Lint
+        run: npm run lint
+
       - name: Ejecutar tests
         run: npm run test:ci
