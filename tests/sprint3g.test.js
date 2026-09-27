@@ -110,3 +110,87 @@ describe('Sprint 3G — forzar vencimientos con dry_run', () => {
     expect(doc.es_historico).toBe(0);
   });
 });
+
+describe('Sprint 3G — confirmación fuerte de forzar vencimientos', () => {
+  async function provConDocActivo(rfc) {
+    const prov = await agent.post('/api/admin/proveedor').send({
+      email: `prov-3gb-${rfc}-${Date.now()}@test.com`,
+      nombre_empresa: 'Prov 3GB',
+      razon_social: 'Prov 3GB',
+      rfc,
+      tipo_proveedor: 'juridica'
+    });
+    expect(prov.status).toBe(200);
+    const pid = prov.body.proveedorId;
+    const na = await agent
+      .post(`/api/admin/proveedor/${pid}/documento/0/no-aplica`)
+      .send({ no_aplica: true, tipo: 'calidad' });
+    expect(na.status).toBe(200);
+    return pid;
+  }
+
+  test('sin confirmación devuelve 400 y no archiva nada', async () => {
+    const pid = await provConDocActivo('900444555');
+    const res = await agent.post('/api/admin/forzar-vencimientos').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.requiere_confirmacion).toBe(true);
+    expect(res.body.conteo.documentos).toBeGreaterThanOrEqual(1);
+    const detalle = await agent.get(`/api/admin/proveedor/${pid}`);
+    const doc = detalle.body.documentos.find(d => d.tipo === 'calidad');
+    expect(doc.es_historico).toBe(0);
+  });
+
+  test('conteo no coincidente devuelve 409 y no archiva nada', async () => {
+    const pid = await provConDocActivo('900111222');
+    const res = await agent
+      .post('/api/admin/forzar-vencimientos')
+      .send({ confirmacion: 'ARCHIVAR', documentos_esperados: 999999 });
+    expect(res.status).toBe(409);
+    expect(res.body.conteo_actual).toBeTruthy();
+    const detalle = await agent.get(`/api/admin/proveedor/${pid}`);
+    const doc = detalle.body.documentos.find(d => d.tipo === 'calidad');
+    expect(doc.es_historico).toBe(0);
+  });
+});
+
+describe('Sprint 3G — exportar-excel server-side', () => {
+  test('POST /api/admin/exportar-excel consulta en servidor con filtros', async () => {
+    // Crear proveedor de prueba
+    const prov = await agent.post('/api/admin/proveedor').send({
+      email: `prov-excel-${Date.now()}@test.com`,
+      nombre_empresa: 'Prov Excel',
+      razon_social: 'Prov Excel',
+      rfc: '900555666',
+      tipo_proveedor: 'juridica'
+    });
+    expect(prov.status).toBe(200);
+
+    // Exportar con filtros (sin enviar array)
+    const res = await agent
+      .post('/api/admin/exportar-excel')
+      .send({ estado: 'todos', busqueda: 'Prov Excel', modulo: 'registrados' });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(res.headers['content-disposition']).toContain('attachment');
+
+    // Verificar que el log de auditoría se registró
+    const logs = db.prepare(`
+      SELECT * FROM logs_seguridad
+      WHERE accion = 'exportacion_excel'
+      ORDER BY id DESC LIMIT 1
+    `).get();
+    expect(logs).toBeTruthy();
+    expect(logs.detalle).toContain('Exportó');
+    expect(logs.detalle).toContain('Prov Excel');
+  });
+
+  test('POST /api/admin/exportar-excel sin resultados devuelve 404', async () => {
+    const res = await agent
+      .post('/api/admin/exportar-excel')
+      .send({ estado: 'todos', busqueda: 'XYZNOEXISTE123456789', modulo: 'registrados' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('No hay proveedores');
+  });
+});

@@ -3209,6 +3209,35 @@ app.post('/api/admin/forzar-vencimientos', requiereAdmin, (req, res) => {
   }
 
   const conteo = conteoForzarVencimientos();
+
+  // ==========================================
+  // [SPRINT 3G-2b] HALL-025: confirmación fuerte con conteo coincidente.
+  // Sin confirmacion="ARCHIVAR" y documentos_esperados exacto, NO se archiva.
+  // ==========================================
+  const { confirmacion, documentos_esperados } = req.body || {};
+  if (confirmacion !== 'ARCHIVAR') {
+    return res.status(400).json({
+      error: 'Confirmación requerida: envía confirmacion="ARCHIVAR" junto con documentos_esperados.',
+      requiere_confirmacion: true,
+      conteo
+    });
+  }
+  const esperados = parseInt(documentos_esperados, 10);
+  if (!Number.isFinite(esperados) || esperados !== conteo.documentos) {
+    registrarLogSeguridad(
+      req.session.usuario.id,
+      req.session.usuario.email,
+      'forzar_vencimientos_rechazado',
+      false,
+      `Conteo no coincidente: declarado ${documentos_esperados}, actual ${conteo.documentos}`,
+      req
+    );
+    return res.status(409).json({
+      error: 'El conteo de documentos cambió desde tu confirmación. Operación cancelada.',
+      conteo_actual: conteo
+    });
+  }
+
   const r = arrancarVencimientos({ forzar: true });
   if (!r.ok) {
     return res.status(409).json({ error: 'Ya hay un procesamiento de vencimientos en curso.', yaEnCurso: true });
@@ -3861,101 +3890,125 @@ app.get('/api/admin/vencimientos-job', requiereAdmin, (req, res) => {
 res.json({ ...jobVencimientos });
 });
 
+// ==========================================
+// [SPRINT 3G-3] HALL-030: Helper compartido para exportación.
+// Consulta proveedores con filtros (estado, busqueda, modulo) y calcula
+// aprobados/verificados. Usado por GET /export (CSV) y POST /exportar-excel.
+// ==========================================
+function consultarProveedoresExport(filtros) {
+  const { estado, busqueda, modulo } = filtros;
+  const busquedaLike = busqueda ? `%${busqueda}%` : null;
+
+  let whereConditions = [];
+  let params = [];
+
+  if (estado && estado !== 'todos') {
+    whereConditions.push('p.estado_general = ?');
+    params.push(estado);
+  }
+
+  if (modulo && modulo !== 'registrados') {
+    let etapa = null;
+    switch (modulo) {
+      case 'verificacion': etapa = 'verificacion'; break;
+      case 'aprobacion': etapa = 'aprobacion'; break;
+      case 'inscripcion': etapa = 'inscripcion'; break;
+    }
+    if (etapa) {
+      whereConditions.push('p.etapa = ?');
+      params.push(etapa);
+    }
+  }
+
+  if (busquedaLike) {
+    whereConditions.push(`(
+      p.razon_social LIKE ? OR
+      u.nombre_empresa LIKE ? OR
+      p.rfc LIKE ? OR
+      u.email LIKE ? OR
+      p.representante LIKE ? OR
+      p.telefono LIKE ?
+    )`);
+    for (let i = 0; i < 6; i++) params.push(busquedaLike);
+  }
+
+  const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+  const query = `
+    SELECT p.*, u.email, u.nombre_empresa,
+    (SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
+    (SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
+    FROM proveedores p
+    JOIN usuarios u ON p.usuario_id = u.id
+    ${whereClause}
+    ORDER BY p.id DESC
+    LIMIT 10000
+  `;
+
+  const proveedores = db.prepare(query).all(...params);
+
+  // OPT: una sola consulta para todos los documentos del export
+  const proveedorIds = proveedores.map(p => p.id);
+  let docsPorProveedor = {};
+  if (proveedorIds.length > 0) {
+    const placeholders = proveedorIds.map(() => '?').join(',');
+    const allDocs = db.prepare(`
+      SELECT proveedor_id, tipo, estado, verificado, no_aplica
+      FROM documentos
+      WHERE proveedor_id IN (${placeholders})
+      AND es_historico = 0
+    `).all(...proveedorIds);
+    allDocs.forEach(d => {
+      if (!docsPorProveedor[d.proveedor_id]) docsPorProveedor[d.proveedor_id] = [];
+      docsPorProveedor[d.proveedor_id].push(d);
+    });
+  }
+
+  proveedores.forEach(p => {
+    const docs = docsPorProveedor[p.id] || [];
+    const agrupado = {};
+    docs.forEach(d => {
+      if (!agrupado[d.tipo]) agrupado[d.tipo] = [];
+      agrupado[d.tipo].push(d.estado);
+    });
+    const REQS = requerimientosPara(p.tipo_proveedor);
+    let aprobados = 0;
+    REQS.forEach(reqDoc => {
+      const estados = agrupado[reqDoc.tipo] || [];
+      if (estados.filter(e => e === 'aprobado').length >= reqDoc.cantidadMin) {
+        aprobados++;
+      }
+    });
+    p.aprobados = aprobados;
+    p.total = REQS.length;
+
+    let verificados = 0;
+    REQS.forEach(reqDoc => {
+      const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
+      const verificadosTipo = docsTipo.filter(d => d.verificado === 1).length;
+      const noAplica = docsTipo.some(d => d.no_aplica === 1);
+      if (reqDoc.opcional && noAplica) {
+        verificados++;
+      } else if (verificadosTipo >= reqDoc.cantidadMin) {
+        verificados++;
+      }
+    });
+    p.verificados = verificados;
+  });
+
+  return proveedores;
+}
+
 app.get('/api/admin/proveedores/export', requiereAdmin, (req, res) => {
   try {
-    const busqueda = req.query.busqueda ? `%${req.query.busqueda}%` : null;
-    const estado = req.query.estado || null;
-
-    let whereConditions = [];
-    let params = [];
-
-    if (estado && estado !== 'todos') {
-      whereConditions.push('p.estado_general = ?');
-      params.push(estado);
-    }
-
-    if (busqueda) {
-      whereConditions.push(`(
-        p.razon_social LIKE ? OR
-        u.nombre_empresa LIKE ? OR
-        p.rfc LIKE ? OR
-        u.email LIKE ? OR
-        p.representante LIKE ? OR
-        p.telefono LIKE ?
-      )`);
-
-      for (let i = 0; i < 6; i++) params.push(busqueda);
-    }
-
-    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    const query = `
-      SELECT p.*, u.email, u.nombre_empresa,
-      (SELECT COUNT(*) FROM recordatorios WHERE proveedor_id = p.id AND leido = 0) as recordatorios_pendientes,
-      (SELECT COUNT(*) FROM notas_proveedor WHERE proveedor_id = p.id) as notas_count
-      FROM proveedores p
-      JOIN usuarios u ON p.usuario_id = u.id
-      ${whereClause}
-      ORDER BY p.id DESC
-    `;
-
-const proveedores = db.prepare(query).all(...params);
-//  OPT: una sola consulta para todos los documentos del export (elimina N consultas)
-const proveedorIds = proveedores.map(p => p.id);
-let docsPorProveedor = {};
-if (proveedorIds.length > 0) {
-const placeholders = proveedorIds.map(() => '?').join(',');
-const allDocs = db.prepare(`
-SELECT proveedor_id, tipo, estado, verificado, no_aplica
-FROM documentos
-WHERE proveedor_id IN (${placeholders})
-AND es_historico = 0
-`).all(...proveedorIds);
-allDocs.forEach(d => {
-if (!docsPorProveedor[d.proveedor_id]) docsPorProveedor[d.proveedor_id] = [];
-docsPorProveedor[d.proveedor_id].push(d);
-});
-}
-proveedores.forEach(p => {
-const docs = docsPorProveedor[p.id] || [];
-const agrupado = {};
-docs.forEach(d => {
-if (!agrupado[d.tipo]) agrupado[d.tipo] = [];
-agrupado[d.tipo].push(d.estado);
-});
-const REQS = requerimientosPara(p.tipo_proveedor);
-let aprobados = 0;
-REQS.forEach(reqDoc => {
-const estados = agrupado[reqDoc.tipo] || [];
-if (estados.filter(e => e === 'aprobado').length >= reqDoc.cantidadMin) {
-aprobados++;
-}
-});
-p.aprobados = aprobados;
-p.total = REQS.length;
-//  Conteo de tipos VERIFICADOS (o no-aplica)
-let verificados = 0;
-REQS.forEach(reqDoc => {
-const docsTipo = docs.filter(d => d.tipo === reqDoc.tipo);
-const verificadosTipo = docsTipo.filter(d => d.verificado === 1).length;
-const noAplica = docsTipo.some(d => d.no_aplica === 1);
-if (reqDoc.opcional && noAplica) {
-verificados++;
-} else if (verificadosTipo >= reqDoc.cantidadMin) {
-verificados++;
-}
-});
-p.verificados = verificados;
-//  OPT: recordatorios_pendientes y notas_count ya vienen de las subqueries de la query principal
-if (p.estado_general === 'aprobado') {
-p.fecha_aprobacion = p.fecha_aprobacion || null;
-} else {
-p.fecha_aprobacion = null;
-}
-p.todos_subidos = p.todos_subidos === 1;
-p.todos_verificados = p.todos_verificados === 1;
-});
-
+    // [SPRINT 3G-3] Usa helper compartido consultarProveedoresExport.
+    // El GET solo recibe estado y busqueda (el filtro de módulo aplica al POST /exportar-excel).
+    const filtros = {
+      estado: req.query.estado || null,
+      busqueda: req.query.busqueda || null,
+      modulo: null
+    };
+    const proveedores = consultarProveedoresExport(filtros);
     res.json({ data: proveedores });
   } catch (err) {
     console.error(' Error en exportación de proveedores:', err);
@@ -6210,37 +6263,45 @@ csvEscapar(r.creado_en)
 
 app.post('/api/admin/exportar-excel', requiereAdmin, async (req, res) => {
   try {
-    const { proveedores } = req.body;
+    // ==========================================
+    // [SPRINT 3G-3] HALL-030: El servidor consulta con filtros, no confía en el cliente.
+    // ==========================================
+    const filtros = {
+      estado: req.body.estado || null,
+      busqueda: req.body.busqueda || null,
+      modulo: req.body.modulo || null
+    };
+
+    const proveedores = consultarProveedoresExport(filtros);
 
     if (!proveedores || proveedores.length === 0) {
-      return res.status(400).json({ error: 'No hay proveedores para exportar' });
+      return res.status(404).json({ error: 'No hay proveedores para exportar con los filtros actuales.' });
     }
 
     const ExcelJS = require('exceljs');
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Sistema de Proveedores';
+    workbook.creator = 'Sistema de Proveedores UNAB';
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet('Proveedores');
 
-worksheet.columns = [
-{ header: 'Razón Social', key: 'razon_social', width: 35 },
-{ header: 'NIT / RUT', key: 'nit', width: 18 },
-{ header: 'Correo', key: 'correo', width: 30 },
-{ header: 'Teléfono', key: 'telefono', width: 15 },
-{ header: 'Representante Legal', key: 'representante', width: 25 },
-{ header: 'Dirección', key: 'direccion', width: 40 },
-{ header: 'Estado', key: 'estado', width: 16 },
-{ header: 'Fecha Aprobación', key: 'fecha_aprobacion', width: 22 },
-{ header: 'Fecha Movimiento', key: 'numero_registro', width: 18 },
-{ header: 'Tipo Gestión', key: 'tipo_gestion', width: 14 },
-{ header: 'Tipo Proveedor', key: 'tipo_proveedor', width: 18 },
-{ header: 'Nota', key: 'nota', width: 40 }
-];
+    worksheet.columns = [
+      { header: 'Razón Social', key: 'razon_social', width: 35 },
+      { header: 'NIT / RUT', key: 'nit', width: 18 },
+      { header: 'Correo', key: 'correo', width: 30 },
+      { header: 'Teléfono', key: 'telefono', width: 15 },
+      { header: 'Representante Legal', key: 'representante', width: 25 },
+      { header: 'Dirección', key: 'direccion', width: 40 },
+      { header: 'Estado', key: 'estado', width: 16 },
+      { header: 'Fecha Aprobación', key: 'fecha_aprobacion', width: 22 },
+      { header: 'Fecha Movimiento', key: 'numero_registro', width: 18 },
+      { header: 'Tipo Gestión', key: 'tipo_gestion', width: 14 },
+      { header: 'Tipo Proveedor', key: 'tipo_proveedor', width: 18 },
+      { header: 'Nota', key: 'nota', width: 40 }
+    ];
 
     const headerRow = worksheet.getRow(1);
-
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.fill = {
       type: 'pattern',
@@ -6253,20 +6314,20 @@ worksheet.columns = [
     proveedores.forEach(p => {
       const fechaAprob = p.fecha_aprobacion ? formatearFechaExcel(p.fecha_aprobacion) : 'Pendiente';
 
-const row = worksheet.addRow({
-razon_social: p.razon_social || p.nombre_empresa || '',
-nit: p.rfc || '',
-correo: p.email || '',
-telefono: p.telefono || '',
-representante: p.representante || '',
-direccion: (p.direccion || '').replace(/[\n\r]+/g, ' '),
-estado: estadoLegibleServer(p),
-fecha_aprobacion: fechaAprob,
-numero_registro: p.numero_registro || '',
-tipo_gestion: p.tipo_gestion || '',
-tipo_proveedor: p.tipo_proveedor || '',
-nota: p.notas_gestion || ''
-});
+      const row = worksheet.addRow({
+        razon_social: p.razon_social || p.nombre_empresa || '',
+        nit: p.rfc || '',
+        correo: p.email || '',
+        telefono: p.telefono || '',
+        representante: p.representante || '',
+        direccion: (p.direccion || '').replace(/[\n\r]+/g, ' '),
+        estado: estadoLegibleServer(p),
+        fecha_aprobacion: fechaAprob,
+        numero_registro: p.numero_registro || '',
+        tipo_gestion: p.tipo_gestion || '',
+        tipo_proveedor: p.tipo_proveedor || '',
+        nota: p.notas_gestion || ''
+      });
 
       row.eachCell(cell => {
         cell.border = {
@@ -6275,20 +6336,29 @@ nota: p.notas_gestion || ''
           bottom: { style: 'thin' },
           right: { style: 'thin' }
         };
-
         cell.alignment = { vertical: 'middle', wrapText: true };
       });
 
-const estadoCell = row.getCell('estado');
-const estadoTexto = estadoLegibleServer(p);
-if (estadoTexto === 'Registrado') {
-estadoCell.font = { bold: true, color: { argb: 'FF059669' } };
-} else if (estadoTexto === 'Rechazado') {
-estadoCell.font = { bold: true, color: { argb: 'FFDC2626' } };
-} else {
-estadoCell.font = { bold: true, color: { argb: 'FFD97706' } };
-}
-});
+      const estadoCell = row.getCell('estado');
+      const estadoTexto = estadoLegibleServer(p);
+      if (estadoTexto === 'Registrado') {
+        estadoCell.font = { bold: true, color: { argb: 'FF059669' } };
+      } else if (estadoTexto === 'Rechazado') {
+        estadoCell.font = { bold: true, color: { argb: 'FFDC2626' } };
+      } else {
+        estadoCell.font = { bold: true, color: { argb: 'FFD97706' } };
+      }
+    });
+
+    // [SPRINT 3G-3] Log de auditoría: quién exportó, cuántos registros, qué filtros.
+    registrarLogSeguridad(
+      req.session.usuario.id,
+      req.session.usuario.email,
+      'exportacion_excel',
+      true,
+      `Exportó ${proveedores.length} proveedor(es) · filtros: estado=${filtros.estado || 'todos'}, busqueda="${filtros.busqueda || ''}", modulo=${filtros.modulo || 'registrados'}`,
+      req
+    );
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=proveedores_${fechaArchivo()}.xlsx`);

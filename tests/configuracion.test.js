@@ -116,8 +116,11 @@ describe('⚙️ Configuración y vencimientos', () => {
     expect(doc.fecha_vencimiento).toBeTruthy();
   });
 
-  test('forzar vencimientos archiva todos los activos', async () => {
-    const res = await agent.post('/api/admin/forzar-vencimientos');
+  test('forzar vencimientos archiva todos los activos (con confirmación fuerte)', async () => {
+    // [SPRINT 3G-2b] La ejecución ahora exige confirmacion + conteo coincidente.
+    const activos = db.prepare(`SELECT COUNT(*) AS c FROM documentos WHERE es_historico = 0`).get().c;
+    const res = await agent.post('/api/admin/forzar-vencimientos')
+      .send({ confirmacion: 'ARCHIVAR', documentos_esperados: activos });
     expect([200, 202]).toContain(res.status);
     const doc = db.prepare('SELECT es_historico FROM documentos WHERE id = ?').get(docForzar);
     expect(doc.es_historico).toBe(1);

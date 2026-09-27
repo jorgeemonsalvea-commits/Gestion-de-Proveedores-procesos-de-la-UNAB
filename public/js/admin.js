@@ -2816,8 +2816,77 @@ async function ejecutarVencimientosAhora() {
     await lanzarJobVencimientos('/api/admin/ejecutar-vencimientos', 'Procesamiento de vencimientos');
 }
 async function forzarVencimientosAhora() {
-    if (!await confirmarSwal({ titulo: ' Reiniciar proceso', texto: 'Se eliminará la evaluación actual y los documentos volverán a pendiente.', icono: 'question', peligro: false, textoConfirmar: 'Sí, reiniciar' })) return;
-    await lanzarJobVencimientos('/api/admin/forzar-vencimientos', 'Vencimiento forzado');
+    // ==========================================
+    // [SPRINT 3G-2b] HALL-025: primero mide el impacto (dry_run, no archiva),
+    // luego exige confirmación fuerte escribiendo la palabra ARCHIVAR.
+    // El servidor valida que el conteo no haya cambiado entre el dry_run y la ejecución.
+    // ==========================================
+    let conteo;
+    try {
+        const r = await fetchAPI('/api/admin/forzar-vencimientos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dry_run: true })
+        });
+        if (!r.ok) {
+            const e = await r.json().catch(() => ({}));
+            mostrarAlerta(' ' + (e.error || 'Error al calcular el impacto.'), 'error');
+            return;
+        }
+        conteo = await r.json();
+    } catch (err) {
+        console.error('Error consultando impacto de vencimientos:', err);
+        mostrarAlerta(' Error de conexión', 'error');
+        return;
+    }
+
+    const swalRes = await Swal.fire({
+        title: ' Reiniciar proceso (vencimiento forzado)',
+        html:
+            `Esta acción es <b>destructiva</b> e irreversible.<br><br>` +
+            `Se archivarán <b style="color:#dc2626;font-size:1.1rem;">${conteo.documentos}</b> documento(s) ` +
+            `de <b>${conteo.proveedores}</b> proveedor(es).<br>` +
+            `Se eliminará la evaluación actual de <b>${conteo.evaluaciones_activas}</b> proveedor(es) ` +
+            `y volverán a pendiente.<br><br>` +
+            `Para confirmar, escribe exactamente: <b style="background:#fee2e2;padding:2px 8px;border-radius:3px;">ARCHIVAR</b>`,
+        input: 'text',
+        inputPlaceholder: 'ARCHIVAR',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, archivar todo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc2626',
+        inputValidator: (v) => {
+            if (!v || v.trim() !== 'ARCHIVAR') return 'Debes escribir exactamente ARCHIVAR para confirmar.';
+            return undefined;
+        }
+    });
+    if (!swalRes.isConfirmed) return;
+
+    try {
+        const res = await fetchAPI('/api/admin/forzar-vencimientos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: 'ARCHIVAR', documentos_esperados: conteo.documentos })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+            mostrarAlerta(' ' + (data.error || 'El conteo cambió desde tu confirmación; operación cancelada.'), 'warning');
+            return;
+        }
+        if (res.status === 400) {
+            mostrarAlerta(' ' + (data.error || 'Confirmación inválida.'), 'error');
+            return;
+        }
+        if (!res.ok) {
+            mostrarAlerta(' ' + (data.error || 'Error al iniciar el proceso.'), 'error');
+            return;
+        }
+        await pollJobVencimientos('Vencimiento forzado');
+    } catch (err) {
+        console.error('Error lanzando job de vencimientos:', err);
+        mostrarAlerta(' Error de conexión', 'error');
+    }
 }
 
 async function guardarConfiguracion() {
@@ -4015,31 +4084,31 @@ mostrarAlerta(' Error al exportar: ' + err.message);
 // ==========================================
 async function exportarExcel() {
 try {
+// ==========================================
+// [SPRINT 3G-3] HALL-030: El servidor consulta con filtros, no enviamos el array.
+// ==========================================
 const busqueda = document.getElementById('buscador')?.value?.trim() || '';
 const estado = filtroEstadoActual || 'todos';
-let url = `/api/admin/proveedores/export?estado=${estado}&modulo=${moduloActual}`;
-if (busqueda) url += `&busqueda=${encodeURIComponent(busqueda)}`;
-const response = await fetchAPI(url);
-if (!response.ok) {
-const err = await response.json();
-throw new Error(err.error || 'Error al exportar');
-}
-const result = await response.json();
-const proveedores = result.data || [];
-if (!proveedores.length) { mostrarAlerta('No hay proveedores para exportar con los filtros actuales', 'info'); return; }
 
 const res = await fetchAPI('/api/admin/exportar-excel', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ proveedores })
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ estado, busqueda, modulo: moduloActual })
 });
-if (!res.ok) {
-const err = await res.json();
-throw new Error(err.error || 'Error al generar Excel');
+
+if (res.status === 404) {
+  mostrarAlerta('No hay proveedores para exportar con los filtros actuales', 'info');
+  return;
 }
+
+if (!res.ok) {
+  const err = await res.json();
+  throw new Error(err.error || 'Error al generar Excel');
+}
+
 const blob = await res.blob();
 descargarBlob(blob, `proveedores_${fechaArchivo()}.xlsx`);
-mostrarAlerta(` Excel exportado (${proveedores.length} proveedores)`, 'success');
+mostrarAlerta(` Excel exportado correctamente`, 'success');
 } catch (err) {
 console.error('Error exportando Excel:', err);
 mostrarAlerta(' Error al exportar: ' + err.message);
