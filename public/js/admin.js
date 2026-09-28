@@ -393,8 +393,9 @@ function mostrarNotificacion(mensaje, tipo = 'info', duracion = 4500) {
     if (!container) return;
     const notif = document.createElement('div');
     notif.className = `notification notification-${tipo}`;
-    // [SPRINT 5] Escapado defensivo en contenido HTML
-notif.innerHTML = `<span class="notification-content">${escapeHtml(mensaje)}</span>`;
+    // [INC-003] El llamador ya escapa el dato de servidor y puede incluir
+    // el icono SVG crudo; escapar aqui neutraliza el icono.
+    notif.innerHTML = `<span class="notification-content">${mensaje}</span>`;
     container.appendChild(notif);
     setTimeout(() => notif.remove(), duracion);
 }
@@ -3808,7 +3809,7 @@ return `
 <div class="historial-item">
 <div class="historial-icono ${clases[h.accion] || 'datos'}">${iconos[h.accion] || ico('pin')}</div>
 <div class="historial-contenido">
-<div class="detalle">${escapeHtml(h.detalle)}</div>
+<div class="detalle">${h.detalle}</div>
 <div class="meta"><span>${ico('clock')} ${formatearFecha(h.creado_en)}</span><span class="usuario"> ${escapeHtml(h.usuario_nombre)}</span></div>
 </div>
 </div>
@@ -3829,7 +3830,7 @@ cont.innerHTML = recs.map(r => `
 <div class="historial-item">
 <div class="historial-icono recordatorio">${ico('send')}</div>
 <div class="historial-contenido">
-<div class="detalle">${escapeHtml(r.detalle.replace('Recordatorio enviado: ', ''))}</div>
+<div class="detalle">${r.detalle.replace('Recordatorio enviado: ', '')}</div>
 <div class="meta"><span>${ico('clock')} ${formatearFecha(r.creado_en)}</span></div>
 </div>
 </div>
@@ -4739,7 +4740,7 @@ ${registros.map(r => `
 <td style="padding:0.45rem;font-size:0.8rem;white-space:nowrap;">${formatearFecha(r.creado_en)}</td>
 <td style="padding:0.45rem;font-weight:600;">${escapeHtml(r.usuario_nombre || 'Sistema')}</td>
 <td style="padding:0.45rem;">${iconosAccion[r.accion] || ico('pin')} ${escapeHtml(r.accion)}</td>
-<td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.detalle || '')}</td>
+<td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${r.detalle || ''}</td>
 <td style="padding:0.45rem;">${escapeHtml(r.razon_social || r.proveedor_email || '—')}</td>
 <td style="padding:0.45rem;text-align:center;font-family:monospace;font-size:0.75rem;">${escapeHtml(r.ip_origen || '—')}</td>
 </tr>`).join('')}
@@ -4857,7 +4858,7 @@ ${registros.map(r => `
 <td style="padding:0.45rem;font-weight:600;">${escapeHtml(r.email || '—')}</td>
 <td style="padding:0.45rem;">${escapeHtml(r.accion)}</td>
 <td style="padding:0.45rem;text-align:center;">${r.exitoso ? '<span class="badge badge-aprobado">' + ico('check') + ' Exitoso</span>' : '<span class="badge badge-rechazado">' + ico('x') + ' Fallido</span>'}</td>
-<td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.detalle || '')}</td>
+<td style="padding:0.45rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${r.detalle || ''}</td>
 <td style="padding:0.45rem;text-align:center;font-family:monospace;font-size:0.75rem;">${escapeHtml(r.ip_origen || '—')}</td>
 </tr>`).join('')}
 </tbody>
